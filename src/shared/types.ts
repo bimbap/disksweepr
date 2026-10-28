@@ -101,6 +101,7 @@ export type NavModule = 'system' | 'large_files' | 'duplicates' | 'dev_projects'
 
 export type FastSearchFileType = 'all' | 'documents' | 'images' | 'media' | 'archives' | 'executables' | 'code';
 export type FastSearchSizeFilter = 'all' | 'tiny' | 'small' | 'medium' | 'large' | 'custom';
+export type FastSearchTargetKind = 'all' | 'files' | 'folders';
 
 export interface FastSearchItem {
   id: string;
@@ -120,6 +121,7 @@ export interface FastSearchOptions {
   customPath?: string;
   scanAllDrives?: boolean;
   fileType?: FastSearchFileType;
+  targetKind?: FastSearchTargetKind;
   sizeFilter?: FastSearchSizeFilter;
   minSizeBytes?: number;
   maxSizeBytes?: number;

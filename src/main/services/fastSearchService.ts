@@ -1,14 +1,14 @@
 import fs from 'fs';
 import path from 'path';
-import { shell } from 'electron';
-import {
+import type {
   FastSearchFileType,
   FastSearchItem,
   FastSearchOptions,
   FastSearchProgress,
   FastSearchSizeFilter,
-} from '../../shared/types';
-import { getDriveTelemetry } from './telemetryService';
+  FastSearchTargetKind,
+} from '../../shared/types.ts';
+import { getDriveTelemetry } from './telemetryService.ts';
 
 const PROTECTED_SYSTEM_DIRS = new Set([
   '$recycle.bin',
@@ -69,6 +69,7 @@ export class FastSearchService {
     const matchCase = !!options.matchCase;
     const includeHidden = !!options.includeHidden;
     const fileType = options.fileType || 'all';
+    const targetKind: FastSearchTargetKind = options.targetKind || 'all';
     const sizeFilter = options.sizeFilter || 'all';
 
     // Build matcher
@@ -188,6 +189,11 @@ export class FastSearchService {
         if (entry.isFile()) {
           scannedFilesCount++;
 
+          // If user only wants folders, skip files immediately
+          if (targetKind === 'folders') {
+            continue;
+          }
+
           // 1. Check Name Match FIRST (In-memory, zero stat calls!)
           let nameMatches = false;
           if (!query) {
@@ -238,10 +244,12 @@ export class FastSearchService {
         } else if (entry.isDirectory()) {
           scannedFilesCount++;
 
-          // Check if folder name matches query when fileType is 'all'
-          if (fileType === 'all' && query) {
+          // Check if folder name matches query when targetKind !== 'files'
+          if (targetKind !== 'files' && (fileType === 'all' || targetKind === 'folders')) {
             let folderMatches = false;
-            if (regexMatcher) {
+            if (!query) {
+              folderMatches = targetKind === 'folders';
+            } else if (regexMatcher) {
               folderMatches = regexMatcher.test(entryName);
             } else if (matchCase) {
               folderMatches = entryName.includes(query);
@@ -390,20 +398,26 @@ export class FastSearchService {
   public async deleteFile(filePath: string): Promise<boolean> {
     try {
       if (!fs.existsSync(filePath)) return false;
-      await shell.trashItem(filePath);
+      try {
+        const electron = await import('electron');
+        const shell = electron.shell || (electron as any).default?.shell;
+        if (shell?.trashItem) {
+          await shell.trashItem(filePath);
+          return true;
+        }
+      } catch {
+        // Fall back to direct fs deletion if electron shell is unavailable
+      }
+
+      const stat = await fs.promises.stat(filePath);
+      if (stat.isDirectory()) {
+        await fs.promises.rm(filePath, { recursive: true, force: true });
+      } else {
+        await fs.promises.unlink(filePath);
+      }
       return true;
     } catch {
-      try {
-        const stat = await fs.promises.stat(filePath);
-        if (stat.isDirectory()) {
-          await fs.promises.rm(filePath, { recursive: true, force: true });
-        } else {
-          await fs.promises.unlink(filePath);
-        }
-        return true;
-      } catch {
-        return false;
-      }
+      return false;
     }
   }
 }

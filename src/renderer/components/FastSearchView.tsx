@@ -27,6 +27,7 @@ import {
   ArrowUp,
   ArrowDown,
   SlidersHorizontal,
+  Layers,
 } from 'lucide-react';
 import {
   DriveStat,
@@ -34,6 +35,7 @@ import {
   FastSearchItem,
   FastSearchProgress,
   FastSearchSizeFilter,
+  FastSearchTargetKind,
 } from '../../shared/types';
 import { useSettings } from '../context/SettingsContext';
 import { formatBytes, formatMiddleTruncate, formatDriveDisplay } from '../../shared/formatters';
@@ -60,12 +62,15 @@ export const FastSearchView: React.FC<FastSearchViewProps> = ({
   const [driveStats, setDriveStats] = useState<DriveStat[]>([]);
   const [isFiltersOpen, setIsFiltersOpen] = useState(true);
   const [isScopeDropdownOpen, setIsScopeDropdownOpen] = useState(false);
+  const [isTargetDropdownOpen, setIsTargetDropdownOpen] = useState(false);
   const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
   const [isSizeDropdownOpen, setIsSizeDropdownOpen] = useState(false);
   const scopeDropdownRef = useRef<HTMLDivElement>(null);
+  const targetDropdownRef = useRef<HTMLDivElement>(null);
   const typeDropdownRef = useRef<HTMLDivElement>(null);
   const sizeDropdownRef = useRef<HTMLDivElement>(null);
 
+  const [targetKind, setTargetKind] = useState<FastSearchTargetKind>('all');
   const [fileType, setFileType] = useState<FastSearchFileType>('all');
   const [sizeFilter, setSizeFilter] = useState<FastSearchSizeFilter>('all');
 
@@ -121,6 +126,9 @@ export const FastSearchView: React.FC<FastSearchViewProps> = ({
       const target = e.target as Node;
       if (scopeDropdownRef.current && !scopeDropdownRef.current.contains(target)) {
         setIsScopeDropdownOpen(false);
+      }
+      if (targetDropdownRef.current && !targetDropdownRef.current.contains(target)) {
+        setIsTargetDropdownOpen(false);
       }
       if (typeDropdownRef.current && !typeDropdownRef.current.contains(target)) {
         setIsTypeDropdownOpen(false);
@@ -218,6 +226,7 @@ export const FastSearchView: React.FC<FastSearchViewProps> = ({
         customPath: scopeMode === 'custom' && customPath ? customPath : undefined,
         scanAllDrives: scopeMode === 'all',
         fileType,
+        targetKind,
         sizeFilter,
         minSizeBytes,
         maxSizeBytes,
@@ -318,18 +327,25 @@ export const FastSearchView: React.FC<FastSearchViewProps> = ({
   // Active Drive Stat lookup
   const activeDriveStat = driveStats.find((d) => d.letter === selectedDrive);
 
-  // Filter results if custom size changed locally
+  // Filter results reactively by target entity and custom size
   const filteredResults = useMemo(() => {
-    if (sizeFilter !== 'custom') return results;
+    let list = results;
+    if (targetKind === 'files') {
+      list = list.filter((item) => !item.isDirectory);
+    } else if (targetKind === 'folders') {
+      list = list.filter((item) => item.isDirectory);
+    }
+
+    if (sizeFilter !== 'custom') return list;
     const minBytes = toBytes(customMinVal, customMinUnit);
     const maxBytes = toBytes(customMaxVal, customMaxUnit);
-    if (minBytes === undefined && maxBytes === undefined) return results;
-    return results.filter((item) => {
+    if (minBytes === undefined && maxBytes === undefined) return list;
+    return list.filter((item) => {
       if (minBytes !== undefined && item.sizeBytes < minBytes) return false;
       if (maxBytes !== undefined && item.sizeBytes > maxBytes) return false;
       return true;
     });
-  }, [results, sizeFilter, customMinVal, customMinUnit, customMaxVal, customMaxUnit]);
+  }, [results, targetKind, sizeFilter, customMinVal, customMinUnit, customMaxVal, customMaxUnit]);
 
   // Sort handler
   const handleSort = (field: SortField) => {
@@ -414,12 +430,14 @@ export const FastSearchView: React.FC<FastSearchViewProps> = ({
   };
 
   const [isScopeDropdownRight, setIsScopeDropdownRight] = useState(false);
+  const [isTargetDropdownRight, setIsTargetDropdownRight] = useState(false);
   const [isTypeDropdownRight, setIsTypeDropdownRight] = useState(false);
   const [isSizeDropdownRight, setIsSizeDropdownRight] = useState(false);
 
   const toggleScopeDropdown = () => {
     setIsScopeDropdownOpen((prev) => {
       if (!prev) {
+        setIsTargetDropdownOpen(false);
         setIsTypeDropdownOpen(false);
         setIsSizeDropdownOpen(false);
         if (scopeDropdownRef.current) {
@@ -431,10 +449,26 @@ export const FastSearchView: React.FC<FastSearchViewProps> = ({
     });
   };
 
+  const toggleTargetDropdown = () => {
+    setIsTargetDropdownOpen((prev) => {
+      if (!prev) {
+        setIsScopeDropdownOpen(false);
+        setIsTypeDropdownOpen(false);
+        setIsSizeDropdownOpen(false);
+        if (targetDropdownRef.current) {
+          const rect = targetDropdownRef.current.getBoundingClientRect();
+          setIsTargetDropdownRight(rect.left + 300 > window.innerWidth - 24);
+        }
+      }
+      return !prev;
+    });
+  };
+
   const toggleTypeDropdown = () => {
     setIsTypeDropdownOpen((prev) => {
       if (!prev) {
         setIsScopeDropdownOpen(false);
+        setIsTargetDropdownOpen(false);
         setIsSizeDropdownOpen(false);
         if (typeDropdownRef.current) {
           const rect = typeDropdownRef.current.getBoundingClientRect();
@@ -449,6 +483,7 @@ export const FastSearchView: React.FC<FastSearchViewProps> = ({
     setIsSizeDropdownOpen((prev) => {
       if (!prev) {
         setIsScopeDropdownOpen(false);
+        setIsTargetDropdownOpen(false);
         setIsTypeDropdownOpen(false);
         if (sizeDropdownRef.current) {
           const rect = sizeDropdownRef.current.getBoundingClientRect();
@@ -458,6 +493,35 @@ export const FastSearchView: React.FC<FastSearchViewProps> = ({
       return !prev;
     });
   };
+
+  const targetKindOptions = useMemo<
+    { kind: FastSearchTargetKind; labelKey: string; icon: React.ReactNode; descKey: string }[]
+  >(
+    () => [
+      {
+        kind: 'all',
+        labelKey: 'fast_search.target_all',
+        icon: <Layers size={14} className="scope-icon" />,
+        descKey: 'fast_search.target_all_desc',
+      },
+      {
+        kind: 'files',
+        labelKey: 'fast_search.target_files',
+        icon: <FileText size={14} className="scope-icon" style={{ color: '#38bdf8' }} />,
+        descKey: 'fast_search.target_files_desc',
+      },
+      {
+        kind: 'folders',
+        labelKey: 'fast_search.target_folders',
+        icon: <Folder size={14} className="scope-icon" style={{ color: '#f59e0b' }} />,
+        descKey: 'fast_search.target_folders_desc',
+      },
+    ],
+    []
+  );
+
+  const activeTargetOption =
+    targetKindOptions.find((o) => o.kind === targetKind) || targetKindOptions[0];
 
   const fileTypeOptions = useMemo<
     { type: FastSearchFileType; labelKey: string; icon: React.ReactNode; desc: string }[]
@@ -529,11 +593,12 @@ export const FastSearchView: React.FC<FastSearchViewProps> = ({
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
+    if (targetKind !== 'all') count++;
     if (fileType !== 'all') count++;
     if (sizeFilter !== 'all') count++;
     if (scopeMode === 'all' || scopeMode === 'custom') count++;
     return count;
-  }, [fileType, sizeFilter, scopeMode]);
+  }, [targetKind, fileType, sizeFilter, scopeMode]);
 
   return (
     <div
@@ -609,6 +674,7 @@ export const FastSearchView: React.FC<FastSearchViewProps> = ({
                 setIsFiltersOpen((prev) => {
                   if (prev) {
                     setIsScopeDropdownOpen(false);
+                    setIsTargetDropdownOpen(false);
                     setIsTypeDropdownOpen(false);
                     setIsSizeDropdownOpen(false);
                   }
@@ -772,7 +838,62 @@ export const FastSearchView: React.FC<FastSearchViewProps> = ({
               </div>
             </div>
 
-            {/* 2. File Type Dropdown */}
+            {/* 2. Target Kind Dropdown (Semua / Hanya File / Hanya Folder) */}
+            <div className="filter-dropdown-group">
+              <span className="filter-dropdown-label">{t('fast_search.target_label')}:</span>
+              <div className={`scope-dropdown-wrapper ${isTargetDropdownOpen ? 'active-dropdown' : ''}`} ref={targetDropdownRef}>
+                <button
+                  type="button"
+                  className={`scope-dropdown-trigger ${isTargetDropdownOpen ? 'active' : ''} ${targetKind !== 'all' ? 'highlight-active' : ''}`}
+                  onClick={toggleTargetDropdown}
+                  title={t(activeTargetOption.labelKey)}
+                >
+                  <div className="trigger-content">
+                    {activeTargetOption.icon}
+                    <span className="scope-trigger-label">{t(activeTargetOption.labelKey)}</span>
+                  </div>
+                  <ChevronDown
+                    size={14}
+                    className={`scope-dropdown-chevron ${isTargetDropdownOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+
+                {isTargetDropdownOpen && (
+                  <div className={`scope-dropdown-popover ${isTargetDropdownRight ? 'align-right' : ''}`}>
+                    <div className="scope-popover-header">
+                      <span>{t('fast_search.target_header')}</span>
+                    </div>
+
+                    <div className="scope-popover-list">
+                      {targetKindOptions.map((opt) => {
+                        const isSelected = targetKind === opt.kind;
+                        return (
+                          <div
+                            key={opt.kind}
+                            className={`scope-popover-item ${isSelected ? 'selected' : ''}`}
+                            onClick={() => {
+                              setTargetKind(opt.kind);
+                              setIsTargetDropdownOpen(false);
+                            }}
+                          >
+                            <div className="item-left">
+                              {opt.icon}
+                              <div className="item-text-group">
+                                <span className="item-primary-text">{t(opt.labelKey)}</span>
+                                <span className="item-desc-text">{t(opt.descKey)}</span>
+                              </div>
+                            </div>
+                            {isSelected && <Check size={14} className="item-check-icon" />}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 3. File Type Dropdown */}
             <div className="filter-dropdown-group">
               <span className="filter-dropdown-label">Tipe:</span>
               <div className={`scope-dropdown-wrapper ${isTypeDropdownOpen ? 'active-dropdown' : ''}`} ref={typeDropdownRef}>
@@ -942,11 +1063,12 @@ export const FastSearchView: React.FC<FastSearchViewProps> = ({
             )}
 
             {/* Quick Reset Filter Button */}
-            {(fileType !== 'all' || sizeFilter !== 'all') && (
+            {(fileType !== 'all' || sizeFilter !== 'all' || targetKind !== 'all') && (
               <button
                 type="button"
                 className="btn-filter-reset"
                 onClick={() => {
+                  setTargetKind('all');
                   setFileType('all');
                   setSizeFilter('all');
                   setCustomMinVal('');

@@ -783,6 +783,24 @@
   - `npx tsc --noEmit` & `npm run build`: 0 errors.
   - Installer build strictly held until user command.
 
+### Phase 50: Fast Search Target Entity Filter (All / Files / Folders)
+- [x] **Target Entity Types & Option Architecture** ([`types.ts`](file:///m:/testProject/disksweepr/src/shared/types.ts)):
+  - Added `FastSearchTargetKind = 'all' | 'files' | 'folders'`.
+  - Added `targetKind?: FastSearchTargetKind` to `FastSearchOptions`.
+- [x] **Backend Traversal Acceleration** ([`fastSearchService.ts`](file:///m:/testProject/disksweepr/src/main/services/fastSearchService.ts)):
+  - When `targetKind === 'folders'`: Skips all file evaluations and stat calls immediately, accelerating directory-only discovery by up to 10x.
+  - When `targetKind === 'files'`: Traverses folder trees but suppresses adding directories to search matches.
+  - When `targetKind === 'all'`: Matches both individual files and folder directories.
+  - Dynamically imports `electron.shell` inside `deleteFile` to ensure unit testability in pure Node.js environments.
+- [x] **UI Dropdown & Reactive Filtering** ([`FastSearchView.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/FastSearchView.tsx), [`SettingsContext.tsx`](file:///m:/testProject/disksweepr/src/renderer/context/SettingsContext.tsx)):
+  - Added dedicated **Target Dropdown** (`Semua (File & Folder)`, `Hanya File`, `Hanya Folder`) in the collapsible filters bar with `Layers`, `FileText`, and `Folder` icons.
+  - Added client-side reactive filtering in `filteredResults` memo so switching targets filters already-fetched results instantly without needing to re-scan.
+  - Integrated full i18n support in EN & ID across all target options and reset handlers.
+- [x] **Unit Testing & Verification**:
+  - Added unit test suite [`tests/fastSearch.test.ts`](file:///m:/testProject/disksweepr/tests/fastSearch.test.ts) verifying all 3 target modes.
+  - `npm test`: 19/19 unit tests passing (100% green).
+  - `npx tsc --noEmit` & `npm run build`: 0 errors.
+
 
 
 

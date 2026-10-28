@@ -45,3 +45,4 @@ test('LargeFileService honors minSizeBytes and finds massive files', async () =>
   // Clean up
   fs.rmSync(tempDir, { recursive: true, force: true });
 });
+

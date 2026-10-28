@@ -395,6 +395,14 @@ const translations: Record<Language, Record<string, string>> = {
     'fast_search.traversing_tree': 'Traversing directory tree in parallel...',
     'fast_search.try_broadening': 'Try broadening your query, changing the type filter, or switching target scope.',
     'fast_search.suggestions': 'Suggestions:',
+    'fast_search.target_label': 'Target',
+    'fast_search.target_header': 'SEARCH TARGET',
+    'fast_search.target_all': 'All (Files & Folders)',
+    'fast_search.target_all_desc': 'Search both files and folders',
+    'fast_search.target_files': 'Files Only',
+    'fast_search.target_files_desc': 'Match individual files only',
+    'fast_search.target_folders': 'Folders Only',
+    'fast_search.target_folders_desc': 'Match folder directories only',
 
     // Duplicate Files Hunter
     'duplicates.title': 'Duplicate Files Hunter',
@@ -852,6 +860,14 @@ const translations: Record<Language, Record<string, string>> = {
     'fast_search.traversing_tree': 'Menelusuri direktori secara paralel...',
     'fast_search.try_broadening': 'Coba perluas kata kunci, ubah filter tipe berkas, atau ganti target pencarian.',
     'fast_search.suggestions': 'Saran:',
+    'fast_search.target_label': 'Target',
+    'fast_search.target_header': 'TARGET ENTITAS',
+    'fast_search.target_all': 'Semua (File & Folder)',
+    'fast_search.target_all_desc': 'Cari berkas dan direktori',
+    'fast_search.target_files': 'Hanya File',
+    'fast_search.target_files_desc': 'Khusus mencari berkas/file saja',
+    'fast_search.target_folders': 'Hanya Folder',
+    'fast_search.target_folders_desc': 'Khusus mencari direktori/folder saja',
 
     // Duplicate Files Hunter
     'duplicates.title': 'Pemburu File Duplikat',
