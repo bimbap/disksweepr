@@ -8355,6 +8355,69 @@ body.theme-light .toggle-switch {
   background: var(--bg-surface-elevated);
 }
 
+.all-copies-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--status-danger);
+  background: var(--status-danger-bg);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
+  font-weight: 500;
+}
+
+.group-quick-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-group-action {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-group-action:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.file-status-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.file-status-badge.keep {
+  background: var(--status-safe-bg);
+  color: var(--status-safe);
+}
+
+.file-status-badge.delete {
+  background: var(--status-danger-bg);
+  color: var(--status-danger);
+}
+
+.oldest-tag {
+  font-size: 10px;
+  background: rgba(148, 163, 184, 0.15);
+  color: var(--text-secondary);
+  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+  text-transform: uppercase;
+}
+
 /* Empty State */
 .empty-state-card {
   display: flex;

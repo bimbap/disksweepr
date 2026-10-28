@@ -10,6 +10,8 @@ import {
   HardDrive,
   Folder,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   X,
   CheckCircle2,
   AlertTriangle,
@@ -39,6 +41,7 @@ export const DuplicateHunterView: React.FC<DuplicateHunterViewProps> = ({
   const [driveStats, setDriveStats] = useState<DriveStat[]>([]);
   const [customFolderPath, setCustomFolderPath] = useState<string>('');
   const [isScopeDropdownOpen, setIsScopeDropdownOpen] = useState<boolean>(false);
+  const [isScopeDropdownRight, setIsScopeDropdownRight] = useState<boolean>(false);
   const scopeDropdownRef = useRef<HTMLDivElement>(null);
 
   // Filter & Scan state
@@ -50,6 +53,8 @@ export const DuplicateHunterView: React.FC<DuplicateHunterViewProps> = ({
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const GROUPS_PER_PAGE = 20;
   const [useTrash, setUseTrash] = useState(true);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -97,6 +102,16 @@ export const DuplicateHunterView: React.FC<DuplicateHunterViewProps> = ({
     if (scanScope === 'all') return 'C:\\'; // Starts on C:
     return `${selectedDrive}\\`;
   })();
+
+  const toggleScopeDropdown = () => {
+    setIsScopeDropdownOpen((prev) => {
+      if (!prev && scopeDropdownRef.current) {
+        const rect = scopeDropdownRef.current.getBoundingClientRect();
+        setIsScopeDropdownRight(rect.left + 300 > window.innerWidth - 24);
+      }
+      return !prev;
+    });
+  };
 
   const handleSelectFolder = async () => {
     try {
@@ -169,10 +184,12 @@ export const DuplicateHunterView: React.FC<DuplicateHunterViewProps> = ({
     setGroups([]);
     setSelectedPaths(new Set());
     setHasScanned(false);
+    setCurrentPage(1);
 
     try {
       const result = await window.cleanerApi?.scanDuplicates({
-        targetPath: resolvedTargetPath,
+        scanAllDrives: scanScope === 'all',
+        targetPath: scanScope === 'all' ? undefined : resolvedTargetPath,
         minSizeBytes: minSizeMB * 1024 * 1024,
       });
 
@@ -211,6 +228,29 @@ export const DuplicateHunterView: React.FC<DuplicateHunterViewProps> = ({
       } else {
         next.add(filePath);
       }
+      return next;
+    });
+  };
+
+  const handleSelectGroupExceptNewest = (group: DuplicateGroup) => {
+    setSelectedPaths((prev) => {
+      const next = new Set(prev);
+      next.delete(group.files[0].path);
+      for (let i = 1; i < group.files.length; i++) {
+        next.add(group.files[i].path);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectGroupExceptOldest = (group: DuplicateGroup) => {
+    setSelectedPaths((prev) => {
+      const next = new Set(prev);
+      const lastIdx = group.files.length - 1;
+      for (let i = 0; i < lastIdx; i++) {
+        next.add(group.files[i].path);
+      }
+      next.delete(group.files[lastIdx].path);
       return next;
     });
   };
@@ -291,6 +331,13 @@ export const DuplicateHunterView: React.FC<DuplicateHunterViewProps> = ({
     return g.files.some((f) => f.name.toLowerCase().includes(q) || f.path.toLowerCase().includes(q));
   });
 
+  const totalPages = Math.max(1, Math.ceil(filteredGroups.length / GROUPS_PER_PAGE));
+  const validCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedGroups = filteredGroups.slice(
+    (validCurrentPage - 1) * GROUPS_PER_PAGE,
+    validCurrentPage * GROUPS_PER_PAGE
+  );
+
   return (
     <div
       className={`module-view-container ${isDragOver ? 'drag-over-active' : ''}`}
@@ -351,7 +398,7 @@ export const DuplicateHunterView: React.FC<DuplicateHunterViewProps> = ({
             <button
               type="button"
               className={`scope-dropdown-trigger ${isScopeDropdownOpen ? 'active' : ''}`}
-              onClick={() => setIsScopeDropdownOpen((prev) => !prev)}
+              onClick={toggleScopeDropdown}
               title={
                 scanScope === 'custom' && customFolderPath
                   ? customFolderPath
@@ -391,7 +438,7 @@ export const DuplicateHunterView: React.FC<DuplicateHunterViewProps> = ({
             </button>
 
             {isScopeDropdownOpen && (
-              <div className="scope-dropdown-popover">
+              <div className={`scope-dropdown-popover ${isScopeDropdownRight ? 'align-right' : ''}`}>
                 <div className="scope-popover-header">
                   <span>{t('large_files.target_scope')}</span>
                 </div>
@@ -512,13 +559,19 @@ export const DuplicateHunterView: React.FC<DuplicateHunterViewProps> = ({
               type="text"
               placeholder={t('duplicates.filter_placeholder')}
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
             />
             {searchQuery && (
               <button
                 type="button"
                 className="chip-remove-btn"
-                onClick={() => setSearchQuery('')}
+                onClick={() => {
+                  setSearchQuery('');
+                  setCurrentPage(1);
+                }}
                 title="Clear filter"
               >
                 <X size={12} />
@@ -615,67 +668,140 @@ export const DuplicateHunterView: React.FC<DuplicateHunterViewProps> = ({
         {/* Groups List */}
         {filteredGroups.length > 0 && !isScanning && (
           <div className="duplicate-groups-scroll">
-            {filteredGroups.map((group) => (
-              <div key={group.id} className="duplicate-group-card">
-                <div className="group-header">
-                  <div className="group-title-row">
-                    <span className="group-file-name">{group.files[0]?.name}</span>
-                    <span className="group-badge font-mono">{formatBytes(group.sizeBytes)} each</span>
-                    <span className="group-copies font-mono">{group.files.length} copies</span>
-                  </div>
-                  <span className="group-wasted font-mono text-danger">
-                    +{formatBytes(group.wastedBytes)} {t('duplicates.wasted_label')}
-                  </span>
-                </div>
+            {paginatedGroups.map((group) => {
+              const allSelectedInGroup =
+                group.files.length > 0 && group.files.every((f) => selectedPaths.has(f.path));
 
-                <div className="group-files-list">
-                  {group.files.map((file, idx) => {
-                    const isSelected = selectedPaths.has(file.path);
-                    const isNewest = idx === 0;
-
-                    return (
-                      <div
-                        key={file.path}
-                        className={`file-row ${isSelected ? 'selected' : ''}`}
-                        onClick={() => handleToggleFile(file.path)}
-                      >
-                        <div className="file-check-col">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => {}} // handled by parent row click
-                          />
-                        </div>
-
-                        <div className="file-meta-col flex-1">
-                          <div className="file-path-row font-mono text-xs text-primary" title={file.path}>
-                            {formatMiddleTruncate(file.path, 60)}
-                            {isNewest && (
-                              <span className="newest-tag font-mono">{t('duplicates.original_tag')}</span>
-                            )}
-                          </div>
-                          <span className="file-date-sub font-mono text-muted text-xs">
-                            {new Date(file.modifiedTime).toLocaleString()}
-                          </span>
-                        </div>
-
+              return (
+                <div key={group.id} className="duplicate-group-card">
+                  <div className="group-header">
+                    <div className="group-title-row">
+                      <span className="group-file-name">{group.files[0]?.name}</span>
+                      <span className="group-badge font-mono">{formatBytes(group.sizeBytes)} each</span>
+                      <span className="group-copies font-mono">{group.files.length} copies</span>
+                      {allSelectedInGroup && (
+                        <span className="all-copies-warning font-mono" title={t('duplicates.all_selected_warning')}>
+                          <AlertTriangle size={12} />
+                          {t('duplicates.all_copies_selected')}
+                        </span>
+                      )}
+                    </div>
+                    <div className="group-header-right" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div className="group-quick-actions">
                         <button
                           type="button"
-                          className="open-explorer-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onOpenExplorer(file.path);
-                          }}
-                          title={t('common.reveal_explorer')}
+                          className="btn-group-action"
+                          onClick={() => handleSelectGroupExceptNewest(group)}
+                          title={t('duplicates.group_keep_newest')}
                         >
-                          <ExternalLink size={13} />
+                          {t('duplicates.group_keep_newest')}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-group-action"
+                          onClick={() => handleSelectGroupExceptOldest(group)}
+                          title={t('duplicates.group_keep_oldest')}
+                        >
+                          {t('duplicates.group_keep_oldest')}
                         </button>
                       </div>
-                    );
-                  })}
+                      <span className="group-wasted font-mono text-danger">
+                        +{formatBytes(group.wastedBytes)} {t('duplicates.wasted_label')}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="group-files-list">
+                    {group.files.map((file, idx) => {
+                      const isSelected = selectedPaths.has(file.path);
+                      const isNewest = idx === 0;
+                      const isOldest = idx === group.files.length - 1 && group.files.length > 1;
+
+                      return (
+                        <div
+                          key={file.path}
+                          className={`file-row ${isSelected ? 'selected' : ''}`}
+                          onClick={() => handleToggleFile(file.path)}
+                        >
+                          <div className="file-check-col">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {}} // handled by parent row click
+                            />
+                          </div>
+
+                          <div className="file-meta-col flex-1">
+                            <div className="file-path-row font-mono text-xs text-primary" title={file.path}>
+                              {formatMiddleTruncate(file.path, 55)}
+                              {isNewest && (
+                                <span className="newest-tag font-mono">{t('duplicates.original_tag')}</span>
+                              )}
+                              {isOldest && !isNewest && (
+                                <span className="oldest-tag font-mono">Oldest</span>
+                              )}
+                              <span className={`file-status-badge font-mono ${isSelected ? 'delete' : 'keep'}`}>
+                                {isSelected ? t('duplicates.badge_delete') : t('duplicates.badge_keep')}
+                              </span>
+                            </div>
+                            <span className="file-date-sub font-mono text-muted text-xs">
+                              {new Date(file.modifiedTime).toLocaleString()}
+                            </span>
+                          </div>
+
+                          <button
+                            type="button"
+                            className="open-explorer-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onOpenExplorer(file.path);
+                            }}
+                            title={t('common.reveal_explorer')}
+                          >
+                            <ExternalLink size={13} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="table-pagination-bar" style={{ borderRadius: 'var(--radius-md)', marginTop: '8px' }}>
+                <span className="pagination-info">
+                  {t('duplicates.showing_groups')
+                    .replace('{start}', String((validCurrentPage - 1) * GROUPS_PER_PAGE + 1))
+                    .replace('{end}', String(Math.min(validCurrentPage * GROUPS_PER_PAGE, filteredGroups.length)))
+                    .replace('{total}', String(filteredGroups.length))}
+                </span>
+                <div className="pagination-controls">
+                  <button
+                    type="button"
+                    className="pagination-btn"
+                    disabled={validCurrentPage === 1}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    title="Previous page"
+                  >
+                    <ChevronLeft size={14} />
+                  </button>
+                  <span className="pagination-page-tag font-mono">
+                    {t('duplicates.page')} {validCurrentPage} / {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    className="pagination-btn"
+                    disabled={validCurrentPage === totalPages}
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    title="Next page"
+                  >
+                    <ChevronRight size={14} />
+                  </button>
                 </div>
               </div>
-            ))}
+            )}
           </div>
         )}
       </div>

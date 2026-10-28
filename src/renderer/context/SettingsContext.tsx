@@ -430,6 +430,14 @@ const translations: Record<Language, Record<string, string>> = {
     'duplicates.confirm_desc': 'Are you sure you want to delete {count} selected duplicate clone file(s)?',
     'duplicates.confirm_trash_note': 'Files will be safely sent to Windows Recycle Bin.',
     'duplicates.confirm_perm_note': 'Files will be permanently deleted from disk and cannot be restored.',
+    'duplicates.all_copies_selected': 'All copies selected (original will be lost)',
+    'duplicates.all_selected_warning': 'Warning: Every copy in this group is marked for deletion. None will be preserved!',
+    'duplicates.group_keep_newest': 'Keep Newest',
+    'duplicates.group_keep_oldest': 'Keep Oldest',
+    'duplicates.badge_keep': 'Keep',
+    'duplicates.badge_delete': 'Delete',
+    'duplicates.showing_groups': 'Showing {start}-{end} of {total} duplicate groups',
+    'duplicates.page': 'Page',
 
     // Power Tools
     'tools.title': 'Advanced Power Tools',
@@ -895,6 +903,14 @@ const translations: Record<Language, Record<string, string>> = {
     'duplicates.confirm_desc': 'Apakah Anda yakin ingin menghapus {count} file klon duplikat yang dipilih?',
     'duplicates.confirm_trash_note': 'File akan dipindahkan secara aman ke Recycle Bin Windows.',
     'duplicates.confirm_perm_note': 'File akan dihapus secara permanen dari disk dan tidak dapat dipulihkan.',
+    'duplicates.all_copies_selected': 'Semua salinan dipilih (asli akan hilang)',
+    'duplicates.all_selected_warning': 'Peringatan: Seluruh salinan di grup ini ditandai untuk dihapus. Tidak ada yang disimpan!',
+    'duplicates.group_keep_newest': 'Simpan Terbaru',
+    'duplicates.group_keep_oldest': 'Simpan Terlama',
+    'duplicates.badge_keep': 'Simpan',
+    'duplicates.badge_delete': 'Hapus',
+    'duplicates.showing_groups': 'Menampilkan {start}-{end} dari {total} grup duplikat',
+    'duplicates.page': 'Halaman',
 
     // Power Tools
     'tools.title': 'Power Tools Tingkat Lanjut',

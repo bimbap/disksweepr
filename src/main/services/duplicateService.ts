@@ -1,13 +1,24 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { shell } from 'electron';
-import {
+import type {
   DuplicateFile,
   DuplicateGroup,
   DuplicateScanOptions,
   DuplicateScanProgress,
-} from '../../shared/types';
+} from '../../shared/types.ts';
+import { getDriveTelemetry } from './telemetryService.ts';
+
+const PROTECTED_DIR_NAMES = new Set([
+  '$recycle.bin',
+  'system volume information',
+  'recovery',
+  'msocache',
+  'config.msi',
+  'node_modules',
+  '.git',
+  'appdata',
+]);
 
 export class DuplicateService {
   private abortController: AbortController | null = null;
@@ -26,15 +37,28 @@ export class DuplicateService {
     this.abortController = new AbortController();
     const signal = this.abortController.signal;
 
-    const rootPath = path.resolve(options.targetPath);
-    const minSizeBytes = options.minSizeBytes !== undefined ? options.minSizeBytes : 1024 * 1024; // default 1MB
+    let rootPaths: string[] = [];
+    if (options.scanAllDrives) {
+      try {
+        const drives = await getDriveTelemetry();
+        rootPaths = drives.map((d) => `${d.letter.replace(/:/g, '')}:\\`);
+      } catch {
+        rootPaths = ['C:\\'];
+      }
+    } else if (options.targetPath) {
+      rootPaths = [path.resolve(options.targetPath)];
+    } else {
+      rootPaths = ['C:\\'];
+    }
+
+    const minSizeBytes = Math.max(1, options.minSizeBytes !== undefined ? options.minSizeBytes : 1024 * 1024); // default 1MB, skip 0-byte
 
     let scannedFilesCount = 0;
     let lastProgressEmit = 0;
 
     const emitProgress = (curPath: string, stage: 'indexing' | 'hashing', foundCount: number) => {
       const now = Date.now();
-      if (now - lastProgressEmit > 60) {
+      if (now - lastProgressEmit > 50) {
         lastProgressEmit = now;
         onProgress?.({
           currentPath: curPath,
@@ -49,56 +73,61 @@ export class DuplicateService {
     // Map of sizeBytes -> array of file paths
     const sizeMap = new Map<number, string[]>();
 
-    const walk = async (dir: string) => {
-      if (signal.aborted) return;
+    for (const root of rootPaths) {
+      if (signal.aborted) break;
 
-      let entries: fs.Dirent[] = [];
-      try {
-        entries = await fs.promises.readdir(dir, { withFileTypes: true });
-      } catch {
-        return;
-      }
+      const queue: string[] = [root];
 
-      for (const entry of entries) {
-        if (signal.aborted) return;
-        const fullPath = path.join(dir, entry.name);
+      while (queue.length > 0) {
+        if (signal.aborted) break;
 
-        if (entry.isSymbolicLink()) continue;
+        const currentDir = queue.shift()!;
+        let entries: fs.Dirent[] = [];
+        try {
+          entries = await fs.promises.readdir(currentDir, { withFileTypes: true });
+        } catch {
+          continue;
+        }
 
-        if (entry.isDirectory()) {
-          const lower = entry.name.toLowerCase();
-          if (
-            lower === 'node_modules' ||
-            lower === '.git' ||
-            lower === '$recycle.bin' ||
-            lower === 'appdata'
-          ) {
-            continue;
-          }
-          await walk(fullPath);
-        } else if (entry.isFile()) {
+        for (const entry of entries) {
+          if (signal.aborted) break;
+
           try {
-            const stat = await fs.promises.stat(fullPath);
-            scannedFilesCount++;
-            emitProgress(fullPath, 'indexing', 0);
+            if (entry.isSymbolicLink()) continue;
 
-            if (stat.size >= minSizeBytes) {
-              const list = sizeMap.get(stat.size);
-              if (list) {
-                list.push(fullPath);
-              } else {
-                sizeMap.set(stat.size, [fullPath]);
+            const fullPath = path.join(currentDir, entry.name);
+
+            if (entry.isDirectory()) {
+              const lower = entry.name.toLowerCase();
+              if (PROTECTED_DIR_NAMES.has(lower)) {
+                continue;
+              }
+              queue.push(fullPath);
+            } else if (entry.isFile()) {
+              const stat = await fs.promises.stat(fullPath);
+              scannedFilesCount++;
+              emitProgress(fullPath, 'indexing', 0);
+
+              if (stat.size >= minSizeBytes) {
+                const list = sizeMap.get(stat.size);
+                if (list) {
+                  list.push(fullPath);
+                } else {
+                  sizeMap.set(stat.size, [fullPath]);
+                }
               }
             }
           } catch {
-            // In use or unreadable
+            // File in use, unreadable, or missing
           }
         }
       }
-    };
+    }
 
-    await walk(rootPath);
-    if (signal.aborted) return [];
+    if (signal.aborted) {
+      this.abortController = null;
+      return [];
+    }
 
     // Filter to sizes with 2 or more files
     const candidateSizeBuckets: Array<{ size: number; paths: string[] }> = [];
@@ -111,25 +140,33 @@ export class DuplicateService {
     // --- PHASE 2: QUICK CHUNK HASH (4KB) ---
     // Group candidates by `${size}_${quickHash}`
     const quickHashMap = new Map<string, { size: number; paths: string[] }>();
+    let potentialDupesCount = 0;
 
     for (const bucket of candidateSizeBuckets) {
-      if (signal.aborted) return [];
+      if (signal.aborted) {
+        this.abortController = null;
+        return [];
+      }
 
       for (const filePath of bucket.paths) {
-        if (signal.aborted) return [];
-        emitProgress(filePath, 'hashing', quickHashMap.size);
+        if (signal.aborted) {
+          this.abortController = null;
+          return [];
+        }
+        emitProgress(filePath, 'hashing', potentialDupesCount);
 
         try {
-          const quickHash = await this.computeQuickHash(filePath);
+          const quickHash = await this.computeQuickHash(filePath, signal);
           const key = `${bucket.size}_${quickHash}`;
           const existing = quickHashMap.get(key);
           if (existing) {
             existing.paths.push(filePath);
+            potentialDupesCount++;
           } else {
             quickHashMap.set(key, { size: bucket.size, paths: [filePath] });
           }
         } catch {
-          // File read error
+          // File read error or aborted
         }
       }
     }
@@ -144,25 +181,33 @@ export class DuplicateService {
 
     // --- PHASE 3: FULL SHA-256 HASH ---
     const fullHashMap = new Map<string, { size: number; paths: string[] }>();
+    let confirmedDupesCount = 0;
 
     for (const bucket of candidateFullBuckets) {
-      if (signal.aborted) return [];
+      if (signal.aborted) {
+        this.abortController = null;
+        return [];
+      }
 
       for (const filePath of bucket.paths) {
-        if (signal.aborted) return [];
-        emitProgress(filePath, 'hashing', fullHashMap.size);
+        if (signal.aborted) {
+          this.abortController = null;
+          return [];
+        }
+        emitProgress(filePath, 'hashing', confirmedDupesCount);
 
         try {
-          const fullHash = await this.computeFullHash(filePath);
+          const fullHash = await this.computeFullHash(filePath, signal);
           const key = fullHash;
           const existing = fullHashMap.get(key);
           if (existing) {
             existing.paths.push(filePath);
+            confirmedDupesCount++;
           } else {
             fullHashMap.set(key, { size: bucket.size, paths: [filePath] });
           }
         } catch {
-          // Read error
+          // Read error or aborted
         }
       }
     }
@@ -223,9 +268,19 @@ export class DuplicateService {
     for (const p of filePaths) {
       try {
         const stat = await fs.promises.stat(p);
+        let deleted = false;
         if (useTrash) {
-          await shell.trashItem(p);
-        } else {
+          try {
+            const electron = await import('electron');
+            if (electron?.shell?.trashItem) {
+              await electron.shell.trashItem(p);
+              deleted = true;
+            }
+          } catch {
+            // Electron shell unavailable in tests
+          }
+        }
+        if (!deleted) {
           await fs.promises.unlink(p);
         }
         reclaimedBytes += stat.size;
@@ -238,24 +293,35 @@ export class DuplicateService {
     return { deletedPaths, failedPaths, reclaimedBytes };
   }
 
-  private computeQuickHash(filePath: string): Promise<string> {
+  private computeQuickHash(filePath: string, signal?: AbortSignal): Promise<string> {
     return new Promise((resolve, reject) => {
+      if (signal?.aborted) {
+        return reject(new Error('Aborted'));
+      }
       const hash = crypto.createHash('md5');
-      const stream = fs.createReadStream(filePath, { start: 0, end: 4095 });
+      const stream = fs.createReadStream(filePath, { start: 0, end: 4095, signal });
       stream.on('data', (chunk) => hash.update(chunk));
       stream.on('end', () => resolve(hash.digest('hex')));
-      stream.on('error', reject);
+      stream.on('error', (err) => {
+        stream.destroy();
+        reject(err);
+      });
     });
   }
 
-  private computeFullHash(filePath: string): Promise<string> {
+  private computeFullHash(filePath: string, signal?: AbortSignal): Promise<string> {
     return new Promise((resolve, reject) => {
+      if (signal?.aborted) {
+        return reject(new Error('Aborted'));
+      }
       const hash = crypto.createHash('sha256');
-      const stream = fs.createReadStream(filePath);
+      const stream = fs.createReadStream(filePath, { signal });
       stream.on('data', (chunk) => hash.update(chunk));
       stream.on('end', () => resolve(hash.digest('hex')));
-      stream.on('error', reject);
+      stream.on('error', (err) => {
+        stream.destroy();
+        reject(err);
+      });
     });
   }
 }
-

@@ -51,3 +51,4 @@ test('FastSearchService filters by targetKind: files, folders, all', async () =>
   // Clean up
   fs.rmSync(testRoot, { recursive: true, force: true });
 });
+

@@ -234,7 +234,8 @@ export interface DuplicateGroup {
 }
 
 export interface DuplicateScanOptions {
-  targetPath: string;
+  targetPath?: string;
+  scanAllDrives?: boolean;
   minSizeBytes?: number;
 }
 
