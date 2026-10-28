@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { LargeFileItem, LargeFilesScanOptions } from '../../shared/types';
-import { getDriveTelemetry } from './telemetryService';
+import type { LargeFileItem, LargeFilesScanOptions } from '../../shared/types.ts';
+import { getDriveTelemetry } from './telemetryService.ts';
 
 const PROTECTED_DIR_NAMES = new Set([
   '$recycle.bin',
@@ -94,7 +94,7 @@ export class LargeFileService {
             }
           } else if (entry.isDirectory() && current.depth < MAX_DEPTH) {
             // Check if top-level subfolder itself is a massive directory
-            if (current.depth <= 1 && !entry.name.startsWith('.')) {
+            if (current.depth === 0 && !entry.name.startsWith('.')) {
               try {
                 const dirSize = await this.getDirectorySizeBytes(fullPath, 5000);
                 if (dirSize >= minSizeBytes) {

@@ -1,6 +1,6 @@
 import { exec } from 'child_process';
 import util from 'util';
-import { DriveStat } from '../../shared/types';
+import type { DriveStat } from '../../shared/types.ts';
 
 const execPromise = util.promisify(exec);
 
