@@ -620,7 +620,7 @@ const translations: Record<Language, Record<string, string>> = {
     'cleanup.expand_all': 'Buka Semua',
     'cleanup.collapse_all': 'Tutup Semua',
     'cleanup.safe': 'Aman',
-    'cleanup.caution': 'Perhatian',
+    'cleanup.caution': 'Waspada',
     'cleanup.col_path': 'Jalur & Nama File',
     'cleanup.col_size': 'Ukuran',
     'cleanup.col_action': 'Aksi',
