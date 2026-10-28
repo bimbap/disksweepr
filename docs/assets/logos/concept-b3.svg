@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090D1A"/>
+      <stop offset="100%" stop-color="#030509"/>
+    </linearGradient>
+    <linearGradient id="facetTop" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#0284C7"/>
+    </linearGradient>
+    <linearGradient id="facetMid" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563EB"/>
+      <stop offset="100%" stop-color="#1D4ED8"/>
+    </linearGradient>
+    <linearGradient id="facetBot" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#60A5FA"/>
+      <stop offset="100%" stop-color="#3B82F6"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Squircle Base Frame -->
+  <rect x="24" y="24" width="464" height="464" rx="108" fill="url(#bgGrad3)"/>
+  <rect x="24" y="24" width="464" height="464" rx="108" fill="none" stroke="#1E293B" stroke-width="2"/>
+
+  <!-- Top Arm (Folded Hexagon Segment) -->
+  <path d="M 170 120 
+           L 320 120 
+           L 360 160 
+           L 240 160 
+           L 200 200 
+           L 150 200 
+           L 150 140 
+           Z" 
+        fill="url(#facetTop)"/>
+
+  <!-- Center Diagonal Connector (Sweeping Blade Core) -->
+  <path d="M 230 180 
+           L 350 180 
+           L 350 240 
+           L 282 308 
+           L 162 308 
+           L 162 248 
+           Z" 
+        fill="url(#facetMid)"/>
+
+  <!-- Bottom Arm (Folded Hexagon Segment) -->
+  <path d="M 342 392 
+           L 192 392 
+           L 152 352 
+           L 272 352 
+           L 312 312 
+           L 362 312 
+           L 362 372 
+           Z" 
+        fill="url(#facetBot)"/>
+
+  <!-- Center Core Dot / Pulse -->
+  <circle cx="256" cy="256" r="14" fill="#38BDF8"/>
+</svg>

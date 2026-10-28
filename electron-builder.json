@@ -1,0 +1,46 @@
+{
+  "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
+  "appId": "com.disksweepr.app",
+  "productName": "DiskSweepr",
+  "directories": {
+    "output": "release"
+  },
+  "files": [
+    "dist/**/*",
+    "dist-electron/**/*",
+    "build/**/*",
+    "package.json"
+  ],
+  "compression": "maximum",
+  "win": {
+    "icon": "build/icon.ico",
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      }
+    ]
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowElevation": true,
+    "allowToChangeInstallationDirectory": true,
+    "installerIcon": "build/icon.ico",
+    "uninstallerIcon": "build/icon.ico",
+    "installerHeader": "build/installerHeader.bmp",
+    "installerHeaderIcon": "build/icon.ico",
+    "installerSidebar": "build/installerSidebar.bmp",
+    "uninstallerSidebar": "build/uninstallerSidebar.bmp",
+    "createDesktopShortcut": "always",
+    "createStartMenuShortcut": true,
+    "shortcutName": "DiskSweepr",
+    "uninstallDisplayName": "DiskSweepr - Storage Cleanup Utility",
+    "deleteAppDataOnUninstall": false,
+    "runAfterFinish": true,
+    "artifactName": "DiskSweepr-Setup-${version}.exe"
+  },
+  "portable": {
+    "artifactName": "DiskSweepr-Portable-${version}.exe"
+  }
+}

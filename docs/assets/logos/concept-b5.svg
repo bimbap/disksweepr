@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGradB5" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0B0F19"/>
+      <stop offset="100%" stop-color="#020408"/>
+    </linearGradient>
+    <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+    <linearGradient id="indigoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#6366F1"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Squircle Base Frame -->
+  <rect x="24" y="24" width="464" height="464" rx="112" fill="url(#bgGradB5)"/>
+  <rect x="24" y="24" width="464" height="464" rx="112" fill="none" stroke="#1E293B" stroke-width="2"/>
+
+  <!-- Top Blade: Sweeping Arc from right into center -->
+  <path d="M 376 140
+           C 376 100 326 76 256 76
+           C 168 76 120 128 120 200
+           C 120 256 160 286 216 306
+           L 290 334
+           C 334 350 348 368 348 392
+           C 348 408 338 418 320 424
+           L 348 424
+           C 378 406 396 376 396 338
+           C 396 286 354 256 298 236
+           L 224 208
+           C 180 192 168 174 168 152
+           C 168 126 196 114 246 114
+           C 304 114 344 132 352 160
+           Z"
+        fill="url(#cyanGrad)"/>
+
+  <!-- Accent Sweeping Light Wedge (Lower-left) -->
+  <path d="M 164 372
+           C 164 412 214 436 284 436
+           C 316 436 342 430 364 418
+           L 326 404
+           C 308 408 288 410 266 410
+           C 208 410 178 386 178 358
+           C 178 338 190 322 222 308
+           L 186 294
+           C 166 312 164 340 164 372
+           Z"
+        fill="url(#indigoGrad)"/>
+</svg>

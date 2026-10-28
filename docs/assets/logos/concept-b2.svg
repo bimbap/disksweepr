@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0B132B"/>
+      <stop offset="100%" stop-color="#050811"/>
+    </linearGradient>
+    <linearGradient id="bladeGradTop" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+    <linearGradient id="bladeGradBot" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563EB"/>
+      <stop offset="100%" stop-color="#60A5FA"/>
+    </linearGradient>
+    <linearGradient id="diskRing" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#1E293B" stop-opacity="0.1"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Squircle Base Frame -->
+  <rect x="24" y="24" width="464" height="464" rx="108" fill="url(#bgGrad2)"/>
+  <rect x="24" y="24" width="464" height="464" rx="108" fill="none" stroke="#1E293B" stroke-width="2"/>
+
+  <!-- Concentric Storage Platter Track (Subtle Background) -->
+  <circle cx="256" cy="256" r="160" fill="none" stroke="url(#diskRing)" stroke-width="3" stroke-dasharray="12 8"/>
+  <circle cx="256" cy="256" r="120" fill="none" stroke="#1E293B" stroke-width="1.5" opacity="0.6"/>
+
+  <!-- Upper Aerodynamic Sweeping Blade -->
+  <path d="M 376 172
+           C 376 112 324 88 256 88
+           C 188 88 136 116 136 176
+           C 136 226 176 250 236 270
+           L 294 290
+           C 316 298 332 306 332 324
+           C 332 342 312 352 284 352
+           L 284 384
+           C 336 384 366 358 366 320
+           C 366 280 334 260 274 240
+           L 216 220
+           C 192 212 174 202 174 180
+           C 174 156 198 140 256 140
+           C 304 140 334 154 338 172
+           Z"
+        fill="url(#bladeGradTop)"/>
+
+  <!-- Diagonal Sweeping Laser Accent / Spark -->
+  <polygon points="270,196 356,110 336,110 250,196" fill="#38BDF8" opacity="0.9"/>
+  <polygon points="242,316 156,402 176,402 262,316" fill="#60A5FA" opacity="0.9"/>
+</svg>

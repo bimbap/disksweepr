@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGradB4" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </linearGradient>
+    <linearGradient id="wingTop" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="50%" stop-color="#2563EB"/>
+      <stop offset="100%" stop-color="#1D4ED8"/>
+    </linearGradient>
+    <linearGradient id="wingBot" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1D4ED8"/>
+      <stop offset="50%" stop-color="#2563EB"/>
+      <stop offset="100%" stop-color="#38BDF8"/>
+    </linearGradient>
+    <linearGradient id="sparkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#38BDF8"/>
+    </linearGradient>
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Squircle Base Frame -->
+  <rect x="24" y="24" width="464" height="464" rx="112" fill="url(#bgGradB4)"/>
+  <rect x="24" y="24" width="464" height="464" rx="112" fill="none" stroke="#1E293B" stroke-width="2"/>
+
+  <!-- Top Sweeping Wing -->
+  <path d="M 374 136 
+           C 374 136 348 88 256 88 
+           C 174 88 126 138 126 196 
+           C 126 242 160 270 216 288 
+           L 294 314 
+           C 342 330 358 350 358 376 
+           L 358 320 
+           L 242 276 
+           C 192 258 178 238 178 202 
+           C 178 156 210 134 256 134 
+           C 304 134 326 156 332 178 
+           Z" 
+        fill="url(#wingTop)" filter="url(#softGlow)"/>
+
+  <!-- Bottom Sweeping Wing -->
+  <path d="M 138 376 
+           C 138 376 164 424 256 424 
+           C 338 424 386 374 386 316 
+           C 386 270 352 242 296 224 
+           L 218 198 
+           C 170 182 154 162 154 136 
+           L 154 192 
+           L 270 236 
+           C 320 254 334 274 334 310 
+           C 334 356 302 378 256 378 
+           C 208 378 186 356 180 334 
+           Z" 
+        fill="url(#wingBot)" filter="url(#softGlow)"/>
+
+  <!-- Precision Center Spark (Cross Beam) -->
+  <circle cx="256" cy="256" r="6" fill="url(#sparkGrad)"/>
+</svg>
