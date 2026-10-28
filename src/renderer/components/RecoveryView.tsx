@@ -34,7 +34,7 @@ import {
   DriveStat,
 } from '../../shared/types';
 import { formatBytes, formatMiddleTruncate, formatDriveDisplay } from '../../shared/formatters';
-import { compareText, parseBinDate, getParentDir } from '../../shared/recoveryUtils';
+import { compareText, parseBinDate, getParentDir, formatRecoveryDate } from '../../shared/recoveryUtils';
 import { useSettings } from '../context/SettingsContext';
 import { WaveEqualizerLoader } from './WaveEqualizerLoader';
 
@@ -166,7 +166,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
     dir: 'desc',
   });
   const [binPage, setBinPage] = useState(1);
-  const [deepSort, setDeepSort] = useState<{ field: 'name' | 'location' | 'status' | 'size'; dir: SortDir }>({
+  const [deepSort, setDeepSort] = useState<{ field: 'name' | 'location' | 'status' | 'date' | 'size'; dir: SortDir }>({
     field: 'size',
     dir: 'desc',
   });
@@ -540,11 +540,11 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
     );
   };
 
-  const handleDeepSort = (field: 'name' | 'location' | 'status' | 'size') => {
+  const handleDeepSort = (field: 'name' | 'location' | 'status' | 'date' | 'size') => {
     setDeepSort((prev) =>
       prev.field === field
         ? { field, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
-        : { field, dir: field === 'size' ? 'desc' : 'asc' }
+        : { field, dir: field === 'size' || field === 'date' ? 'desc' : 'asc' }
     );
   };
 
@@ -574,6 +574,8 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
         return deepMul * compareText(a.originalPath, b.originalPath);
       case 'status':
         return deepMul * compareText(a.status, b.status);
+      case 'date':
+        return deepMul * ((a.modifiedTime || 0) - (b.modifiedTime || 0));
       default:
         return deepMul * ((a.sizeBytes || 0) - (b.sizeBytes || 0));
     }
@@ -1315,6 +1317,13 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
                         onSort={() => handleDeepSort('status')}
                       />
                       <SortableTh
+                        className="col-recovery-date col-hide-sm"
+                        label={t('recovery.col_date_mod')}
+                        active={deepSort.field === 'date'}
+                        dir={deepSort.dir}
+                        onSort={() => handleDeepSort('date')}
+                      />
+                      <SortableTh
                         className="col-search-size"
                         label={t('recovery.col_size')}
                         active={deepSort.field === 'size'}
@@ -1380,6 +1389,10 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
                                 ? t('recovery.status_partial')
                                 : t('recovery.status_corrupted')}
                             </span>
+                          </td>
+
+                          <td className="col-recovery-date col-hide-sm">
+                            <span className="date-badge-text">{formatRecoveryDate(item.modifiedTime)}</span>
                           </td>
 
                           <td className="col-search-size">

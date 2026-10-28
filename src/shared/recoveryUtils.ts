@@ -18,3 +18,14 @@ export const getParentDir = (filePath: string): string => {
   return /^[A-Za-z]:$/.test(dir) ? `${dir}\\` : dir;
 };
 
+/**
+ * Formats epoch milliseconds into a readable "DD/MM/YYYY HH:mm" string.
+ * Returns '-' when missing, non-positive, or NaN.
+ */
+export const formatRecoveryDate = (timeMs?: number): string => {
+  if (!timeMs || isNaN(timeMs) || timeMs <= 0) return '-';
+  const d = new Date(timeMs);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
