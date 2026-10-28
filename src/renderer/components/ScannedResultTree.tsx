@@ -17,6 +17,7 @@ import {
   MessageSquare,
   ShieldAlert,
   ShieldCheck,
+  Film,
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
@@ -71,6 +72,9 @@ export const ScannedResultTree: React.FC<ScannedResultTreeProps> = ({
 
   const getCategoryIcon = (id: string, group: string) => {
     const size = 16;
+    if (group === 'media' || id.includes('media')) {
+      return <Film size={size} className="cat-icon-media text-sky" />;
+    }
     switch (id) {
       case 'edge_cache':
       case 'chrome_cache':
@@ -115,10 +119,11 @@ export const ScannedResultTree: React.FC<ScannedResultTreeProps> = ({
   const activeCategories = filteredCategories.filter((c) => c.fileCount > 0);
   const cleanCategories = filteredCategories.filter((c) => c.fileCount === 0);
 
-  const grouped = {
+  const grouped: Record<string, ScannedCategory[]> = {
     system: activeCategories.filter((c) => c.group === 'system'),
     browsers: activeCategories.filter((c) => c.group === 'browsers'),
     apps: activeCategories.filter((c) => c.group === 'apps'),
+    media: activeCategories.filter((c) => c.group === 'media'),
     developer: activeCategories.filter((c) => c.group === 'developer'),
   };
 
@@ -126,8 +131,20 @@ export const ScannedResultTree: React.FC<ScannedResultTreeProps> = ({
     system: t('cleanup.group_system'),
     browsers: t('cleanup.group_browsers'),
     apps: t('cleanup.group_apps'),
+    media: t('cleanup.group_media'),
     developer: t('cleanup.group_developer'),
   };
+
+  // Catch any categories whose group wasn't predefined
+  const knownGroups = new Set(['system', 'browsers', 'apps', 'media', 'developer']);
+  for (const cat of activeCategories) {
+    if (!knownGroups.has(cat.group)) {
+      if (!grouped[cat.group]) {
+        grouped[cat.group] = [];
+      }
+      grouped[cat.group].push(cat);
+    }
+  }
 
   return (
     <div className="scanned-tree-container">

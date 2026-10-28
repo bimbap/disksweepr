@@ -1,6 +1,7 @@
+import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { CategoryDefinition } from '../../shared/types';
+import type { CategoryDefinition } from '../../shared/types.ts';
 
 /**
  * Expands Windows environment variables in paths (e.g. %TEMP%, %LOCALAPPDATA%)
@@ -350,17 +351,106 @@ export const CATEGORY_DEFINITIONS: CategoryDefinition[] = [
     description: 'Audits personal video, audio, and archive assets (.mp4, .mkv, .mp3, .zip). Safely recycled.',
     group: 'media',
     risk: 'caution',
-    defaultSelected: false,
+    defaultSelected: true,
     useTrash: true,
     paths: [
       '%USERPROFILE%\\Downloads',
       '%USERPROFILE%\\Videos',
       '%USERPROFILE%\\Desktop',
       '%USERPROFILE%\\Music',
+      '%USERPROFILE%\\Pictures',
+      '%USERPROFILE%\\Documents',
+      '%USERPROFILE%\\OneDrive\\Desktop',
+      '%USERPROFILE%\\OneDrive\\Pictures',
+      '%USERPROFILE%\\OneDrive\\Videos',
+      '%USERPROFILE%\\OneDrive\\Documents',
     ],
-    fileExtensions: ['.mp4', '.mkv', '.avi', '.mov', '.mp3', '.wav', '.flac', '.zip', '.rar', '.7z'],
+    fileExtensions: [
+      '.mp4',
+      '.mkv',
+      '.avi',
+      '.mov',
+      '.wmv',
+      '.webm',
+      '.flv',
+      '.mp3',
+      '.wav',
+      '.flac',
+      '.aac',
+      '.ogg',
+      '.m4a',
+      '.zip',
+      '.rar',
+      '.7z',
+      '.iso',
+    ],
   },
 ];
+
+/**
+ * Discovers actual media and user asset paths on a secondary storage drive.
+ * Checks for media-related directories and includes drive root for direct media files.
+ */
+export function getSecondaryMediaPaths(normDrive: string): string[] {
+  const paths: string[] = [`${normDrive}\\`];
+  const fallbackNames = ['Downloads', 'Videos', 'Media', 'Movies', 'Music', 'Pictures', 'Captures', 'Recordings'];
+
+  for (const name of fallbackNames) {
+    paths.push(`${normDrive}\\${name}`);
+  }
+
+  try {
+    const entries = fs.readdirSync(`${normDrive}\\`, { withFileTypes: true });
+    const mediaKeywords = [
+      'download',
+      'video',
+      'movie',
+      'media',
+      'music',
+      'audio',
+      'clip',
+      'record',
+      'capture',
+      'stream',
+      'film',
+      'anim',
+      'sound',
+      'render',
+      'bandicam',
+      'obs',
+      'screen',
+      'vlog',
+      'podcast',
+      'idlix',
+      'footage',
+    ];
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const lower = entry.name.toLowerCase();
+      if (
+        lower.startsWith('$') ||
+        lower.startsWith('.') ||
+        lower === 'system volume information' ||
+        lower === 'node_modules' ||
+        lower === 'appdata'
+      ) {
+        continue;
+      }
+
+      if (mediaKeywords.some((k) => lower.includes(k))) {
+        const fullDir = `${normDrive}\\${entry.name}`;
+        if (!paths.includes(fullDir)) {
+          paths.push(fullDir);
+        }
+      }
+    }
+  } catch {
+    // If drive is unreadable or permission denied, fallback paths remain active
+  }
+
+  return paths;
+}
 
 export function getCategoryDefinitionsForDrive(driveLetter: string = 'C:'): CategoryDefinition[] {
   const normDrive = driveLetter.toUpperCase().replace(/\\+$/, '');
@@ -449,16 +539,28 @@ export function getCategoryDefinitionsForDrive(driveLetter: string = 'C:'): Cate
       description: `Audits video, audio, and archive assets on drive ${normDrive}. Safely recycled.`,
       group: 'media',
       risk: 'caution',
-      defaultSelected: false,
+      defaultSelected: true,
       useTrash: true,
-      paths: [
-        `${normDrive}\\Downloads`,
-        `${normDrive}\\Videos`,
-        `${normDrive}\\Media`,
-        `${normDrive}\\Movies`,
-        `${normDrive}\\Music`,
+      paths: getSecondaryMediaPaths(normDrive),
+      fileExtensions: [
+        '.mp4',
+        '.mkv',
+        '.avi',
+        '.mov',
+        '.wmv',
+        '.webm',
+        '.flv',
+        '.mp3',
+        '.wav',
+        '.flac',
+        '.aac',
+        '.ogg',
+        '.m4a',
+        '.zip',
+        '.rar',
+        '.7z',
+        '.iso',
       ],
-      fileExtensions: ['.mp4', '.mkv', '.avi', '.mov', '.mp3', '.wav', '.flac', '.zip', '.rar', '.7z'],
     },
   ];
 }

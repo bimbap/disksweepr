@@ -764,6 +764,25 @@
   - `npm run build`: Bundled cleanly in 10.5s.
   - Binary packaging held on standby until user explicit build command.
 
+### Phase 49: Fix Media Scanning Pipeline & Scanned Results Display
+- [x] **Scanned Results Tree UI Fix** ([`ScannedResultTree.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/ScannedResultTree.tsx)):
+  - Fixed critical bug where `grouped` object omitted the `media` category (`media: activeCategories.filter((c) => c.group === 'media')`), causing all scanned personal media files to be silently discarded from the results view.
+  - Added `groupLabels.media = t('cleanup.group_media')`.
+  - Added fallback loop in `ScannedResultTree` so any dynamic or newly added group is never dropped from rendering.
+  - Added `Film` icon (`cat-icon-media text-sky`) for `group === 'media'`.
+- [x] **Default Quick Scan Activation & Expanded Formats** ([`ruleRegistry.ts`](file:///m:/testProject/disksweepr/src/main/services/ruleRegistry.ts), [`SystemCleanupView.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/SystemCleanupView.tsx)):
+  - Updated `user_media_hunter` and `${normDrive}_media_hunter` to `defaultSelected: true`, ensuring media files are audited in default Quick Scan mode without requiring manual drawer activation.
+  - Expanded `paths` on primary drive to include OneDrive redirected user folders (`%USERPROFILE%\OneDrive\Desktop`, `OneDrive\Pictures`, `OneDrive\Videos`, `OneDrive\Documents`) and local `Pictures`/`Documents`.
+  - Expanded `fileExtensions` across rule registry and UI to support `.wmv`, `.webm`, `.flv`, `.aac`, `.ogg`, `.m4a`, `.iso` alongside `.mp4`, `.mkv`, `.avi`, `.mov`, `.mp3`, `.wav`, `.flac`, `.zip`, `.rar`, `.7z`.
+- [x] **Secondary Drive Dynamic Media Folder Discovery** ([`ruleRegistry.ts`](file:///m:/testProject/disksweepr/src/main/services/ruleRegistry.ts)):
+  - Replaced static nonexistent paths (`M:\Downloads`, `M:\Videos`) with `getSecondaryMediaPaths(normDrive)`.
+  - Discovers drive root `${normDrive}\` (audits loose root media files like `.mp4`, `.mkv`) and scans top-level folders matching media keywords (`anim`, `audio`, `bandicam`, `clip`, `sound`, `idlix`, `download`, `movie`, `footage`, etc.).
+- [x] **Automated Testing & Build Verification**:
+  - Added unit test suite [`tests/rules.test.ts`](file:///m:/testProject/disksweepr/tests/rules.test.ts) verifying media category definitions, OneDrive paths, secondary drive root resolution, and fallback directories.
+  - `npm test`: 15/15 unit tests passed.
+  - `npx tsc --noEmit` & `npm run build`: 0 errors.
+  - Installer build strictly held until user command.
+
 
 
 

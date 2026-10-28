@@ -165,7 +165,25 @@ export const SystemCleanupView: React.FC<SystemCleanupViewProps> = ({
     }
 
     // If media extension is activated, auto-select media hunter category so it will be scanned
-    const isMedia = ['.mp4', '.mkv', '.avi', '.mov', '.mp3', '.wav', '.flac', '.zip', '.rar', '.7z'].includes(ext);
+    const isMedia = [
+      '.mp4',
+      '.mkv',
+      '.avi',
+      '.mov',
+      '.wmv',
+      '.webm',
+      '.flv',
+      '.mp3',
+      '.wav',
+      '.flac',
+      '.aac',
+      '.ogg',
+      '.m4a',
+      '.zip',
+      '.rar',
+      '.7z',
+      '.iso',
+    ].includes(ext);
     if (isMedia && nextSelected.includes(ext)) {
       setSelectedCategoryIds((prev) => {
         const mediaCat = definitions.find((d) => d.id.includes('media_hunter'));
