@@ -21,6 +21,11 @@ import {
   RefreshCw,
   Undo2,
   Download,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import {
   RecycleBinItem,
@@ -29,6 +34,7 @@ import {
   DriveStat,
 } from '../../shared/types';
 import { formatBytes, formatMiddleTruncate, formatDriveDisplay } from '../../shared/formatters';
+import { compareText, parseBinDate, getParentDir } from '../../shared/recoveryUtils';
 import { useSettings } from '../context/SettingsContext';
 import { WaveEqualizerLoader } from './WaveEqualizerLoader';
 
@@ -37,6 +43,78 @@ interface RecoveryViewProps {
   onOpenExplorer: (path: string) => void;
   onRefreshDriveStats?: () => void;
 }
+
+type SortDir = 'asc' | 'desc';
+const PAGE_SIZE = 50;
+
+const SortableTh: React.FC<{
+  label: string;
+  active: boolean;
+  dir: SortDir;
+  onSort: () => void;
+  className?: string;
+}> = ({ label, active, dir, onSort, className }) => (
+  <th className={`${className ?? ''} sortable-th`} onClick={onSort}>
+    <div className="th-content">
+      <span>{label}</span>
+      {active ? (
+        dir === 'asc' ? (
+          <ArrowUp size={12} className="sort-icon active" />
+        ) : (
+          <ArrowDown size={12} className="sort-icon active" />
+        )
+      ) : (
+        <ArrowUpDown size={11} className="sort-icon neutral" />
+      )}
+    </div>
+  </th>
+);
+
+const PaginationBar: React.FC<{
+  page: number;
+  totalPages: number;
+  pageSize: number;
+  total: number;
+  onChange: (page: number) => void;
+}> = ({ page, totalPages, pageSize, total, onChange }) => {
+  const { t } = useSettings();
+  return (
+    <div className="table-pagination-bar">
+      <div className="pagination-info">
+        {t('fast_search.showing')}{' '}
+        <strong>
+          {(page - 1) * pageSize + 1} - {Math.min(page * pageSize, total)}
+        </strong>{' '}
+        {t('fast_search.of')} <strong>{total.toLocaleString()}</strong> {t('fast_search.results_count')}
+      </div>
+      <div className="pagination-controls">
+        <button
+          type="button"
+          className="pagination-btn pagination-nav-btn"
+          disabled={page <= 1}
+          onClick={() => onChange(page - 1)}
+          title={t('fast_search.prev')}
+        >
+          <ChevronLeft size={14} />
+          <span>{t('fast_search.prev')}</span>
+        </button>
+        <span className="pagination-page-tag font-mono">
+          {page} / {totalPages}
+        </span>
+        <button
+          type="button"
+          className="pagination-btn pagination-nav-btn"
+          disabled={page >= totalPages}
+          onClick={() => onChange(page + 1)}
+          title={t('fast_search.next')}
+        >
+          <span>{t('fast_search.next')}</span>
+          <ChevronRight size={14} />
+        </button>
+      </div>
+    </div>
+  );
+};
 
 export const RecoveryView: React.FC<RecoveryViewProps> = ({
   currentDriveLetter,
@@ -83,6 +161,17 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
   const [deepSearchQuery, setDeepSearchQuery] = useState('');
   const [isRecovering, setIsRecovering] = useState(false);
 
+  const [binSort, setBinSort] = useState<{ field: 'name' | 'location' | 'date' | 'size'; dir: SortDir }>({
+    field: 'date',
+    dir: 'desc',
+  });
+  const [binPage, setBinPage] = useState(1);
+  const [deepSort, setDeepSort] = useState<{ field: 'name' | 'location' | 'status' | 'size'; dir: SortDir }>({
+    field: 'size',
+    dir: 'desc',
+  });
+  const [deepPage, setDeepPage] = useState(1);
+
   const [isDragOver, setIsDragOver] = useState(false);
   const dragCounterRef = useRef<number>(0);
 
@@ -115,6 +204,15 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Return to the first page whenever the visible list changes
+  useEffect(() => {
+    setBinPage(1);
+  }, [binSearchQuery, binSort]);
+
+  useEffect(() => {
+    setDeepPage(1);
+  }, [deepSearchQuery, deepSort, deepResults]);
 
   // Escape key handler for modals and dropdowns
   useEffect(() => {
@@ -433,6 +531,56 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
   });
 
   const totalBinBytes = binItems.reduce((acc, it) => acc + (it.sizeBytes || 0), 0);
+
+  const handleBinSort = (field: 'name' | 'location' | 'date' | 'size') => {
+    setBinSort((prev) =>
+      prev.field === field
+        ? { field, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+        : { field, dir: field === 'size' || field === 'date' ? 'desc' : 'asc' }
+    );
+  };
+
+  const handleDeepSort = (field: 'name' | 'location' | 'status' | 'size') => {
+    setDeepSort((prev) =>
+      prev.field === field
+        ? { field, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+        : { field, dir: field === 'size' ? 'desc' : 'asc' }
+    );
+  };
+
+  const binMul = binSort.dir === 'asc' ? 1 : -1;
+  const sortedBinItems = [...filteredBinItems].sort((a, b) => {
+    switch (binSort.field) {
+      case 'name':
+        return binMul * compareText(a.name, b.name);
+      case 'location':
+        return binMul * compareText(a.originalLocation, b.originalLocation);
+      case 'date':
+        return binMul * (parseBinDate(a.dateDeleted) - parseBinDate(b.dateDeleted));
+      default:
+        return binMul * ((a.sizeBytes || 0) - (b.sizeBytes || 0));
+    }
+  });
+  const binTotalPages = Math.max(1, Math.ceil(sortedBinItems.length / PAGE_SIZE));
+  const safeBinPage = Math.min(binPage, binTotalPages);
+  const pagedBinItems = sortedBinItems.slice((safeBinPage - 1) * PAGE_SIZE, safeBinPage * PAGE_SIZE);
+
+  const deepMul = deepSort.dir === 'asc' ? 1 : -1;
+  const sortedDeepResults = [...filteredDeepResults].sort((a, b) => {
+    switch (deepSort.field) {
+      case 'name':
+        return deepMul * compareText(a.name, b.name);
+      case 'location':
+        return deepMul * compareText(a.originalPath, b.originalPath);
+      case 'status':
+        return deepMul * compareText(a.status, b.status);
+      default:
+        return deepMul * ((a.sizeBytes || 0) - (b.sizeBytes || 0));
+    }
+  });
+  const deepTotalPages = Math.max(1, Math.ceil(sortedDeepResults.length / PAGE_SIZE));
+  const safeDeepPage = Math.min(deepPage, deepTotalPages);
+  const pagedDeepResults = sortedDeepResults.slice((safeDeepPage - 1) * PAGE_SIZE, safeDeepPage * PAGE_SIZE);
   const totalSelectedBinBytes = binItems
     .filter((it) => selectedBinIds.has(it.id))
     .reduce((acc, it) => acc + (it.sizeBytes || 0), 0);
@@ -609,94 +757,111 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
             </div>
           </div>
 
-          {/* Table / List View */}
-          <div className="module-content-area" style={{ padding: '0 28px 24px 28px', overflowY: 'auto' }}>
+          {/* Results */}
+          <div className="fast-search-results-area">
             {isLoadingBin ? (
-              <div className="empty-state-card scanning-active-card">
-                <div
-                  className="empty-state-icon-box"
-                  style={{ background: 'transparent', width: '64px', height: '44px' }}
-                >
-                  <WaveEqualizerLoader height={28} ariaLabel="Loading Recycle Bin" />
+              <div className="recovery-state-wrap">
+                <div className="empty-state-card scanning-active-card">
+                  <div
+                    className="empty-state-icon-box"
+                    style={{ background: 'transparent', width: '64px', height: '44px' }}
+                  >
+                    <WaveEqualizerLoader height={28} ariaLabel="Loading Recycle Bin" />
+                  </div>
+                  <h3>{t('recovery.tab_recycle_bin')}</h3>
+                  <p>{t('cleanup.audit_filesystem')}</p>
                 </div>
-                <h3>{t('recovery.tab_recycle_bin')}</h3>
-                <p>{t('cleanup.audit_filesystem')}</p>
               </div>
             ) : binItems.length === 0 ? (
-              <div className="empty-state-card clean">
-                <div className="empty-state-icon-box clean">
-                  <CheckCircle2 size={32} className="text-emerald" />
+              <div className="recovery-state-wrap">
+                <div className="empty-state-card clean">
+                  <div className="empty-state-icon-box clean">
+                    <CheckCircle2 size={32} className="text-emerald" />
+                  </div>
+                  <h3>{t('recovery.empty_bin_ready')}</h3>
+                  <p>{t('recovery.empty_bin_desc')}</p>
                 </div>
-                <h3>{t('recovery.empty_bin_ready')}</h3>
-                <p>{t('recovery.empty_bin_desc')}</p>
               </div>
             ) : filteredBinItems.length === 0 ? (
-              <div className="empty-state-card">
-                <div className="empty-state-icon-box">
-                  <Search size={30} />
+              <div className="recovery-state-wrap">
+                <div className="empty-state-card">
+                  <div className="empty-state-icon-box">
+                    <Search size={30} />
+                  </div>
+                  <h3>{t('recovery.no_search_results')}</h3>
+                  <p className="font-mono text-muted text-xs">"{binSearchQuery}"</p>
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    style={{ marginTop: '12px' }}
+                    onClick={() => setBinSearchQuery('')}
+                  >
+                    {t('recovery.reset_filter')}
+                  </button>
                 </div>
-                <h3>{t('recovery.no_search_results')}</h3>
-                <p className="font-mono text-muted text-xs">"{binSearchQuery}"</p>
-                <button
-                  type="button"
-                  className="btn-ghost"
-                  style={{ marginTop: '12px' }}
-                  onClick={() => setBinSearchQuery('')}
-                >
-                  {t('recovery.reset_filter')}
-                </button>
               </div>
             ) : (
-              <div className="recovery-table-wrapper">
-                <div className="recovery-table">
-                  <div className="recovery-bin-header-row">
-                    <div className="col-check">
-                      <button
-                        type="button"
-                        className={`custom-checkbox-btn ${
-                          selectedBinIds.size === filteredBinItems.length && filteredBinItems.length > 0
-                            ? 'checked'
-                            : ''
-                        }`}
-                        onClick={() => {
-                          if (selectedBinIds.size === filteredBinItems.length) handleClearBinSelection();
-                          else handleSelectAllBin();
-                        }}
-                      >
-                        {selectedBinIds.size === filteredBinItems.length && filteredBinItems.length > 0 && (
-                          <Check size={12} strokeWidth={3} />
-                        )}
-                      </button>
-                    </div>
-                    <div className="col-name">
-                      <span>{t('recovery.col_name')}</span>
-                    </div>
-                    <div className="col-orig-loc">
-                      <span>{t('recovery.col_orig_loc')}</span>
-                    </div>
-                    <div className="col-date">
-                      <span>{t('recovery.col_date_del')}</span>
-                    </div>
-                    <div className="col-size">
-                      <span>{t('recovery.col_size')}</span>
-                    </div>
-                    <div className="col-actions">
-                      <span>{t('recovery.col_action')}</span>
-                    </div>
-                  </div>
-
-                  <div className="table-body">
-                    {filteredBinItems.map((item) => {
+              <div className="fast-search-table-wrapper">
+                <table className="fast-search-table recovery-results-table">
+                  <thead>
+                    <tr>
+                      <th className="col-recovery-check">
+                        <button
+                          type="button"
+                          className={`custom-checkbox-btn ${
+                            selectedBinIds.size === filteredBinItems.length ? 'checked' : ''
+                          }`}
+                          onClick={() => {
+                            if (selectedBinIds.size === filteredBinItems.length) handleClearBinSelection();
+                            else handleSelectAllBin();
+                          }}
+                        >
+                          {selectedBinIds.size === filteredBinItems.length && <Check size={12} strokeWidth={3} />}
+                        </button>
+                      </th>
+                      <SortableTh
+                        className="col-search-name"
+                        label={t('recovery.col_name')}
+                        active={binSort.field === 'name'}
+                        dir={binSort.dir}
+                        onSort={() => handleBinSort('name')}
+                      />
+                      <SortableTh
+                        className="col-search-path"
+                        label={t('recovery.col_orig_loc')}
+                        active={binSort.field === 'location'}
+                        dir={binSort.dir}
+                        onSort={() => handleBinSort('location')}
+                      />
+                      <SortableTh
+                        className="col-recovery-date col-hide-sm"
+                        label={t('recovery.col_date_del')}
+                        active={binSort.field === 'date'}
+                        dir={binSort.dir}
+                        onSort={() => handleBinSort('date')}
+                      />
+                      <SortableTh
+                        className="col-search-size"
+                        label={t('recovery.col_size')}
+                        active={binSort.field === 'size'}
+                        dir={binSort.dir}
+                        onSort={() => handleBinSort('size')}
+                      />
+                      <th className="col-recovery-actions">{t('recovery.col_action')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pagedBinItems.map((item) => {
                       const isSelected = selectedBinIds.has(item.id);
                       const ext = item.name.includes('.') ? `.${item.name.split('.').pop()}` : '';
 
                       return (
-                        <div
+                        <tr
                           key={item.id}
-                          className={`recovery-bin-row ${isSelected ? 'row-selected' : ''}`}
+                          className={`search-result-row ${isSelected ? 'row-selected' : ''}`}
                           onClick={() => handleToggleBinItem(item.id)}
                         >
-                          <div className="col-check" onClick={(e) => e.stopPropagation()}>
+                          <td className="col-recovery-check" onClick={(e) => e.stopPropagation()}>
                             <button
                               type="button"
                               className={`custom-checkbox-btn ${isSelected ? 'checked' : ''}`}
@@ -704,59 +869,68 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
                             >
                               {isSelected && <Check size={12} strokeWidth={3} />}
                             </button>
-                          </div>
+                          </td>
 
-                          <div className="col-name">
-                            <div className="file-name-row">
+                          <td className="col-search-name">
+                            <div className="file-name-cell">
                               {getFileIcon(ext, item.type)}
-                              <span className="file-name" title={item.name}>
+                              <span className="file-name-title" title={item.name}>
                                 {item.name}
                               </span>
                               <span className="folder-inline-tag">{item.type}</span>
                             </div>
-                          </div>
+                          </td>
 
-                          <div className="col-orig-loc">
-                            <span className="file-path font-mono text-muted text-xs" title={item.originalLocation}>
+                          <td className="col-search-path" onClick={(e) => e.stopPropagation()}>
+                            <span
+                              className="file-dir-link"
+                              onClick={() => onOpenExplorer(item.originalLocation)}
+                              title={item.originalLocation}
+                            >
                               {item.originalLocation}
                             </span>
-                          </div>
+                          </td>
 
-                          <div className="col-date">
-                            <span className="font-mono text-xs">{item.dateDeleted}</span>
-                          </div>
+                          <td className="col-recovery-date col-hide-sm">
+                            <span className="date-badge-text">{item.dateDeleted}</span>
+                          </td>
 
-                          <div className="col-size font-mono font-bold">
-                            {item.sizeBytes > 0 ? formatBytes(item.sizeBytes) : item.sizeFormatted}
-                          </div>
+                          <td className="col-search-size">
+                            <span className="size-badge-text font-mono">
+                              {item.sizeBytes > 0 ? formatBytes(item.sizeBytes) : item.sizeFormatted}
+                            </span>
+                          </td>
 
-                          <div className="col-actions" onClick={(e) => e.stopPropagation()}>
+                          <td className="col-recovery-actions" onClick={(e) => e.stopPropagation()}>
                             <button
                               type="button"
                               className="btn-action-restore"
                               onClick={() => handleSingleRestore(item)}
-                              title="Restore to original location"
+                              disabled={isProcessingBin}
+                              title={t('recovery.restore_btn')}
                             >
                               <Undo2 size={13} style={{ marginRight: '4px' }} />
                               {t('recovery.restore_btn')}
                             </button>
-                            <button
-                              type="button"
-                              className="btn-action-explorer"
-                              onClick={() => onOpenExplorer(item.originalLocation)}
-                              title={t('recovery.open_orig_folder')}
-                            >
-                              <FolderOpen size={13} />
-                            </button>
-                          </div>
-                        </div>
+                          </td>
+                        </tr>
                       );
                     })}
-                  </div>
-                </div>
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
+
+          {sortedBinItems.length > PAGE_SIZE && (
+            <PaginationBar
+              page={safeBinPage}
+              totalPages={binTotalPages}
+              pageSize={PAGE_SIZE}
+              total={sortedBinItems.length}
+              onChange={setBinPage}
+            />
+          )}
 
           {/* Sticky Bottom Action Bar for Recycle Bin */}
           {selectedBinIds.size > 0 && (
@@ -993,202 +1167,242 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
             </div>
           </div>
 
+          {/* Deep results toolbar */}
+          {!isScanningDeep && deepResults.length > 0 && (
+            <div className="recovery-toolbar">
+              <div className="module-search-box">
+                <Search size={14} className="module-search-icon" />
+                <input
+                  type="text"
+                  placeholder={t('recovery.deep_search_placeholder')}
+                  value={deepSearchQuery}
+                  onChange={(e) => setDeepSearchQuery(e.target.value)}
+                />
+                {deepSearchQuery && (
+                  <button type="button" className="chip-remove-btn" onClick={() => setDeepSearchQuery('')}>
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+
+              <div className="module-toolbar-actions">
+                <span className="recovery-toolbar-stat">
+                  {t('recovery.traces_found').replace('{count}', String(filteredDeepResults.length))}
+                  <span className="stat-dot">•</span>
+                  <strong className="font-mono">
+                    {formatBytes(filteredDeepResults.reduce((acc, it) => acc + (it.sizeBytes || 0), 0))}
+                  </strong>
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Deep Content Area */}
-          <div className="module-content-area" style={{ padding: '0 28px 24px 28px', overflowY: 'auto' }}>
+          <div className="fast-search-results-area">
             {isScanningDeep && (
-              <div className="empty-state-card scanning-active-card">
-                <div
-                  className="empty-state-icon-box"
-                  style={{ background: 'transparent', width: '64px', height: '44px' }}
-                >
-                  <WaveEqualizerLoader height={28} ariaLabel={t('recovery.scanning_deep_title')} />
-                </div>
-                <h3>{t('recovery.scanning_deep_title')}</h3>
-                <div className="scanning-dir-container">
-                  <p className="scanning-dir-desc">
-                    {deepProgress
-                      ? t('recovery.scan_progress')
-                          .replace('{scanned}', String(deepProgress.scannedFilesCount))
-                          .replace('{found}', String(deepProgress.foundItemsCount))
-                      : t('recovery.scan_idle')}
-                  </p>
-                  <div className="scanning-dir-badge" title={deepProgress?.currentPath || resolvedDeepTarget}>
-                    <Folder size={13} className="scanning-dir-badge-icon" />
-                    <span className="scanning-dir-badge-text font-mono">
-                      {formatMiddleTruncate(deepProgress?.currentPath || resolvedDeepTarget, 46)}
-                    </span>
+              <div className="recovery-state-wrap">
+                <div className="empty-state-card scanning-active-card">
+                  <div
+                    className="empty-state-icon-box"
+                    style={{ background: 'transparent', width: '64px', height: '44px' }}
+                  >
+                    <WaveEqualizerLoader height={28} ariaLabel={t('recovery.scanning_deep_title')} />
+                  </div>
+                  <h3>{t('recovery.scanning_deep_title')}</h3>
+                  <div className="scanning-dir-container">
+                    <p className="scanning-dir-desc">
+                      {deepProgress
+                        ? t('recovery.scan_progress')
+                            .replace('{scanned}', String(deepProgress.scannedFilesCount))
+                            .replace('{found}', String(deepProgress.foundItemsCount))
+                        : t('recovery.scan_idle')}
+                    </p>
+                    <div className="scanning-dir-badge" title={deepProgress?.currentPath || resolvedDeepTarget}>
+                      <Folder size={13} className="scanning-dir-badge-icon" />
+                      <span className="scanning-dir-badge-text font-mono">
+                        {formatMiddleTruncate(deepProgress?.currentPath || resolvedDeepTarget, 46)}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
             )}
 
             {!isScanningDeep && !hasScannedDeep && deepResults.length === 0 && (
-              <div className="empty-state-card">
-                <div className="empty-state-icon-box">
-                  <Search size={30} />
+              <div className="recovery-state-wrap">
+                <div className="empty-state-card">
+                  <div className="empty-state-icon-box">
+                    <Search size={30} />
+                  </div>
+                  <h3>{t('recovery.deep_ready_title')}</h3>
+                  <p>{t('recovery.deep_ready_desc')}</p>
                 </div>
-                <h3>{t('recovery.deep_ready_title')}</h3>
-                <p>{t('recovery.deep_ready_desc')}</p>
               </div>
             )}
 
             {!isScanningDeep && hasScannedDeep && deepResults.length === 0 && (
-              <div className="empty-state-card clean">
-                <div className="empty-state-icon-box clean">
-                  <CheckCircle2 size={32} className="text-emerald" />
+              <div className="recovery-state-wrap">
+                <div className="empty-state-card clean">
+                  <div className="empty-state-icon-box clean">
+                    <CheckCircle2 size={32} className="text-emerald" />
+                  </div>
+                  <h3>{t('recovery.no_lost_files')}</h3>
+                  <p>{t('recovery.no_lost_desc')}</p>
                 </div>
-                <h3>{t('recovery.no_lost_files')}</h3>
-                <p>{t('recovery.no_lost_desc')}</p>
               </div>
             )}
 
-            {!isScanningDeep && deepResults.length > 0 && (
-              <>
-                <div className="recovery-toolbar recovery-toolbar-inline">
-                  <div className="module-search-box">
-                    <Search size={14} className="module-search-icon" />
-                    <input
-                      type="text"
-                      placeholder={t('recovery.deep_search_placeholder')}
-                      value={deepSearchQuery}
-                      onChange={(e) => setDeepSearchQuery(e.target.value)}
-                    />
-                    {deepSearchQuery && (
-                      <button
-                        type="button"
-                        className="chip-remove-btn"
-                        onClick={() => setDeepSearchQuery('')}
-                      >
-                        <X size={12} />
-                      </button>
-                    )}
+            {!isScanningDeep && deepResults.length > 0 && filteredDeepResults.length === 0 && (
+              <div className="recovery-state-wrap">
+                <div className="empty-state-card">
+                  <div className="empty-state-icon-box">
+                    <Search size={30} />
                   </div>
-
-                  <div className="module-toolbar-actions">
-                    <span className="recovery-toolbar-stat">
-                      {t('recovery.traces_found').replace('{count}', String(filteredDeepResults.length))}
-                      <span className="stat-dot">•</span>
-                      <strong className="font-mono">
-                        {formatBytes(filteredDeepResults.reduce((acc, it) => acc + (it.sizeBytes || 0), 0))}
-                      </strong>
-                    </span>
-                  </div>
+                  <h3>{t('recovery.no_deep_search')}</h3>
+                  <p className="font-mono text-muted text-xs">"{deepSearchQuery}"</p>
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    style={{ marginTop: '12px' }}
+                    onClick={() => setDeepSearchQuery('')}
+                  >
+                    {t('recovery.reset_filter')}
+                  </button>
                 </div>
+              </div>
+            )}
 
-                {filteredDeepResults.length === 0 ? (
-                  <div className="empty-state-card">
-                    <div className="empty-state-icon-box">
-                      <Search size={30} />
-                    </div>
-                    <h3>{t('recovery.no_deep_search')}</h3>
-                    <p className="font-mono text-muted text-xs">"{deepSearchQuery}"</p>
-                    <button
-                      type="button"
-                      className="btn-ghost"
-                      style={{ marginTop: '12px' }}
-                      onClick={() => setDeepSearchQuery('')}
-                    >
-                      {t('recovery.reset_filter')}
-                    </button>
-                  </div>
-                ) : (
-
-                <div className="recovery-table-wrapper">
-                  <div className="recovery-table">
-                    <div className="recovery-deep-header-row">
-                      <div className="col-check">
+            {!isScanningDeep && filteredDeepResults.length > 0 && (
+              <div className="fast-search-table-wrapper">
+                <table className="fast-search-table recovery-results-table">
+                  <thead>
+                    <tr>
+                      <th className="col-recovery-check">
                         <button
                           type="button"
                           className={`custom-checkbox-btn ${
-                            selectedDeepIds.size === filteredDeepResults.length && filteredDeepResults.length > 0
-                              ? 'checked'
-                              : ''
+                            selectedDeepIds.size === filteredDeepResults.length ? 'checked' : ''
                           }`}
                           onClick={() => {
                             if (selectedDeepIds.size === filteredDeepResults.length) handleClearDeepSelection();
                             else handleSelectAllDeep();
                           }}
                         >
-                          {selectedDeepIds.size === filteredDeepResults.length && filteredDeepResults.length > 0 && (
+                          {selectedDeepIds.size === filteredDeepResults.length && (
                             <Check size={12} strokeWidth={3} />
                           )}
                         </button>
-                      </div>
-                      <div className="col-name">
-                        <span>{t('recovery.col_name')}</span>
-                      </div>
-                      <div className="col-status">
-                        <span>{t('recovery.col_status')}</span>
-                      </div>
-                      <div className="col-size">
-                        <span>{t('recovery.col_size')}</span>
-                      </div>
-                    </div>
+                      </th>
+                      <SortableTh
+                        className="col-search-name"
+                        label={t('recovery.col_name')}
+                        active={deepSort.field === 'name'}
+                        dir={deepSort.dir}
+                        onSort={() => handleDeepSort('name')}
+                      />
+                      <SortableTh
+                        className="col-search-path"
+                        label={t('recovery.col_orig_loc')}
+                        active={deepSort.field === 'location'}
+                        dir={deepSort.dir}
+                        onSort={() => handleDeepSort('location')}
+                      />
+                      <SortableTh
+                        className="col-recovery-status"
+                        label={t('recovery.col_status')}
+                        active={deepSort.field === 'status'}
+                        dir={deepSort.dir}
+                        onSort={() => handleDeepSort('status')}
+                      />
+                      <SortableTh
+                        className="col-search-size"
+                        label={t('recovery.col_size')}
+                        active={deepSort.field === 'size'}
+                        dir={deepSort.dir}
+                        onSort={() => handleDeepSort('size')}
+                      />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pagedDeepResults.map((item) => {
+                      const isSelected = selectedDeepIds.has(item.id);
+                      const parentDir = getParentDir(item.originalPath);
 
-                    <div className="table-body">
-                      {filteredDeepResults.map((item) => {
-                        const isSelected = selectedDeepIds.has(item.id);
+                      return (
+                        <tr
+                          key={item.id}
+                          className={`search-result-row ${isSelected ? 'row-selected' : ''}`}
+                          onClick={() => handleToggleDeepItem(item.id)}
+                        >
+                          <td className="col-recovery-check" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              className={`custom-checkbox-btn ${isSelected ? 'checked' : ''}`}
+                              onClick={() => handleToggleDeepItem(item.id)}
+                            >
+                              {isSelected && <Check size={12} strokeWidth={3} />}
+                            </button>
+                          </td>
 
-                        return (
-                          <div
-                            key={item.id}
-                            className={`recovery-deep-row ${isSelected ? 'row-selected' : ''}`}
-                            onClick={() => handleToggleDeepItem(item.id)}
-                          >
-                            <div className="col-check" onClick={(e) => e.stopPropagation()}>
-                              <button
-                                type="button"
-                                className={`custom-checkbox-btn ${isSelected ? 'checked' : ''}`}
-                                onClick={() => handleToggleDeepItem(item.id)}
-                              >
-                                {isSelected && <Check size={12} strokeWidth={3} />}
-                              </button>
-                            </div>
-
-                            <div className="col-name">
-                              <div className="file-name-row">
-                                {getFileIcon(item.extension, item.detectedType)}
-                                <span className="file-name" title={item.name}>
-                                  {item.name}
-                                </span>
-                                <span className="folder-inline-tag">{item.detectedType}</span>
-                              </div>
-                              <span className="file-path font-mono text-muted text-xs" title={item.originalPath}>
-                                {item.originalPath}
+                          <td className="col-search-name">
+                            <div className="file-name-cell">
+                              {getFileIcon(item.extension, item.detectedType)}
+                              <span className="file-name-title" title={item.name}>
+                                {item.name}
                               </span>
+                              <span className="folder-inline-tag">{item.detectedType}</span>
                             </div>
+                          </td>
 
-                            <div className="col-status">
-                              <span
-                                className={`status-badge font-mono text-xs ${
-                                  item.status === 'recoverable'
-                                    ? 'status-safe'
-                                    : item.status === 'partially_overwritten'
-                                    ? 'status-caution'
-                                    : 'status-danger'
-                                }`}
-                              >
-                                {item.status === 'recoverable'
-                                  ? t('recovery.status_recoverable')
+                          <td className="col-search-path" onClick={(e) => e.stopPropagation()}>
+                            <span
+                              className="file-dir-link"
+                              onClick={() => onOpenExplorer(parentDir)}
+                              title={item.originalPath}
+                            >
+                              {parentDir}
+                            </span>
+                          </td>
+
+                          <td className="col-recovery-status">
+                            <span
+                              className={`status-badge font-mono text-xs ${
+                                item.status === 'recoverable'
+                                  ? 'status-safe'
                                   : item.status === 'partially_overwritten'
-                                  ? t('recovery.status_partial')
-                                  : t('recovery.status_corrupted')}
-                              </span>
-                            </div>
+                                  ? 'status-caution'
+                                  : 'status-danger'
+                              }`}
+                            >
+                              {item.status === 'recoverable'
+                                ? t('recovery.status_recoverable')
+                                : item.status === 'partially_overwritten'
+                                ? t('recovery.status_partial')
+                                : t('recovery.status_corrupted')}
+                            </span>
+                          </td>
 
-                            <div className="col-size font-mono font-bold">
-                              {formatBytes(item.sizeBytes)}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-                )}
-              </>
+                          <td className="col-search-size">
+                            <span className="size-badge-text font-mono">{formatBytes(item.sizeBytes)}</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
+
+          {!isScanningDeep && sortedDeepResults.length > PAGE_SIZE && (
+            <PaginationBar
+              page={safeDeepPage}
+              totalPages={deepTotalPages}
+              pageSize={PAGE_SIZE}
+              total={sortedDeepResults.length}
+              onChange={setDeepPage}
+            />
+          )}
 
           {/* Sticky Bottom Bar for Deep Recovery */}
           {selectedDeepIds.size > 0 && (
