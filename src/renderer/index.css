@@ -4271,7 +4271,7 @@ body.theme-light .scope-pill.active {
   background: var(--bg-canvas);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  padding: 6px 10px 6px 30px;
+  padding: 6px 28px 6px 30px;
   font-size: 11px;
   color: var(--text-primary);
   outline: none;
@@ -4279,6 +4279,33 @@ body.theme-light .scope-pill.active {
 
 .module-search-box input:focus {
   border-color: var(--accent-primary);
+}
+
+.module-search-box .chip-remove-btn,
+.module-search-box .search-clear-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  border-radius: var(--radius-xs);
+  opacity: 0.7;
+  transition: all 0.15s ease;
+  z-index: 2;
+}
+
+.module-search-box .chip-remove-btn:hover,
+.module-search-box .search-clear-btn:hover {
+  opacity: 1;
+  color: var(--text-primary);
+  background: var(--bg-surface-hover);
 }
 
 .module-toolbar-actions {
