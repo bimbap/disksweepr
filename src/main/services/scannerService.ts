@@ -200,31 +200,23 @@ export class ScannerService {
         }
         await this.walkDirectory(fullPath, allowedRoot, def, results, signal, extensionFilter, onFileFound);
       } else if (entry.isFile()) {
-        if (extensionFilter) {
-          // If user specified custom extension filter:
+      if (extensionFilter) {
+          // User specified a custom extension filter — apply it.
+          // For media_hunter: match user's chosen extensions
+          // For other categories: match both user filter AND category-specific extensions
           if (def.id.includes('media_hunter')) {
-            // Media hunter matches any extension the user chose
-            if (!matchesExtension(entry.name, extensionFilter)) {
-              continue;
-            }
+            if (!matchesExtension(entry.name, extensionFilter)) continue;
           } else {
-            // Standard category must match user filter
-            if (!matchesExtension(entry.name, extensionFilter)) {
-              continue;
-            }
-            // And must also match category-specific extensions if defined
+            if (!matchesExtension(entry.name, extensionFilter)) continue;
             if (def.fileExtensions && def.fileExtensions.length > 0) {
-              if (!matchesExtension(entry.name, def.fileExtensions)) {
-                continue;
-              }
+              if (!matchesExtension(entry.name, def.fileExtensions)) continue;
             }
           }
         } else {
-          // No user extension filter (All Formats):
+          // No user extension filter (scan All Formats):
+          // Still respect category-level extension whitelist (e.g. thumbnail_cache only wants .db)
           if (def.fileExtensions && def.fileExtensions.length > 0) {
-            if (!matchesExtension(entry.name, def.fileExtensions)) {
-              continue;
-            }
+            if (!matchesExtension(entry.name, def.fileExtensions)) continue;
           }
         }
 
