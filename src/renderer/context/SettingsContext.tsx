@@ -399,6 +399,10 @@ const translations: Record<Language, Record<string, string>> = {
     // Duplicate Files Hunter
     'duplicates.title': 'Duplicate Files Hunter',
     'duplicates.subtitle': 'Reclaim lost gigabytes by detecting identical redundant files via cryptographic hashing',
+    'duplicates.ready_title': 'Ready to Hunt Duplicate Files',
+    'duplicates.ready_desc': 'Scan your PC or custom folder to detect identical redundant files and reclaim wasted disk space.',
+    'duplicates.scanning_title': 'Auditing Redundancies & Computing Hashes...',
+    'duplicates.hashing_files': 'Verifying file contents via cryptographic hash comparison...',
     'duplicates.wasted': 'Wasted Storage',
     'duplicates.target_path': 'Scan Location',
     'duplicates.min_size': 'Minimum File Size',
@@ -408,10 +412,16 @@ const translations: Record<Language, Record<string, string>> = {
     'duplicates.send_to_trash': 'Move to Recycle Bin (Safe)',
     'duplicates.filter_placeholder': 'Filter files by name or directory...',
     'duplicates.delete_selected': 'Purge Selected',
+    'duplicates.files_selected': 'clones selected',
+    'duplicates.reclaiming': 'reclaiming',
     'duplicates.empty_title': 'No Duplicate Redundancies Found',
     'duplicates.empty_desc': 'Target directory is clean and contains no identical redundant files matching the minimum size threshold.',
     'duplicates.wasted_label': 'wasted',
     'duplicates.original_tag': 'Newest / Keep',
+    'duplicates.confirm_title': 'Confirm Duplicate Files Deletion',
+    'duplicates.confirm_desc': 'Are you sure you want to delete {count} selected duplicate clone file(s)?',
+    'duplicates.confirm_trash_note': 'Files will be safely sent to Windows Recycle Bin.',
+    'duplicates.confirm_perm_note': 'Files will be permanently deleted from disk and cannot be restored.',
 
     // Power Tools
     'tools.title': 'Advanced Power Tools',
@@ -430,6 +440,12 @@ const translations: Record<Language, Record<string, string>> = {
     'tools.compact_btn': 'Compact Disk',
 
     // Empty Folders
+    'tools.empty_ready_title': 'Ready to Sweep Empty Directories',
+    'tools.empty_ready_desc': 'Recursively prune zero-byte abandoned directory trees without touching personal files.',
+    'tools.empty_clean_title': 'No Empty Folders Detected',
+    'tools.empty_clean_desc': 'All directories in the scanned scope contain valid files.',
+    'tools.empty_confirm_title': 'Confirm Empty Folders Pruning',
+    'tools.empty_confirm_desc': 'Are you sure you want to permanently delete {count} empty directory(ies)?',
     'tools.empty_banner_title': 'Prune Empty Directory Trees',
     'tools.empty_banner_desc': 'Recursively detect and eliminate zero-byte abandoned folders and nested directory ghost trees.',
     'tools.empty_root_path': 'Root Folder to Cleanse',
@@ -840,6 +856,10 @@ const translations: Record<Language, Record<string, string>> = {
     // Duplicate Files Hunter
     'duplicates.title': 'Pemburu File Duplikat',
     'duplicates.subtitle': 'Bebaskan gigabyte terbuang dengan mendeteksi file identik redundant melalui verifikasi hash kriptografi',
+    'duplicates.ready_title': 'Siap Berburu File Duplikat',
+    'duplicates.ready_desc': 'Pindai PC atau folder khusus untuk menemukan file klon identik dan merebut kembali penyimpanan yang terbuang.',
+    'duplicates.scanning_title': 'Memeriksa Redundansi & Menghitung Hash...',
+    'duplicates.hashing_files': 'Memverifikasi isi file melalui perbandingan hash kriptografi...',
     'duplicates.wasted': 'Ruang Terbuang',
     'duplicates.target_path': 'Lokasi Pemindaian',
     'duplicates.min_size': 'Ukuran File Minimal',
@@ -849,10 +869,16 @@ const translations: Record<Language, Record<string, string>> = {
     'duplicates.send_to_trash': 'Pindahkan ke Recycle Bin (Aman)',
     'duplicates.filter_placeholder': 'Cari berdasarkan nama file atau folder...',
     'duplicates.delete_selected': 'Hapus yang Dipilih',
+    'duplicates.files_selected': 'klon dipilih',
+    'duplicates.reclaiming': 'merebut kembali',
     'duplicates.empty_title': 'Tidak Ditemukan File Duplikat',
     'duplicates.empty_desc': 'Direktori target bersih dan tidak memiliki file ganda identik yang melebihi batas ukuran minimum.',
     'duplicates.wasted_label': 'terbuang',
     'duplicates.original_tag': 'Terbaru / Simpan',
+    'duplicates.confirm_title': 'Konfirmasi Penghapusan File Duplikat',
+    'duplicates.confirm_desc': 'Apakah Anda yakin ingin menghapus {count} file klon duplikat yang dipilih?',
+    'duplicates.confirm_trash_note': 'File akan dipindahkan secara aman ke Recycle Bin Windows.',
+    'duplicates.confirm_perm_note': 'File akan dihapus secara permanen dari disk dan tidak dapat dipulihkan.',
 
     // Power Tools
     'tools.title': 'Power Tools Tingkat Lanjut',
@@ -871,6 +897,12 @@ const translations: Record<Language, Record<string, string>> = {
     'tools.compact_btn': 'Kompresi Disk',
 
     // Empty Folders
+    'tools.empty_ready_title': 'Siap Menyapu Direktori Kosong',
+    'tools.empty_ready_desc': 'Pangkas direktori kosong tak bertuan secara rekursif tanpa menyentuh file pribadi.',
+    'tools.empty_clean_title': 'Tidak Ada Folder Kosong',
+    'tools.empty_clean_desc': 'Seluruh folder dalam cakupan pemindaian memiliki berkas valid.',
+    'tools.empty_confirm_title': 'Konfirmasi Pembersihan Folder Kosong',
+    'tools.empty_confirm_desc': 'Apakah Anda yakin ingin menghapus {count} direktori kosong yang dipilih?',
     'tools.empty_banner_title': 'Pangkas Struktur Direktori Kosong',
     'tools.empty_banner_desc': 'Pindai dan lenyapkan folder kosong tak bertuan serta percabangan direktori hantu tanpa isi secara aman.',
     'tools.empty_root_path': 'Folder Utama untuk Dibersihkan',

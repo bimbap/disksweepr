@@ -735,38 +735,35 @@
   - Staged and committed 75 project files as `feat: initialize DiskSweepr v1.0.0 modern windows cleaner`.
   - Pushed to remote repository: [`bimbap/disksweepr`](https://github.com/bimbap/disksweepr.git) on branch `main`.
 
-### Phase 51: Advanced Power Tools Suite & Shell Integration (5 New Modules)
-- [x] **WSL2 & Docker VHDX Compactor Engine** ([`virtualDiskService.ts`](file:///m:/testProject/disksweepr/src/main/services/virtualDiskService.ts)):
-  - Automatically identifies `.vhdx` container virtual hard disks across WSL2 distributions (`%LOCALAPPDATA%\Packages\*\LocalState\ext4.vhdx`) and Docker Desktop (`%LOCALAPPDATA%\Docker\wsl\data\ext4.vhdx`).
-  - Performs graceful `wsl --shutdown` and executes single-batch `diskpart compact vdisk` via temporary script files to shrink dynamic disks and reclaim gigabytes without data loss.
-- [x] **Duplicate Files Hunter with Cryptographic Hashing** ([`duplicateService.ts`](file:///m:/testProject/disksweepr/src/main/services/duplicateService.ts), [`DuplicateHunterView.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/DuplicateHunterView.tsx)):
-  - High-performance 3-phase duplicate detection pipeline:
-    - Phase 1: Rapid file size grouping (filtered by configurable minimum size: 1MB, 5MB, 10MB, 50MB).
-    - Phase 2: 4 KB head-chunk MD5 quick hashing to eliminate unequal files with zero disk overhead.
-    - Phase 3: Full-stream SHA-256 cryptographic verification with cancellation support and live progress events.
-  - Interactive UI with smart multi-selection ("Select Older Clones", "Select Newer Clones"), live search filter, safe Recycle Bin toggling, and Explorer reveal.
-- [x] **Empty Folders Sweeper with Safety Whitelist** ([`emptyFolderService.ts`](file:///m:/testProject/disksweepr/src/main/services/emptyFolderService.ts)):
-  - Bottom-up post-order recursive directory traversal to identify zero-byte abandoned folders and nested empty branches.
-  - Whitelist protection guards against accidental deletion of user shell roots (Desktop, Documents, Downloads, Pictures, Videos, Music) and OS-critical folders (`Windows`, `Program Files`, `ProgramData`, `$Recycle.Bin`, `System Volume Information`, `.git`).
-  - Deepest-first pruning sequence prevents parent removal race conditions.
-- [x] **Windows Component Store (DISM WinSxS) Analyzer & Cleaner** ([`dismService.ts`](file:///m:/testProject/disksweepr/src/main/services/dismService.ts)):
-  - Analyzes the Windows Component Store via native `dism /Online /Cleanup-Image /AnalyzeComponentStore` to extract reported size, actual size, backup footprint, and cleanup recommendations.
-  - Triggers deep package purge via `dism /Online /Cleanup-Image /StartComponentCleanup /ResetBase`.
-- [x] **Windows Explorer Context Menu Integration** ([`contextMenuService.ts`](file:///m:/testProject/disksweepr/src/main/services/contextMenuService.ts)):
-  - Per-user shell registration in `HKCU\Software\Classes\Directory\shell\DiskSweepr`, `Directory\Background\shell`, and `Drive\shell`.
-  - Zero elevation required; seamlessly integrates "Scan with DiskSweepr" into native Windows Explorer right-click menus.
-  - Dedicated interactive toggle switch inside the TitleBar Settings dropdown.
-- [x] **Navigation & View Integration**:
-  - Registered `'duplicates'` and `'tools'` in `NavModule` union type.
-  - Added dedicated navigation buttons in [`NavRail.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/NavRail.tsx).
-  - Wired full views in [`App.tsx`](file:///m:/testProject/disksweepr/src/renderer/App.tsx) and tabbed interface in [`PowerToolsView.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/PowerToolsView.tsx).
-  - Complete English and Indonesian i18n in [`SettingsContext.tsx`](file:///m:/testProject/disksweepr/src/renderer/context/SettingsContext.tsx).
-  - Linear/Raycast dark and light theme styles added in [`index.css`](file:///m:/testProject/disksweepr/src/renderer/index.css).
-- [x] **Quality Gate & Testing**:
+### Phase 52: UI/UX Harmonization for Duplicate Hunter & Power Tools
+- [x] **Duplicate Files Hunter (`DuplicateHunterView.tsx`) Complete Overhaul**:
+  - Re-architected root container to `module-view-container` with Drag & Drop overlay support (`module-drag-overlay`).
+  - Standardized `module-header` with title, subtitle, and primary `btn-primary` / `btn-danger-outline` action controls.
+  - Implemented `large-files-config-bar` with scope popover dropdown (Whole PC, Detected Drive partitions, or Custom Folder with middle-truncation) and size threshold chips (&ge; 1 MB, &ge; 5 MB, &ge; 10 MB, &ge; 50 MB, &ge; 100 MB).
+  - Integrated signature `WaveEqualizerLoader` with active hashing stage, directory path badge, and live telemetry counters during scanning.
+  - Added standard `empty-state-card` states (Ready State with `Copy` icon; Clean State with `CheckCircle2` emerald icon).
+  - Standardized `module-toolbar` with search filter box, quick selection chips (*Select Older*, *Select Newer*, *Clear*), and safe Recycle Bin toggle.
+  - Added sticky bottom action bar (`module-bottom-bar`) with selection badge, reclaimed size counter, and `Trash2` purge trigger.
+  - Added `modal-backdrop` confirmation modal before permanently deleting or recycling duplicates.
+- [x] **Advanced Power Tools (`PowerToolsView.tsx`) UI/UX Modernization**:
+  - Re-architected root container to `module-view-container`.
+  - Upgraded sub-tab navigation to sleek segmented bar (`.segmented-tab-nav` & `.tab-nav-btn`) in the header matching EaseUS CleanGenius & Linear dark aesthetics.
+  - **WSL2 / Docker VHDX Shrinker**:
+    - Integrated `WaveEqualizerLoader` during disk compaction with active target badge.
+    - Added Explorer reveal action buttons and status alert banner.
+  - **Empty Folders Sweeper**:
+    - Re-architected with `large-files-config-bar` scope dropdown (Whole PC, Drive, Custom Folder with Drag & Drop!).
+    - Added `WaveEqualizerLoader` during empty folder tree discovery.
+    - Added search filter bar, batch selection controls, and sticky bottom action bar with confirmation modal.
+  - **DISM Component Store**:
+    - Added `WaveEqualizerLoader` during analysis and deep purge operations.
+    - Added confirmation modal with safety notes before triggering `/ResetBase`.
+- [x] **Verification**:
   - `npx tsc --noEmit`: 0 errors.
-  - `npm test`: 12/12 unit tests passed (including new [`tests/emptyFolder.test.ts`](file:///m:/testProject/disksweepr/tests/emptyFolder.test.ts)).
-  - `npm run build`: Renderer and Main bundles compiled cleanly in 3.85s.
+  - `npm test`: 12/12 unit tests passed.
+  - `npm run build`: Bundled cleanly in 10.5s.
   - Binary packaging held on standby until user explicit build command.
+
 
 
 

@@ -36,3 +36,4 @@ test('isProtectedDirectory allows regular subfolders', () => {
   assert.equal(isProtectedDirectory('C:\\TestFolder\\old_cache', root), false);
   assert.equal(isProtectedDirectory('C:\\TestFolder\\temp_exports\\empty_leaf', root), false);
 });
+
