@@ -68,6 +68,10 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
   const [isScopeDropdownRight, setIsScopeDropdownRight] = useState(false);
   const scopeDropdownRef = useRef<HTMLDivElement>(null);
 
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+  const [isCategoryDropdownRight, setIsCategoryDropdownRight] = useState(false);
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
+
   const [selectedCategory, setSelectedCategory] = useState<
     'all' | 'images' | 'documents' | 'media' | 'archives'
   >('all');
@@ -97,11 +101,15 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
     }
   }, [currentDriveLetter]);
 
-  // Click outside scope dropdown
+  // Click outside dropdowns
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (scopeDropdownRef.current && !scopeDropdownRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (scopeDropdownRef.current && !scopeDropdownRef.current.contains(target)) {
         setIsScopeDropdownOpen(false);
+      }
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(target)) {
+        setIsCategoryDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -239,9 +247,25 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
 
   const toggleScopeDropdown = () => {
     setIsScopeDropdownOpen((prev) => {
-      if (!prev && scopeDropdownRef.current) {
-        const rect = scopeDropdownRef.current.getBoundingClientRect();
-        setIsScopeDropdownRight(rect.left + 300 > window.innerWidth - 24);
+      if (!prev) {
+        setIsCategoryDropdownOpen(false);
+        if (scopeDropdownRef.current) {
+          const rect = scopeDropdownRef.current.getBoundingClientRect();
+          setIsScopeDropdownRight(rect.left + 300 > window.innerWidth - 24);
+        }
+      }
+      return !prev;
+    });
+  };
+
+  const toggleCategoryDropdown = () => {
+    setIsCategoryDropdownOpen((prev) => {
+      if (!prev) {
+        setIsScopeDropdownOpen(false);
+        if (categoryDropdownRef.current) {
+          const rect = categoryDropdownRef.current.getBoundingClientRect();
+          setIsCategoryDropdownRight(rect.left + 300 > window.innerWidth - 24);
+        }
       }
       return !prev;
     });
@@ -391,6 +415,39 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
     const q = deepSearchQuery.toLowerCase();
     return item.name.toLowerCase().includes(q) || item.originalPath.toLowerCase().includes(q);
   });
+
+  const categoryList = [
+    {
+      id: 'all' as const,
+      label: t('recovery.cat_all'),
+      desc: t('recovery.cat_all_desc'),
+      icon: <File size={15} className="popover-item-icon text-secondary" />,
+    },
+    {
+      id: 'images' as const,
+      label: t('recovery.cat_images'),
+      desc: t('recovery.cat_images_desc'),
+      icon: <FileImage size={15} className="popover-item-icon text-sky" />,
+    },
+    {
+      id: 'documents' as const,
+      label: t('recovery.cat_documents'),
+      desc: t('recovery.cat_documents_desc'),
+      icon: <FileText size={15} className="popover-item-icon text-emerald" />,
+    },
+    {
+      id: 'media' as const,
+      label: t('recovery.cat_media'),
+      desc: t('recovery.cat_media_desc'),
+      icon: <FileVideo size={15} className="popover-item-icon text-rose" />,
+    },
+    {
+      id: 'archives' as const,
+      label: t('recovery.cat_archives'),
+      desc: t('recovery.cat_archives_desc'),
+      icon: <FileArchive size={15} className="popover-item-icon text-amber" />,
+    },
+  ];
 
   const getFileIcon = (ext: string, _type?: string) => {
     const e = ext.toLowerCase();
@@ -799,28 +856,67 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
               </div>
             </div>
 
-            {/* Category Filter Chips */}
-            <div className="threshold-selection-group">
+            {/* Category Filter Dropdown */}
+            <div className="scope-selection-group">
               <span className="config-bar-label">{t('recovery.deep_category_filter')}</span>
-              <div className="segmented-chips">
-                {(
-                  [
-                    { id: 'all', label: t('recovery.cat_all') },
-                    { id: 'images', label: t('recovery.cat_images') },
-                    { id: 'documents', label: t('recovery.cat_documents') },
-                    { id: 'media', label: t('recovery.cat_media') },
-                    { id: 'archives', label: t('recovery.cat_archives') },
-                  ] as const
-                ).map((cat) => (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    className={`segment-chip ${selectedCategory === cat.id ? 'active' : ''}`}
-                    onClick={() => setSelectedCategory(cat.id)}
-                  >
-                    {cat.label}
-                  </button>
-                ))}
+              <div
+                className={`scope-dropdown-wrapper ${isCategoryDropdownOpen ? 'active-dropdown' : ''}`}
+                ref={categoryDropdownRef}
+              >
+                <button
+                  type="button"
+                  className={`scope-dropdown-trigger ${isCategoryDropdownOpen ? 'active' : ''}`}
+                  onClick={toggleCategoryDropdown}
+                  title={categoryList.find((c) => c.id === selectedCategory)?.label}
+                >
+                  <div className="trigger-content">
+                    {selectedCategory === 'all' && <File size={14} className="scope-icon text-secondary" />}
+                    {selectedCategory === 'images' && <FileImage size={14} className="scope-icon text-sky" />}
+                    {selectedCategory === 'documents' && <FileText size={14} className="scope-icon text-emerald" />}
+                    {selectedCategory === 'media' && <FileVideo size={14} className="scope-icon text-rose" />}
+                    {selectedCategory === 'archives' && <FileArchive size={14} className="scope-icon text-amber" />}
+                    <span className="scope-trigger-label">
+                      {categoryList.find((c) => c.id === selectedCategory)?.label}
+                    </span>
+                  </div>
+                  <ChevronDown
+                    size={14}
+                    className={`scope-dropdown-chevron ${isCategoryDropdownOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+
+                {isCategoryDropdownOpen && (
+                  <div className={`scope-dropdown-popover ${isCategoryDropdownRight ? 'align-right' : ''}`}>
+                    <div className="scope-popover-header">
+                      <span>{t('recovery.deep_category_filter')}</span>
+                    </div>
+
+                    <div className="scope-popover-list">
+                      {categoryList.map((cat) => {
+                        const isSelected = selectedCategory === cat.id;
+                        return (
+                          <div
+                            key={cat.id}
+                            className={`scope-popover-item ${isSelected ? 'selected' : ''}`}
+                            onClick={() => {
+                              setSelectedCategory(cat.id);
+                              setIsCategoryDropdownOpen(false);
+                            }}
+                          >
+                            <div className="item-left">
+                              {cat.icon}
+                              <div className="item-text-group">
+                                <span className="item-primary-text">{cat.label}</span>
+                                <span className="item-desc-text">{cat.desc}</span>
+                              </div>
+                            </div>
+                            {isSelected && <Check size={14} className="item-check-icon" />}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
