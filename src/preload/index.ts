@@ -111,6 +111,21 @@ contextBridge.exposeInMainWorld('cleanerApi', {
   getContextMenuStatus: () => ipcRenderer.invoke('cleaner:get-context-menu-status'),
   setContextMenuStatus: (enable: boolean) => ipcRenderer.invoke('cleaner:set-context-menu-status', enable),
 
+  // File Recovery
+  getRecycleBinItems: () => ipcRenderer.invoke('cleaner:get-recycle-bin-items'),
+  restoreRecycleBinItems: (itemPaths: string[]) => ipcRenderer.invoke('cleaner:restore-recycle-bin-items', itemPaths),
+  deleteRecycleBinItems: (itemPaths: string[]) => ipcRenderer.invoke('cleaner:delete-recycle-bin-items', itemPaths),
+  emptyRecycleBin: () => ipcRenderer.invoke('cleaner:empty-recycle-bin'),
+  scanDeepRecovery: (options: any) => ipcRenderer.invoke('cleaner:scan-deep-recovery', options),
+  cancelDeepRecovery: () => ipcRenderer.invoke('cleaner:cancel-deep-recovery'),
+  onDeepRecoveryProgress: (callback: (progress: any) => void) => {
+    const handler = (_: any, data: any) => callback(data);
+    ipcRenderer.on('cleaner:deep-recovery-progress', handler);
+    return () => ipcRenderer.removeListener('cleaner:deep-recovery-progress', handler);
+  },
+  recoverDeepFiles: (items: any[], destinationDir: string) =>
+    ipcRenderer.invoke('cleaner:recover-deep-files', items, destinationDir),
+
   minimizeWindow: () => ipcRenderer.send('cleaner:window-minimize'),
   maximizeWindow: () => ipcRenderer.send('cleaner:window-maximize'),
   closeWindow: () => ipcRenderer.send('cleaner:window-close'),

@@ -8780,6 +8780,46 @@ body.theme-light .empty-folder-row:hover {
   background: #f1f5f9;
 }
 
+.tab-count-badge {
+  margin-left: 6px;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: var(--bg-surface-elevated);
+  color: var(--text-secondary);
+}
+
+.tab-nav-btn.active .tab-count-badge {
+  background: var(--accent-subtle);
+  color: var(--accent-primary);
+}
+
+.btn-action-restore {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  padding: 3px 8px;
+  border-radius: var(--radius-xs);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-action-restore:hover {
+  background: rgba(16, 185, 129, 0.22);
+  border-color: rgba(16, 185, 129, 0.45);
+}
+
+.recovery-tab-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
 
 
 

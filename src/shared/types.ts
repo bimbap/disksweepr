@@ -97,7 +97,15 @@ export interface ScanOptions {
   scanMode?: 'quick' | 'full' | 'custom';
 }
 
-export type NavModule = 'system' | 'large_files' | 'duplicates' | 'dev_projects' | 'tools' | 'history' | 'fast_search';
+export type NavModule =
+  | 'system'
+  | 'large_files'
+  | 'duplicates'
+  | 'dev_projects'
+  | 'tools'
+  | 'recovery'
+  | 'history'
+  | 'fast_search';
 
 export type FastSearchFileType = 'all' | 'documents' | 'images' | 'media' | 'archives' | 'executables' | 'code';
 export type FastSearchSizeFilter = 'all' | 'tiny' | 'small' | 'medium' | 'large' | 'custom';
@@ -277,6 +285,42 @@ export interface ContextMenuStatus {
   enabled: boolean;
 }
 
+// --- File Recovery (Recycle Bin & Deep Recovery) ---
+export interface RecycleBinItem {
+  id: string;
+  name: string;
+  path: string; // The physical location in $Recycle.Bin
+  originalLocation: string;
+  originalFullPath: string;
+  dateDeleted: string;
+  sizeBytes: number;
+  sizeFormatted: string;
+  type: string;
+}
+
+export interface DeepRecoveryItem {
+  id: string;
+  name: string;
+  originalPath: string;
+  detectedType: string;
+  sizeBytes: number;
+  status: 'recoverable' | 'corrupted' | 'partially_overwritten';
+  modifiedTime?: number;
+  extension: string;
+}
+
+export interface DeepRecoveryScanOptions {
+  targetPath: string;
+  category?: 'all' | 'images' | 'documents' | 'media' | 'archives';
+  maxResults?: number;
+}
+
+export interface DeepRecoveryScanProgress {
+  currentPath: string;
+  scannedFilesCount: number;
+  foundItemsCount: number;
+}
+
 export interface CleanerApi {
   // Drive Stats
   getDriveStats(): Promise<DriveStat[]>;
@@ -344,6 +388,16 @@ export interface CleanerApi {
   onFastSearchBatch(callback: (batch: FastSearchItem[]) => void): () => void;
   openFile(filePath: string): Promise<void>;
   deleteFile(filePath: string): Promise<boolean>;
+
+  // File Recovery
+  getRecycleBinItems(): Promise<RecycleBinItem[]>;
+  restoreRecycleBinItems(itemPaths: string[]): Promise<{ restoredCount: number; failedCount: number }>;
+  deleteRecycleBinItems(itemPaths: string[]): Promise<{ deletedCount: number; failedCount: number }>;
+  emptyRecycleBin(): Promise<boolean>;
+  scanDeepRecovery(options: DeepRecoveryScanOptions): Promise<DeepRecoveryItem[]>;
+  cancelDeepRecovery(): Promise<void>;
+  onDeepRecoveryProgress(callback: (progress: DeepRecoveryScanProgress) => void): () => void;
+  recoverDeepFiles(items: DeepRecoveryItem[], destinationDir: string): Promise<{ recoveredCount: number; failedCount: number }>;
 
   // Shell & Utilities
   openPathInExplorer(targetPath: string): Promise<void>;

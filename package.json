@@ -10,7 +10,7 @@
     "dist": "npm run build && electron-builder --config electron-builder.json",
     "dist:portable": "electron-builder --config electron-builder.json --win portable",
     "preview": "vite preview",
-    "test": "node --test tests/filters.test.ts tests/emptyFolder.test.ts tests/rules.test.ts tests/largeFiles.test.ts tests/fastSearch.test.ts tests/duplicates.test.ts"
+    "test": "node --test tests/filters.test.ts tests/emptyFolder.test.ts tests/rules.test.ts tests/largeFiles.test.ts tests/fastSearch.test.ts tests/duplicates.test.ts tests/recovery.test.ts"
   },
   "dependencies": {
     "lucide-react": "^1.61.0",

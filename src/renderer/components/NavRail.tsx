@@ -6,6 +6,7 @@ import {
   FolderGit2,
   Wrench,
   History,
+  RotateCcw,
 } from 'lucide-react';
 import { NavModule } from '../../shared/types';
 import { useSettings } from '../context/SettingsContext';
@@ -91,6 +92,18 @@ export const NavRail: React.FC<NavRailProps> = ({ activeModule, onSelectModule }
             <Wrench size={20} />
           </div>
           <span className="rail-label">{t('nav.tools')}</span>
+        </button>
+
+        <button
+          type="button"
+          className={`rail-item ${activeModule === 'recovery' ? 'active' : ''}`}
+          onClick={() => onSelectModule('recovery')}
+          title={t('nav.recovery')}
+        >
+          <div className="rail-icon-wrapper">
+            <RotateCcw size={20} />
+          </div>
+          <span className="rail-label">{t('nav.recovery')}</span>
         </button>
 
         <button

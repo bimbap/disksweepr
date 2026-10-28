@@ -7,6 +7,7 @@ import { LargeFilesView } from './components/LargeFilesView';
 import { DuplicateHunterView } from './components/DuplicateHunterView';
 import { DevProjectsView } from './components/DevProjectsView';
 import { PowerToolsView } from './components/PowerToolsView';
+import { RecoveryView } from './components/RecoveryView';
 import { HistoryView } from './components/HistoryView';
 import {
   CategoryDefinition,
@@ -273,6 +274,14 @@ export const App: React.FC = () => {
 
           {activeModule === 'tools' && (
             <PowerToolsView
+              currentDriveLetter={selectedDriveLetter}
+              onOpenExplorer={(p) => window.cleanerApi?.openPathInExplorer(p)}
+              onRefreshDriveStats={refreshDriveStats}
+            />
+          )}
+
+          {activeModule === 'recovery' && (
+            <RecoveryView
               currentDriveLetter={selectedDriveLetter}
               onOpenExplorer={(p) => window.cleanerApi?.openPathInExplorer(p)}
               onRefreshDriveStats={refreshDriveStats}

@@ -12,6 +12,7 @@ import { DuplicateService } from './services/duplicateService';
 import { EmptyFolderService } from './services/emptyFolderService';
 import { DismService } from './services/dismService';
 import { ContextMenuService } from './services/contextMenuService';
+import { RecoveryService } from './services/recoveryService';
 import { getDriveTelemetry } from './services/telemetryService';
 import { getCategoryDefinitionsForDrive } from './services/ruleRegistry';
 import { getRunningAppsForCategories, closeRunningApps } from './services/processService';
@@ -22,6 +23,8 @@ import {
   LargeFilesScanOptions,
   ScanOptions,
   ScanResult,
+  DeepRecoveryScanOptions,
+  DeepRecoveryItem,
 } from '../shared/types';
 
 let mainWindow: BrowserWindow | null = null;
@@ -36,6 +39,7 @@ const duplicateService = new DuplicateService();
 const emptyFolderService = new EmptyFolderService();
 const dismService = new DismService();
 const contextMenuService = new ContextMenuService();
+const recoveryService = new RecoveryService();
 let latestScanResult: ScanResult | null = null;
 
 function parsePathArg(argv: string[]): string | null {
@@ -410,6 +414,37 @@ ipcMain.handle('cleaner:get-context-menu-status', async () => {
 
 ipcMain.handle('cleaner:set-context-menu-status', async (_, enable: boolean) => {
   return await contextMenuService.setStatus(enable);
+});
+
+// --- FILE RECOVERY (RECYCLE BIN & DEEP RECOVERY) IPC ---
+ipcMain.handle('cleaner:get-recycle-bin-items', async () => {
+  return await recoveryService.getRecycleBinItems();
+});
+
+ipcMain.handle('cleaner:restore-recycle-bin-items', async (_, itemPaths: string[]) => {
+  return await recoveryService.restoreRecycleBinItems(itemPaths);
+});
+
+ipcMain.handle('cleaner:delete-recycle-bin-items', async (_, itemPaths: string[]) => {
+  return await recoveryService.deleteRecycleBinItems(itemPaths);
+});
+
+ipcMain.handle('cleaner:empty-recycle-bin', async () => {
+  return await recoveryService.emptyRecycleBin();
+});
+
+ipcMain.handle('cleaner:scan-deep-recovery', async (_, options: DeepRecoveryScanOptions) => {
+  return await recoveryService.scanDeepRecovery(options, (progress) => {
+    mainWindow?.webContents.send('cleaner:deep-recovery-progress', progress);
+  });
+});
+
+ipcMain.handle('cleaner:cancel-deep-recovery', async () => {
+  recoveryService.cancelDeepRecovery();
+});
+
+ipcMain.handle('cleaner:recover-deep-files', async (_, items: DeepRecoveryItem[], destinationDir: string) => {
+  return await recoveryService.recoverDeepFiles(items, destinationDir);
 });
 
 // Window controls
