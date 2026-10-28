@@ -8820,6 +8820,131 @@ body.theme-light .empty-folder-row:hover {
   overflow: hidden;
 }
 
+/* ==========================================================================
+   RECOVERY VIEW CUSTOM TABLES
+   ========================================================================== */
+.recovery-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.recovery-table {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  min-width: 760px;
+}
+
+/* Tab 1: Recycle Bin Table Header & Rows */
+.recovery-bin-header-row {
+  display: grid;
+  grid-template-columns: 36px minmax(200px, 1.4fr) minmax(180px, 1.2fr) 140px 100px 110px;
+  gap: 16px;
+  padding: 10px 18px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  align-items: center;
+}
+
+.recovery-bin-row {
+  display: grid;
+  grid-template-columns: 36px minmax(200px, 1.4fr) minmax(180px, 1.2fr) 140px 100px 110px;
+  gap: 16px;
+  padding: 11px 18px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 12px;
+  color: var(--text-secondary);
+  align-items: center;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.recovery-bin-row:last-child {
+  border-bottom: none;
+}
+
+.recovery-bin-row:hover {
+  background: var(--bg-surface-hover);
+}
+
+.recovery-bin-row.row-selected {
+  background: var(--accent-subtle);
+}
+
+/* Tab 2: Deep Recovery Table Header & Rows */
+.recovery-deep-header-row {
+  display: grid;
+  grid-template-columns: 36px minmax(260px, 2fr) 140px 110px;
+  gap: 16px;
+  padding: 10px 18px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  align-items: center;
+}
+
+.recovery-deep-row {
+  display: grid;
+  grid-template-columns: 36px minmax(260px, 2fr) 140px 110px;
+  gap: 16px;
+  padding: 11px 18px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 12px;
+  color: var(--text-secondary);
+  align-items: center;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.recovery-deep-row:last-child {
+  border-bottom: none;
+}
+
+.recovery-deep-row:hover {
+  background: var(--bg-surface-hover);
+}
+
+.recovery-deep-row.row-selected {
+  background: var(--accent-subtle);
+}
+
+body.theme-light .recovery-table {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+body.theme-light .recovery-bin-header-row,
+body.theme-light .recovery-deep-header-row {
+  background: #f8fafc;
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+
+body.theme-light .recovery-bin-row,
+body.theme-light .recovery-deep-row {
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+
+body.theme-light .recovery-bin-row:hover,
+body.theme-light .recovery-deep-row:hover {
+  background: #f1f5f9;
+}
+
+body.theme-light .recovery-bin-row.row-selected,
+body.theme-light .recovery-deep-row.row-selected {
+  background: #e0f2fe;
+}
+
 
 
 

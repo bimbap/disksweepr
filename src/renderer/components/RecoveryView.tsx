@@ -550,9 +550,9 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
                 <p>{t('recovery.empty_bin_desc')}</p>
               </div>
             ) : (
-              <div className="large-files-table-wrapper">
-                <div className="large-files-table">
-                  <div className="table-header">
+              <div className="recovery-table-wrapper">
+                <div className="recovery-table">
+                  <div className="recovery-bin-header-row">
                     <div className="col-check">
                       <button
                         type="button"
@@ -571,19 +571,19 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
                         )}
                       </button>
                     </div>
-                    <div className="col-info">
+                    <div className="col-name">
                       <span>{t('recovery.col_name')}</span>
                     </div>
-                    <div className="col-meter" style={{ minWidth: '180px' }}>
+                    <div className="col-orig-loc">
                       <span>{t('recovery.col_orig_loc')}</span>
                     </div>
-                    <div className="col-date" style={{ minWidth: '140px' }}>
+                    <div className="col-date">
                       <span>{t('recovery.col_date_del')}</span>
                     </div>
-                    <div className="col-size" style={{ minWidth: '90px' }}>
+                    <div className="col-size">
                       <span>{t('recovery.col_size')}</span>
                     </div>
-                    <div className="col-actions" style={{ minWidth: '90px' }}>
+                    <div className="col-actions">
                       <span>{t('recovery.col_action')}</span>
                     </div>
                   </div>
@@ -596,7 +596,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
                       return (
                         <div
                           key={item.id}
-                          className={`table-row ${isSelected ? 'row-selected' : ''}`}
+                          className={`recovery-bin-row ${isSelected ? 'row-selected' : ''}`}
                           onClick={() => handleToggleBinItem(item.id)}
                         >
                           <div className="col-check" onClick={(e) => e.stopPropagation()}>
@@ -609,7 +609,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
                             </button>
                           </div>
 
-                          <div className="col-info">
+                          <div className="col-name">
                             <div className="file-name-row">
                               {getFileIcon(ext, item.type)}
                               <span className="file-name" title={item.name}>
@@ -617,26 +617,23 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
                               </span>
                               <span className="folder-inline-tag">{item.type}</span>
                             </div>
+                          </div>
+
+                          <div className="col-orig-loc">
                             <span className="file-path font-mono text-muted text-xs" title={item.originalLocation}>
                               {item.originalLocation}
                             </span>
                           </div>
 
-                          <div className="col-meter" style={{ minWidth: '180px' }}>
-                            <span className="font-mono text-xs text-muted" title={item.originalLocation}>
-                              {formatMiddleTruncate(item.originalLocation, 28)}
-                            </span>
-                          </div>
-
-                          <div className="col-date" style={{ minWidth: '140px' }}>
+                          <div className="col-date">
                             <span className="font-mono text-xs">{item.dateDeleted}</span>
                           </div>
 
-                          <div className="col-size font-mono font-bold" style={{ minWidth: '90px' }}>
+                          <div className="col-size font-mono font-bold">
                             {item.sizeBytes > 0 ? formatBytes(item.sizeBytes) : item.sizeFormatted}
                           </div>
 
-                          <div className="col-actions" style={{ minWidth: '90px' }} onClick={(e) => e.stopPropagation()}>
+                          <div className="col-actions" onClick={(e) => e.stopPropagation()}>
                             <button
                               type="button"
                               className="btn-action-restore"
@@ -926,9 +923,9 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
                   </div>
                 </div>
 
-                <div className="large-files-table-wrapper">
-                  <div className="large-files-table">
-                    <div className="table-header">
+                <div className="recovery-table-wrapper">
+                  <div className="recovery-table">
+                    <div className="recovery-deep-header-row">
                       <div className="col-check">
                         <button
                           type="button"
@@ -947,13 +944,13 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
                           )}
                         </button>
                       </div>
-                      <div className="col-info">
+                      <div className="col-name">
                         <span>{t('recovery.col_name')}</span>
                       </div>
-                      <div className="col-meter" style={{ minWidth: '120px' }}>
+                      <div className="col-status">
                         <span>Status</span>
                       </div>
-                      <div className="col-size" style={{ minWidth: '90px' }}>
+                      <div className="col-size">
                         <span>{t('recovery.col_size')}</span>
                       </div>
                     </div>
@@ -965,7 +962,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
                         return (
                           <div
                             key={item.id}
-                            className={`table-row ${isSelected ? 'row-selected' : ''}`}
+                            className={`recovery-deep-row ${isSelected ? 'row-selected' : ''}`}
                             onClick={() => handleToggleDeepItem(item.id)}
                           >
                             <div className="col-check" onClick={(e) => e.stopPropagation()}>
@@ -978,7 +975,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
                               </button>
                             </div>
 
-                            <div className="col-info">
+                            <div className="col-name">
                               <div className="file-name-row">
                                 {getFileIcon(item.extension, item.detectedType)}
                                 <span className="file-name" title={item.name}>
@@ -991,7 +988,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
                               </span>
                             </div>
 
-                            <div className="col-meter" style={{ minWidth: '120px' }}>
+                            <div className="col-status">
                               <span
                                 className={`status-badge font-mono text-xs ${
                                   item.status === 'recoverable'
@@ -1009,7 +1006,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
                               </span>
                             </div>
 
-                            <div className="col-size font-mono font-bold" style={{ minWidth: '90px' }}>
+                            <div className="col-size font-mono font-bold">
                               {formatBytes(item.sizeBytes)}
                             </div>
                           </div>
