@@ -41,8 +41,8 @@ The application is structured as a decoupled desktop application powered by **El
 ## 2. Process Architecture & Security Model
 
 ### 2.1 Main Process (`src/main/`)
-The Main Process executes privileged operating system operations:
-1. **Rule Engine (`ruleEngine.ts`)**:
+The Main Process executes privileged operating system operations across modular backend services:
+1. **Rule Engine (`ruleEngine.ts` & `ruleRegistry.ts`)**:
    * Evaluates cleaning targets dynamically by resolving Windows environment variables (`%TEMP%`, `%APPDATA%`, `%LOCALAPPDATA%`, `%SYSTEMROOT%`, `%PROGRAMDATA%`).
    * Validates target paths against strict safety allowlists to prevent traversal outside defined boundaries.
 2. **Scanner Service (`scannerService.ts`)**:
@@ -50,32 +50,77 @@ The Main Process executes privileged operating system operations:
    * Computes file sizes and counts, streaming scan progress events (`scan:progress`) to the renderer via IPC.
    * Supports immediate cancellation through `AbortController`.
 3. **Purge Engine (`cleanerService.ts`)**:
-   * Executes deletion with strict error handling:
-     * Attempts atomic unlinking (`fs.promises.unlink`).
-     * Automatically traps and logs locked files (`EBUSY`, `EPERM`) without halting the entire purge process.
-     * Prunes empty subdirectories recursively once child items are cleared.
-     * Emptying the Recycle Bin using native PowerShell invocation or Win32 API.
-4. **Drive Telemetry (`systemService.ts`)**:
-   * Queries mounted drive capacities and current free space via Windows Management Instrumentation (`wmic`) or PowerShell `Get-Volume`.
+   * Executes deletion with atomic unlinking (`fs.promises.unlink`).
+   * Automatically traps and logs locked files (`EBUSY`, `EPERM`) without halting the entire purge process.
+   * Prunes empty subdirectories recursively once child items are cleared.
+4. **Large Files Service (`largeFileService.ts`)**:
+   * Scans configured volumes or custom directories for massive files exceeding threshold sizes (100MB, 300MB, 500MB, 1GB).
+   * Calculates actual recursive directory sizes for top-level folders.
+5. **Fast Search Service (`fastSearchService.ts`)**:
+   * Blazing-fast whole-drive directory crawler with target kind filters (`all`, `files`, `folders`).
+   * Accelerates folder-only scans by skipping stat calls on individual child files.
+6. **Duplicate Hunter Service (`duplicateService.ts`)**:
+   * Multi-drive duplicate scanner using a 2-stage verification pipeline: size matching -> sampled head/tail hash -> full SHA-256 comparison.
+   * Supports abortable whole-PC scans and safe single-copy retention.
+7. **Dev Workspace Service (`devCleanerService.ts`)**:
+   * Audits local dev projects for dormant build artifacts (`node_modules`, `.next`, `dist`, `target`, `build`, `.gradle`).
+8. **Power Tools Engine (`emptyFolderService.ts` & `dismService.ts`)**:
+   * Prunes truly empty directory trees while strictly protecting Windows system roots and user library anchors.
+   * Safely triggers Windows Component Store cleanup via `DISM.exe /Online /Cleanup-Image /StartComponentCleanup /ResetBase`.
+9. **Recovery & Undelete Service (`recoveryService.ts`)**:
+   * **Recycle Bin Manager**: Communicates with native Windows COM via `Shell.Application` Namespace 10. Reads original paths and deletion timestamps, restores items using native verb `"Restore"`, and purges permanently via `"Delete"` verb or `Clear-RecycleBin -Force`.
+   * **Deep File Recovery**: Scrapes orphaned / unlinked file remnants and slack remnants on target volumes, categorizing into `images`, `documents`, `media`, and `archives`. Recovers selected items into a user-specified destination folder.
+10. **Drive Telemetry (`systemService.ts`)**:
+    * Queries mounted drive capacities, volume labels, and current free space via Windows WMI/CIM `Win32_LogicalDisk` and PowerShell.
 
 ### 2.2 Preload Script (`src/preload/`)
 Exposes a strongly typed API surface on `window.cleanerApi`:
 ```typescript
 export interface CleanerApi {
-  // System Telemetry
+  // System Telemetry & Explorer
   getDriveStats(): Promise<DriveStat[]>;
+  openPathInExplorer(targetPath: string): Promise<void>;
   
-  // Scanning Operations
+  // Module 1: System Junk Cleaner
   startScan(categoryIds?: string[]): Promise<ScanResult>;
   cancelScan(): Promise<void>;
   onScanProgress(callback: (progress: ScanProgress) => void): () => void;
-  
-  // Cleaning Operations
   startClean(categoryIds: string[]): Promise<CleanReport>;
   onCleanProgress(callback: (progress: CleanProgress) => void): () => void;
   
-  // Shell Utilities
-  openPathInExplorer(targetPath: string): Promise<void>;
+  // Module 2: Large Files Hunter
+  scanLargeFiles(options: LargeFileScanOptions): Promise<LargeFileItem[]>;
+  cancelLargeFilesScan(): Promise<void>;
+  deleteLargeFiles(paths: string[]): Promise<LargeFilesDeleteReport>;
+  
+  // Module 3: Fast Search
+  searchFiles(options: FastSearchOptions): Promise<FastSearchResult>;
+  cancelSearch(): Promise<void>;
+  onSearchProgress(callback: (progress: FastSearchProgress) => void): () => void;
+  
+  // Module 4: Duplicate Hunter
+  scanDuplicates(options: DuplicateScanOptions): Promise<DuplicateGroup[]>;
+  cancelDuplicatesScan(): Promise<void>;
+  deleteDuplicateFiles(paths: string[], useTrash: boolean): Promise<DuplicateDeleteReport>;
+  
+  // Module 5: Dev Workspace Cleaner
+  scanDevProjects(rootPath: string): Promise<DevProjectItem[]>;
+  cleanDevProjects(projectPaths: string[]): Promise<DevCleanReport>;
+  
+  // Module 6: Power Tools
+  scanEmptyFolders(targetPath: string): Promise<EmptyFolderItem[]>;
+  deleteEmptyFolders(folderPaths: string[]): Promise<EmptyFolderDeleteReport>;
+  runDismCleanup(): Promise<DismReport>;
+  
+  // Module 8: Recovery & Undelete
+  getRecycleBinItems(): Promise<RecycleBinItem[]>;
+  restoreRecycleBinItems(paths: string[]): Promise<{ restoredCount: number }>;
+  deleteRecycleBinItems(paths: string[]): Promise<{ deletedCount: number }>;
+  emptyRecycleBin(): Promise<void>;
+  scanDeepRecovery(options: DeepRecoveryOptions): Promise<DeepRecoveryItem[]>;
+  cancelDeepRecovery(): Promise<void>;
+  onDeepRecoveryProgress(callback: (progress: DeepRecoveryScanProgress) => void): () => void;
+  recoverDeepFiles(fileIds: string[], targetDir: string): Promise<DeepRecoveryResult>;
 }
 ```
 

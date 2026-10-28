@@ -82,10 +82,14 @@ font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 ### 4.2 Ultra-Slim Left Nav Rail (`NavRail`) — EaseUS CleanGenius Inspired
 * Fixed width of `72px` positioned on the left edge.
 * Module items stacked vertically:
-  * 🧹 **Cleanup**: System junk and cache cleaner.
-  * 🐋 **Large Files**: Deep drive scan for hefty files (>100MB to >1GB).
-  * ⚡ **Dev Repos**: Node modules & build artifact hunter.
-  * 📜 **History**: Historical audit log of reclaimed storage.
+  * 🧹 **Pembersih (Cleanup)**: System junk and cache cleaner.
+  * 🔍 **Pencarian Kilat (Fast Search)**: Instant filesystem search across drives.
+  * 🐋 **File Besar (Large Files)**: Deep drive scan for hefty files (>100MB to >1GB).
+  * 📑 **File Duplikat (Duplicate Hunter)**: Hash-based duplicate file scanner across drives.
+  * ⚡ **Workspace Dev (Dev Repos)**: Node modules & build artifact hunter.
+  * 🛠️ **Power Tools**: Windows system tools (Prune Empty Folders, DISM Component Store, etc.).
+  * 🔄 **Pemulihan File (Recovery & Undelete)**: Recycle Bin manager & Deep file undelete scraper.
+  * 📜 **Riwayat (History)**: Historical audit log of reclaimed storage.
 * Interactive active indicator with left accent bar and emerald icon glow.
 
 ### 4.3 Progressive Step-by-Step Cleanup Canvas (`SystemCleanupView`)
@@ -108,11 +112,71 @@ font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 * **Stage 5 (Summary Celebration)**:
   * Clean completion graphic, freed space tally, duration, and one-click "Done" button returning to setup.
 
-### 4.4 Inspect File Modal (`InspectModal`)
-* Pop-up dialog displaying the full list of files queued for deletion.
-* Search filter to search by file name or extension.
-* Shows path, size, and a "Reveal in Explorer" button.
+### 4.4 Standard Data Table Component Pattern (`fast-search-table`)
+Every data list or audit view in DiskSweepr (e.g. Fast Search, Recovery & Undelete, Large Files, Duplicates) MUST adhere to the standard table architecture:
+* **HTML Element**: Standard `<table>` with `table-layout: fixed; width: 100%; border-collapse: separate; border-spacing: 0;`.
+* **Sticky Sortable Header**:
+  * `position: sticky; top: 0; z-index: 10; background: var(--bg-surface);`.
+  * Header cells implement `SortableTh` with bidirectional arrows (`ArrowUp` for asc, `ArrowDown` for desc, `ArrowUpDown` for neutral).
+  * Hover feedback with `var(--bg-surface-hover)` and `var(--accent-hover)`.
+* **Text Truncation & Ellipsis Invariant**:
+  * All variable-length text cells (`.file-name-title`, `.file-dir-link`) MUST use `min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;`.
+  * Fixed-width columns (`checkbox`: 62px, `size`: 100-110px, `date`: 125-140px, `actions`: 60-120px) guarantee zero column jumping or layout squeezing.
+* **Row Interactions**:
+  * Subtle hover transition: `background: var(--bg-surface-hover)`.
+  * Selected row styling: `background: var(--accent-subtle)`.
+  * Click on row toggles selection; click on path reveals in Windows Explorer via `onOpenExplorer(parentDir)`.
+* **Responsive Breakpoints**:
+  * On viewports `< 1000px`, non-essential columns (such as date deleted) use `.col-hide-sm` to maintain ample breathing room for names and paths.
 
-### 4.5 Permanent Deletion Safety Modal (`ConfirmCleanModal`)
-* Explicit warning detailing the non-recoverable nature of the permanent file purge.
-* Lists selected category count and aggregate byte payload before user gives final execution approval.
+### 4.5 Standard Pagination Pattern (`table-pagination-bar`)
+For any view displaying scalable items (Fast Search, Duplicate Hunter, File Recovery):
+* **Page Size**: Standardized to `PAGE_SIZE = 50` items per page.
+* **Layout**:
+  * Bottom sticky bar: `display: flex; justify-content: space-between; align-items: center; padding: 10px 18px; border-top: 1px solid var(--border-subtle);`.
+  * Left: `pagination-info` stating `Showing X - Y of Z results`.
+  * Right: `pagination-controls` with Previous button (`ChevronLeft`), active page pill `X / Y`, and Next button (`ChevronRight`).
+* **Auto-Reset Invariant**: Whenever search query, active filters, or sort column/direction change, the current page MUST automatically reset to page 1 via `useEffect`.
+
+### 4.6 Standard Module Toolbar & Search Pattern (`recovery-toolbar` / `module-toolbar`)
+* **Flexible Container**: `display: flex; align-items: center; flex-wrap: wrap; gap: 10px 12px; padding: 12px 28px; background: var(--bg-surface);`.
+* **Search Box**:
+  * Flex-grow with safe bounds: `flex: 1 1 220px; min-width: 160px; max-width: 420px;`.
+  * Includes magnifying glass icon at left, clear cross button (`chip-remove-btn`) at right when populated.
+* **Stat Indicators**:
+  * Inline counter: `.recovery-toolbar-stat` formatted as `{count} items • {formatBytes(totalBytes)}` with muted separator dot.
+* **Search State Differentiation**:
+  * Clean / Empty module: displays green checkmark illustration (`empty-state-card clean`).
+  * Empty search query match: displays search magnifying glass illustration with `"No results match '{query}'"` and a 1-click `"Reset Filter"` button. Never show "Module is clean" when search filter has 0 matches!
+
+### 4.7 Standard Modal Dialogs with Frosted Glass (`.modal-backdrop` & `.modal-card`)
+All confirmation modals (System Clean, Empty Recycle Bin, Permanent Purge, Restore, DISM Clean) must follow these strict rules:
+* **Frosted Glass Backdrop**:
+  * `background: var(--bg-overlay);` where `--bg-overlay: rgba(8, 12, 20, 0.50);` (translucent dark glass).
+  * `backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);`.
+  * Never use pitch-black or opaque overlays that mask the blur effect.
+* **Quad-Way Dismissal**:
+  1. Click outside modal card (`onClick={() => closeModal()}` on `.modal-backdrop`, `e.stopPropagation()` on `.modal-card`).
+  2. Keyboard `Escape` key global event listener.
+  3. Top-right close button (`.modal-close-btn` with `<X size={16} />`).
+  4. Footer cancel button (`btn-ghost`).
+* **Header Structure**:
+  * `.modal-header`: `display: flex; justify-content: space-between; align-items: center; padding: 14px 20px;`.
+  * `.modal-header-left`: Icon badge (danger/warning/safe) + Title.
+  * `.modal-close-btn`: Top-right close button.
+* **Payload Preview in Description**:
+  * Warning modals MUST show both item count AND total affected bytes (e.g., `Total: 190.4 MB`).
+
+### 4.8 Standard Segmented Sub-Tab Navigation (`segmented-tab-nav`)
+* **Header Independence**: The sub-tab navigation MUST live in its own row below the module header title (`.recovery-tabs-row`), NEVER squeezed into the title row.
+* **Visual Pill Style**:
+  * Container: `.segmented-tab-nav` with `background: var(--bg-surface-elevated)` and `padding: 3px;`.
+  * Tab buttons: `.tab-nav-btn` with icon, title, and optional badge count (`.tab-count-badge`).
+  * Active state: `.tab-nav-btn.active` with `background: var(--bg-surface)` and accent color.
+
+### 4.9 Standard Sticky Bottom Action Bar (`module-bottom-bar`)
+* **Presence**: Renders whenever 1 or more items are selected in the active view.
+* **Content**:
+  * Left (`.bar-info`): `.badge-count` with number of items + `{count} items selected • {formatBytes(totalBytes)}`.
+  * Right (`.bar-actions`): Primary action button (`btn-primary`), secondary/danger button (`btn-danger-outline`).
+  * Spacing: Minimum `gap: 12px` between action buttons to prevent cramped touch/click targets.

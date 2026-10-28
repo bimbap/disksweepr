@@ -58,3 +58,47 @@ The integrity of the user's operating system and personal data takes absolute pr
 2. **UAC / Administrator Rights**:
    * Identify which folders require elevation (`C:\Windows\Temp`, `SoftwareDistribution\Download`).
    * If elevation is required, request user permission explicitly or skip gracefully with a clear badge.
+
+---
+
+## 4. UI/UX Consistency & Anti-Scratch Development Invariants
+
+To avoid UI anomalies and stop re-implementing visual components from scratch, every new feature MUST follow these established blueprints:
+
+1. **Mandatory Reuse of Data Table Architecture**:
+   * Any file or item list MUST use the standard `fast-search-table` with `table-layout: fixed`.
+   * Column headers MUST use `SortableTh` with bidirectional sorting (ascending/descending/neutral arrows).
+   * Text cells MUST enforce `min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;`.
+   * Fixed column widths MUST be used for checkboxes, sizes, dates, and actions to prevent jitter or layout squeezing.
+   * NEVER invent ad-hoc CSS Grid or block-flow tables for scalable data lists.
+
+2. **Mandatory Pagination for Scalable Lists**:
+   * Any view that can render >50 items MUST integrate `PaginationBar` with `PAGE_SIZE = 50`.
+   * When search filters or sort orders change, the active page MUST automatically reset to page 1.
+
+3. **Mandatory Quad-Way Modal Dismissal & Frosted Glass Backdrop**:
+   * All confirmation modals MUST support 4 independent ways to dismiss:
+     1. Outside click on `.modal-backdrop`.
+     2. Keyboard `Escape` key listener.
+     3. Top-right close button (`.modal-close-btn` with `<X size={16} />`).
+     4. Footer cancel button (`btn-ghost`).
+   * Backdrops MUST use frosted glass (`rgba(8, 12, 20, 0.50)` + `backdrop-filter: blur(16px)`). Never use pitch-black opaque overlays.
+   * Action descriptions MUST display both item count AND total affected bytes (e.g. `Total: 190.4 MB`).
+
+4. **Selection State Completeness**:
+   * Sticky bottom bars (`.module-bottom-bar`) MUST display:
+     `{count} items selected • {formatBytes(totalSelectedBytes)}`
+   * Never show only item count when byte size is available.
+   * Action buttons in bottom bars MUST have a minimum gap of `12px` to prevent cramped click targets.
+
+5. **Header & Sub-Tab Separation**:
+   * Never squeeze segmented tab switchers (`.segmented-tab-nav`) into the module title row.
+   * The sub-tab navigation MUST sit in a dedicated row (`.recovery-tabs-row` or equivalent) below the header title and description.
+
+6. **Pure Utility Extraction & Unit Testing**:
+   * Business logic for sorting, date parsing, path decomposition, and filtering MUST NOT be inlined inside React components.
+   * Extract them as pure functions into `src/shared/` and write automated regression unit tests in `tests/`.
+
+7. **Zero Fake Clean States**:
+   * If an item list is empty because an active search/filter yielded 0 matches, display a dedicated search-empty card with a 1-click `"Reset Filter"` button.
+   * Never display `"System is clean"` or `"Recycle bin is clean"` when items actually exist but are filtered out by a search query.

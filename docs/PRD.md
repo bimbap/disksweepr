@@ -74,12 +74,18 @@ When targeting non-system drives, Cleaner dynamically shifts its rule registry t
 6. **Real-Time Storage Telemetry**:
    * Visual gauge showing selected drive capacity, current used space, and projected free space post-cleanup.
    * Post-cleanup completion screen showing total space recovered and elapsed processing time.
-7. **Modular Power Tools Navigation**:
-   * Ultra-slim EaseUS CleanGenius inspired navigation rail (72px).
-   * Module 1: System Junk & Cache Cleaner (Step-by-step setup hero -> live scan -> bento audit -> clean).
-   * Module 2: Hefty Large Files Hunter (>100MB to >1GB thresholds).
-   * Module 3: Dormant Dev Workspaces Cleaner (`node_modules`, `.next`, `dist`, `target`).
-   * Module 4: Audit History Ledger & Log Export.
+7. **Modular Suite Navigation & 8 Core Modules**:
+   * Ultra-slim EaseUS CleanGenius inspired navigation rail (72px) with obsidian frosted styling.
+   * **Module 1: System Junk & Cache Cleaner**: Step-by-step setup hero -> live scan -> bento audit cards -> clean with tactile switches.
+   * **Module 2: Hefty Large Files Hunter**: Deep scan detecting files exceeding thresholds (`>100MB`, `>300MB`, `>500MB`, `>1GB`) with scale meters and batch delete.
+   * **Module 3: Fast Search (Pencarian Kilat)**: Blazing-fast whole-drive directory crawler with entity filters (`all`, `files`, `folders`) and instant name matching.
+   * **Module 4: Duplicate Hunter**: Multi-drive hash-verified file comparison with quick action retention ("Keep Oldest", "Keep Newest").
+   * **Module 5: Dormant Dev Workspaces Cleaner**: Audits local git projects for dormant build artifacts (`node_modules`, `.next`, `dist`, `target`).
+   * **Module 6: Power Tools**: Prunes truly empty directory trees and runs DISM Windows Component Store cleanup.
+   * **Module 7: Audit History Ledger**: Lifetime space reclaimed statistics, file purge tallies, and JSON/TXT log export.
+   * **Module 8: File Recovery & Undelete (Pemulihan File)**:
+     * *Tab 1: Windows Recycle Bin Manager*: Native COM `Shell.Application` integration displaying deleted items, original paths, and dates, with single/batch restoration and permanent purge.
+     * *Tab 2: Deep Recovery Engine*: Audits unlinked/orphaned file remnants on target partitions across categories (`images`, `documents`, `media`, `archives`) with destination folder extraction.
 8. **Enterprise-Grade Installer & Uninstaller**:
    * NSIS Installer Wizard (`Cleaner Setup 1.0.0.exe`) with custom installation directory choice.
    * Registered Windows Uninstaller (`Uninstall Cleaner.exe`) accessible via Windows Settings -> Installed Apps.
