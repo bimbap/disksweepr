@@ -116,6 +116,21 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Escape key handler for modals and dropdowns
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowConfirmEmpty(false);
+        setShowConfirmRestore(false);
+        setShowConfirmPurge(false);
+        setIsScopeDropdownOpen(false);
+        setIsCategoryDropdownOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // Listen to deep recovery scan progress
   useEffect(() => {
     const unsub = window.cleanerApi?.onDeepRecoveryProgress?.((prog) => {
@@ -416,6 +431,15 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
     return item.name.toLowerCase().includes(q) || item.originalPath.toLowerCase().includes(q);
   });
 
+  const totalBinBytes = binItems.reduce((acc, it) => acc + (it.sizeBytes || 0), 0);
+  const totalSelectedBinBytes = binItems
+    .filter((it) => selectedBinIds.has(it.id))
+    .reduce((acc, it) => acc + (it.sizeBytes || 0), 0);
+
+  const totalSelectedDeepBytes = deepResults
+    .filter((it) => selectedDeepIds.has(it.id))
+    .reduce((acc, it) => acc + (it.sizeBytes || 0), 0);
+
   const categoryList = [
     {
       id: 'all' as const,
@@ -571,6 +595,13 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
               )}
 
               {binItems.length > 0 && (
+                <span className="font-mono text-xs text-muted" style={{ padding: '0 4px' }}>
+                  {t('recovery.total_bin_size')}{' '}
+                  <strong className="text-secondary">{formatBytes(totalBinBytes)}</strong>
+                </span>
+              )}
+
+              {binItems.length > 0 && (
                 <button
                   type="button"
                   className="btn-danger-outline"
@@ -598,13 +629,29 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
                 <h3>{t('recovery.tab_recycle_bin')}</h3>
                 <p>{t('cleanup.audit_filesystem')}</p>
               </div>
-            ) : filteredBinItems.length === 0 ? (
+            ) : binItems.length === 0 ? (
               <div className="empty-state-card clean">
                 <div className="empty-state-icon-box clean">
                   <CheckCircle2 size={32} className="text-emerald" />
                 </div>
                 <h3>{t('recovery.empty_bin_ready')}</h3>
                 <p>{t('recovery.empty_bin_desc')}</p>
+              </div>
+            ) : filteredBinItems.length === 0 ? (
+              <div className="empty-state-card">
+                <div className="empty-state-icon-box">
+                  <Search size={30} />
+                </div>
+                <h3>{t('recovery.no_search_results')}</h3>
+                <p className="font-mono text-muted text-xs">"{binSearchQuery}"</p>
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  style={{ marginTop: '12px' }}
+                  onClick={() => setBinSearchQuery('')}
+                >
+                  {t('recovery.reset_filter')}
+                </button>
               </div>
             ) : (
               <div className="recovery-table-wrapper">
@@ -700,6 +747,14 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
                               <Undo2 size={13} style={{ marginRight: '4px' }} />
                               Restore
                             </button>
+                            <button
+                              type="button"
+                              className="btn-action-explorer"
+                              onClick={() => onOpenExplorer(item.originalLocation)}
+                              title={t('recovery.open_orig_folder')}
+                            >
+                              <FolderOpen size={13} />
+                            </button>
                           </div>
                         </div>
                       );
@@ -715,7 +770,12 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
             <div className="module-bottom-bar">
               <div className="bar-info">
                 <span className="badge-count">{selectedBinIds.size}</span>
-                <span>{t('recovery.items_selected')}</span>
+                <span>
+                  {selectedBinIds.size} {t('recovery.items_selected')}
+                  {totalSelectedBinBytes > 0 && (
+                    <> • <span className="font-mono font-bold">{formatBytes(totalSelectedBinBytes)}</span></>
+                  )}
+                </span>
               </div>
 
               <div className="bar-actions">
@@ -987,6 +1047,24 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
               </div>
             )}
 
+            {!isScanningDeep && deepResults.length > 0 && filteredDeepResults.length === 0 && (
+              <div className="empty-state-card">
+                <div className="empty-state-icon-box">
+                  <Search size={30} />
+                </div>
+                <h3>{t('recovery.no_deep_search')}</h3>
+                <p className="font-mono text-muted text-xs">"{deepSearchQuery}"</p>
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  style={{ marginTop: '12px' }}
+                  onClick={() => setDeepSearchQuery('')}
+                >
+                  {t('recovery.reset_filter')}
+                </button>
+              </div>
+            )}
+
             {!isScanningDeep && filteredDeepResults.length > 0 && (
               <>
                 <div className="module-toolbar" style={{ margin: '0 0 14px 0' }}>
@@ -1120,7 +1198,12 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
             <div className="module-bottom-bar">
               <div className="bar-info">
                 <span className="badge-count">{selectedDeepIds.size}</span>
-                <span>{t('recovery.items_selected')}</span>
+                <span>
+                  {selectedDeepIds.size} {t('recovery.items_selected')}
+                  {totalSelectedDeepBytes > 0 && (
+                    <> • <span className="font-mono font-bold">{formatBytes(totalSelectedDeepBytes)}</span></>
+                  )}
+                </span>
               </div>
 
               <div className="bar-actions">
@@ -1141,13 +1224,23 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
 
       {/* Confirmation Modal: Empty Recycle Bin */}
       {showConfirmEmpty && (
-        <div className="modal-backdrop">
-          <div className="modal-card">
+        <div className="modal-backdrop" onClick={() => setShowConfirmEmpty(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-icon-badge danger">
-                <AlertTriangle size={18} />
+              <div className="modal-header-left">
+                <div className="modal-icon-badge danger">
+                  <AlertTriangle size={18} />
+                </div>
+                <h3 className="modal-title">{t('recovery.confirm_empty_title')}</h3>
               </div>
-              <h3 className="modal-title">{t('recovery.confirm_empty_title')}</h3>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setShowConfirmEmpty(false)}
+                title={t('common.cancel')}
+              >
+                <X size={16} />
+              </button>
             </div>
             <p className="modal-desc">{t('recovery.confirm_empty_desc')}</p>
             <div className="modal-actions">
@@ -1169,16 +1262,34 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
 
       {/* Confirmation Modal: Restore Selected */}
       {showConfirmRestore && (
-        <div className="modal-backdrop">
-          <div className="modal-card">
+        <div className="modal-backdrop" onClick={() => setShowConfirmRestore(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-icon-badge safe">
-                <RotateCcw size={18} />
+              <div className="modal-header-left">
+                <div className="modal-icon-badge safe">
+                  <RotateCcw size={18} />
+                </div>
+                <h3 className="modal-title">{t('recovery.confirm_restore_title')}</h3>
               </div>
-              <h3 className="modal-title">{t('recovery.confirm_restore_title')}</h3>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setShowConfirmRestore(false)}
+                title={t('common.cancel')}
+              >
+                <X size={16} />
+              </button>
             </div>
             <p className="modal-desc">
               {t('recovery.confirm_restore_desc').replace('{count}', String(selectedBinIds.size))}
+              {totalSelectedBinBytes > 0 && (
+                <>
+                  <br />
+                  <strong className="accent-text font-mono" style={{ marginTop: '6px', display: 'inline-block' }}>
+                    Total: {formatBytes(totalSelectedBinBytes)}
+                  </strong>
+                </>
+              )}
             </p>
             <div className="modal-actions">
               <button type="button" className="btn-ghost" onClick={() => setShowConfirmRestore(false)}>
@@ -1199,16 +1310,34 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
 
       {/* Confirmation Modal: Purge Selected */}
       {showConfirmPurge && (
-        <div className="modal-backdrop">
-          <div className="modal-card">
+        <div className="modal-backdrop" onClick={() => setShowConfirmPurge(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-icon-badge danger">
-                <AlertTriangle size={18} />
+              <div className="modal-header-left">
+                <div className="modal-icon-badge danger">
+                  <AlertTriangle size={18} />
+                </div>
+                <h3 className="modal-title">{t('recovery.confirm_purge_title')}</h3>
               </div>
-              <h3 className="modal-title">{t('recovery.confirm_purge_title')}</h3>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setShowConfirmPurge(false)}
+                title={t('common.cancel')}
+              >
+                <X size={16} />
+              </button>
             </div>
             <p className="modal-desc">
               {t('recovery.confirm_purge_desc').replace('{count}', String(selectedBinIds.size))}
+              {totalSelectedBinBytes > 0 && (
+                <>
+                  <br />
+                  <strong className="accent-text font-mono" style={{ marginTop: '6px', display: 'inline-block' }}>
+                    Total: {formatBytes(totalSelectedBinBytes)}
+                  </strong>
+                </>
+              )}
             </p>
             <div className="modal-actions">
               <button type="button" className="btn-ghost" onClick={() => setShowConfirmPurge(false)}>

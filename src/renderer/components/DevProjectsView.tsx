@@ -431,13 +431,23 @@ export const DevProjectsView: React.FC<DevProjectsViewProps> = ({
 
       {/* Confirmation Modal */}
       {showConfirmModal && (
-        <div className="modal-backdrop">
-          <div className="modal-card">
+        <div className="modal-backdrop" onClick={() => setShowConfirmModal(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-icon-badge warning">
-                <AlertTriangle size={18} />
+              <div className="modal-header-left">
+                <div className="modal-icon-badge warning">
+                  <AlertTriangle size={18} />
+                </div>
+                <h3 className="modal-title">{t('dev_repos.confirm_title')}</h3>
               </div>
-              <h3 className="modal-title">{t('dev_repos.confirm_title')}</h3>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setShowConfirmModal(false)}
+                title={t('common.cancel')}
+              >
+                <X size={16} />
+              </button>
             </div>
             <p className="modal-desc">
               {t('dev_repos.confirm_desc').replace('{count}', String(selectedIds.length))}

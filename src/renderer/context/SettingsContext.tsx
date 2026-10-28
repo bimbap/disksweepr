@@ -540,6 +540,11 @@ const translations: Record<Language, Record<string, string>> = {
     'recovery.purged_toast': 'Permanently deleted {count} file(s) from Recycle Bin.',
     'recovery.empty_bin_toast': 'Recycle Bin has been completely emptied.',
     'recovery.items_selected': 'items selected',
+    'recovery.no_search_results': 'No files in Recycle Bin match your search.',
+    'recovery.open_orig_folder': 'Open original folder in Explorer',
+    'recovery.total_bin_size': 'Total Size:',
+    'recovery.no_deep_search': 'No file traces match your search filter.',
+    'recovery.reset_filter': 'Reset Filter',
   },
   id: {
     // Nav
@@ -1068,6 +1073,11 @@ const translations: Record<Language, Record<string, string>> = {
     'recovery.purged_toast': 'Permanen menghapus {count} file dari Recycle Bin.',
     'recovery.empty_bin_toast': 'Recycle Bin telah dikosongkan sepenuhnya.',
     'recovery.items_selected': 'item dipilih',
+    'recovery.no_search_results': 'Tidak ada file di Recycle Bin yang cocok dengan pencarian.',
+    'recovery.open_orig_folder': 'Buka folder lokasi asal di Explorer',
+    'recovery.total_bin_size': 'Total Ukuran:',
+    'recovery.no_deep_search': 'Tidak ada jejak file yang cocok dengan filter pencarian.',
+    'recovery.reset_filter': 'Reset Filter',
   },
 };
 

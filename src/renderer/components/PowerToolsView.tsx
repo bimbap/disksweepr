@@ -806,13 +806,23 @@ export const PowerToolsView: React.FC<PowerToolsViewProps> = ({
 
           {/* Empty Folders Confirmation Modal */}
           {showEmptyConfirmModal && (
-            <div className="modal-backdrop">
-              <div className="modal-card">
+            <div className="modal-backdrop" onClick={() => setShowEmptyConfirmModal(false)}>
+              <div className="modal-card" onClick={(e) => e.stopPropagation()}>
                 <div className="modal-header">
-                  <div className="modal-icon-badge danger">
-                    <AlertTriangle size={18} />
+                  <div className="modal-header-left">
+                    <div className="modal-icon-badge danger">
+                      <AlertTriangle size={18} />
+                    </div>
+                    <h3 className="modal-title">{t('tools.empty_confirm_title')}</h3>
                   </div>
-                  <h3 className="modal-title">{t('tools.empty_confirm_title')}</h3>
+                  <button
+                    type="button"
+                    className="modal-close-btn"
+                    onClick={() => setShowEmptyConfirmModal(false)}
+                    title={t('common.cancel')}
+                  >
+                    <X size={16} />
+                  </button>
                 </div>
                 <p className="modal-desc">
                   {t('tools.empty_confirm_desc').replace('{count}', String(selectedEmptyIds.size))}
@@ -955,13 +965,23 @@ export const PowerToolsView: React.FC<PowerToolsViewProps> = ({
 
       {/* DISM Confirmation Modal */}
       {showDismConfirmModal && (
-        <div className="modal-backdrop">
-          <div className="modal-card">
+        <div className="modal-backdrop" onClick={() => setShowDismConfirmModal(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-icon-badge danger">
-                <AlertTriangle size={18} />
+              <div className="modal-header-left">
+                <div className="modal-icon-badge danger">
+                  <AlertTriangle size={18} />
+                </div>
+                <h3 className="modal-title">Confirm Component Store Cleanup</h3>
               </div>
-              <h3 className="modal-title">Confirm Component Store Cleanup</h3>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setShowDismConfirmModal(false)}
+                title={t('common.cancel')}
+              >
+                <X size={16} />
+              </button>
             </div>
             <p className="modal-desc">
               This will execute <code>DISM /Online /Cleanup-Image /StartComponentCleanup /ResetBase</code> to discard obsolete Windows update backups.

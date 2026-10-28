@@ -831,13 +831,23 @@ export const DuplicateHunterView: React.FC<DuplicateHunterViewProps> = ({
 
       {/* Confirmation Modal */}
       {showConfirmModal && (
-        <div className="modal-backdrop">
-          <div className="modal-card">
+        <div className="modal-backdrop" onClick={() => setShowConfirmModal(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-icon-badge danger">
-                <AlertTriangle size={18} />
+              <div className="modal-header-left">
+                <div className="modal-icon-badge danger">
+                  <AlertTriangle size={18} />
+                </div>
+                <h3 className="modal-title">{t('duplicates.confirm_title')}</h3>
               </div>
-              <h3 className="modal-title">{t('duplicates.confirm_title')}</h3>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setShowConfirmModal(false)}
+                title={t('common.cancel')}
+              >
+                <X size={16} />
+              </button>
             </div>
             <p className="modal-desc">
               {t('duplicates.confirm_desc').replace('{count}', String(selectedPaths.size))}
