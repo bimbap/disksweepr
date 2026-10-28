@@ -800,10 +800,12 @@
   - **Search State Distinction**: Differentiates clean empty state from "No search results match query" with a 1-click filter reset button.
   - **Toolbar Size Counter**: Live counter displaying total Recycle Bin storage consumption on the system.
   - **FastSearch-Style Table & Pagination**: Adopted Fast Search's responsive `<table>` architecture (`fast-search-table`, `SortableTh`, `PaginationBar`) with 50-item pages, bidirectional column sorting (name, original location, deletion date, status, size), and shared utility functions (`src/shared/recoveryUtils.ts`).
+  - **Search Box Clear Button Positioning**: Positioned search clear `X` icon inside the input bounds (`position: absolute; right: 8px; top: 50%`) with proper input padding (`padding-right: 28px`) across all modules.
+  - **Deep Recovery Last Modified Date Column**: Added formatted date column (`Waktu Terakhir` / `Last Modified`) to Tab 2 table, converting `modifiedTime` epoch timestamps to `DD/MM/YYYY HH:mm` via `formatRecoveryDate`, enabling bidirectional sorting, and matching responsive collapse rules (`col-hide-sm`).
 - [x] **Verification**:
-  - `npm test`: 28/28 unit tests passed (100% green).
+  - `npm test`: 30/30 unit tests passed (100% green).
   - `npx tsc --noEmit`: 0 errors.
-  - `npm run build`: Bundled cleanly in 11.06s.
+  - `npm run build`: Bundled cleanly.
 
 
 
