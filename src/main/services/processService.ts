@@ -8,9 +8,15 @@ const CATEGORY_PROCESS_MAP: Record<string, { name: string; processName: string }
   browser_chrome: { name: 'Google Chrome', processName: 'chrome.exe' },
   browser_edge: { name: 'Microsoft Edge', processName: 'msedge.exe' },
   browser_brave: { name: 'Brave Browser', processName: 'brave.exe' },
+  browser_firefox: { name: 'Mozilla Firefox', processName: 'firefox.exe' },
+  browser_opera: { name: 'Opera', processName: 'opera.exe' },
   app_discord: { name: 'Discord', processName: 'Discord.exe' },
   app_vscode: { name: 'Visual Studio Code', processName: 'Code.exe' },
   app_spotify: { name: 'Spotify', processName: 'Spotify.exe' },
+  app_teams: { name: 'Microsoft Teams', processName: 'ms-teams.exe' },
+  app_steam: { name: 'Steam', processName: 'steam.exe' },
+  app_epic_games: { name: 'Epic Games Launcher', processName: 'EpicGamesLauncher.exe' },
+  app_zoom: { name: 'Zoom', processName: 'Zoom.exe' },
 };
 
 export async function getRunningAppsForCategories(categoryIds: string[]): Promise<RunningAppInfo[]> {

@@ -13,6 +13,10 @@ import {
   Shield,
   ShieldAlert,
   Film,
+  Gamepad2,
+  Cpu,
+  Zap,
+  FileText,
 } from 'lucide-react';
 import { RiskLevel } from '../../shared/types';
 import { useSettings } from '../context/SettingsContext';
@@ -67,13 +71,25 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({
     if (id.includes('media') || group === 'media') {
       return <Film size={16} />;
     }
-    if (id.includes('chrome') || id.includes('edge') || id.includes('brave') || group === 'browsers') {
+    if (id.includes('steam') || id.includes('epic_games')) {
+      return <Gamepad2 size={16} />;
+    }
+    if (id.includes('shader')) {
+      return <Cpu size={16} />;
+    }
+    if (id.includes('prefetch')) {
+      return <Zap size={16} />;
+    }
+    if (id.includes('event_log')) {
+      return <FileText size={16} />;
+    }
+    if (id.includes('chrome') || id.includes('edge') || id.includes('brave') || id.includes('firefox') || id.includes('opera') || group === 'browsers') {
       return <Globe size={16} />;
     }
     if (id.includes('temp')) {
       return <Flame size={16} />;
     }
-    if (id.includes('update')) {
+    if (id.includes('update') || id.includes('windows_old')) {
       return <RefreshCw size={16} />;
     }
     if (id.includes('dump') || id.includes('crash')) {
@@ -82,10 +98,10 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({
     if (id.includes('thumb') || id.includes('icon')) {
       return <Image size={16} />;
     }
-    if (id.includes('discord') || id.includes('slack')) {
+    if (id.includes('discord') || id.includes('teams') || id.includes('zoom') || id.includes('slack')) {
       return <MessageSquare size={16} />;
     }
-    if (group === 'developer' || id.includes('dev') || id.includes('vscode')) {
+    if (group === 'developer' || id.includes('dev') || id.includes('vscode') || id.includes('gradle')) {
       return <Code2 size={16} />;
     }
     return <HardDrive size={16} />;
