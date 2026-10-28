@@ -489,9 +489,9 @@ const translations: Record<Language, Record<string, string>> = {
 
     // File Recovery
     'recovery.title': 'File Recovery & Undelete',
-    'recovery.subtitle': 'Recover recently deleted files from Windows Recycle Bin or hunt traces of Shift+Deleted files',
+    'recovery.subtitle': 'Recover files from Windows Recycle Bin or hunt traces of permanently deleted files',
     'recovery.tab_recycle_bin': 'Recycle Bin Manager',
-    'recovery.tab_deep_recovery': 'Deep Recovery (Shift+Delete)',
+    'recovery.tab_deep_recovery': 'Deep Recovery',
     'recovery.refresh': 'Refresh Bin',
     'recovery.restore_selected': 'Restore Selected',
     'recovery.delete_permanently': 'Permanently Purge',
@@ -521,7 +521,7 @@ const translations: Record<Language, Record<string, string>> = {
     'recovery.scan_deep_btn': 'Scan for Lost Traces',
     'recovery.cancel_scan_btn': 'Cancel Deep Scan',
     'recovery.deep_ready_title': 'Ready for Deep File Recovery',
-    'recovery.deep_ready_desc': 'Select a drive or directory to search for traces of files deleted via Shift+Delete or unlinked from storage.',
+    'recovery.deep_ready_desc': 'Select a drive or directory to search for traces of files permanently deleted directly from disk or unlinked from storage.',
     'recovery.scanning_deep_title': 'Searching For Lost File Traces...',
     'recovery.recovering_files': 'Recovering Selected Files...',
     'recovery.recover_to_btn': 'Recover to Folder...',
@@ -1012,9 +1012,9 @@ const translations: Record<Language, Record<string, string>> = {
 
     // File Recovery
     'recovery.title': 'Pemulihan File & Undelete',
-    'recovery.subtitle': 'Pulihkan file terhapus dari Recycle Bin Windows atau lacak sisa file Shift+Delete',
+    'recovery.subtitle': 'Pulihkan file dari Recycle Bin Windows atau lacak sisa file yang terhapus permanen',
     'recovery.tab_recycle_bin': 'Manajer Recycle Bin',
-    'recovery.tab_deep_recovery': 'Pemulihan Mendalam (Shift+Delete)',
+    'recovery.tab_deep_recovery': 'Pemulihan Mendalam',
     'recovery.refresh': 'Segarkan Bin',
     'recovery.restore_selected': 'Pulihkan yang Dipilih',
     'recovery.delete_permanently': 'Musnahkan Permanen',
@@ -1044,7 +1044,7 @@ const translations: Record<Language, Record<string, string>> = {
     'recovery.scan_deep_btn': 'Pindai Jejak File Hilang',
     'recovery.cancel_scan_btn': 'Batalkan Pemindaian',
     'recovery.deep_ready_title': 'Siap Memindai Jejak File Terhapus',
-    'recovery.deep_ready_desc': 'Pilih drive atau folder untuk mencari jejak file yang terhapus melalui Shift+Delete atau unlinked dari penyimpanan.',
+    'recovery.deep_ready_desc': 'Pilih drive atau folder untuk mencari jejak file yang terhapus permanen (tanpa lewat Recycle Bin) atau unlinked dari penyimpanan.',
     'recovery.scanning_deep_title': 'Mencari Jejak File Hilang...',
     'recovery.recovering_files': 'Memulihkan File Terpilih...',
     'recovery.recover_to_btn': 'Pulihkan ke Folder...',

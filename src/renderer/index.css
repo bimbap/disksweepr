@@ -4348,6 +4348,12 @@ body.theme-light .scope-pill.active {
   color: var(--text-secondary);
 }
 
+.bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .badge-count {
   background: var(--accent-primary);
   color: #ffffff;
