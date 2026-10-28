@@ -722,6 +722,19 @@
   - Unit tests passed 8/8 (`npm test`).
   - Binary builds held on standby per user request.
 
+### Phase 49: Production Release Packaging, Cleanup & GitHub Push
+- [x] **Production Compilations Completed**:
+  - **Web Bootstrap Installer**: [`release/DiskSweepr-Web-Setup.exe`](file:///m:/testProject/cleaner/release/DiskSweepr-Web-Setup.exe) (553 KB) with embedded high-res faceted 'S' squircle AppIcon.
+  - **Full Offline NSIS Setup Wizard**: [`release/DiskSweepr-Setup-1.0.0.exe`](file:///m:/testProject/cleaner/release/DiskSweepr-Setup-1.0.0.exe) (91.8 MB) with custom dark sidebar/header branding.
+  - **Portable Executable**: [`release/DiskSweepr-Portable-1.0.0.exe`](file:///m:/testProject/cleaner/release/DiskSweepr-Portable-1.0.0.exe) (82.9 MB) zero-install direct standalone.
+- [x] **Legacy Build Purge**:
+  - Deleted obsolete pre-rebrand binaries (`Cleaner-Portable-1.0.0.exe`, `Cleaner-Setup-1.0.0.exe`, `Cleaner-Web-Setup.exe`).
+  - Purged unpacked staging folder (`release/win-unpacked/`) and build debug metadata, reclaiming over 400 MB of disk space.
+- [x] **Git Repository Scaffolding & Initial Commit**:
+  - Configured clean `.gitignore` (ignoring `node_modules/`, `dist/`, `dist-electron/`, `release/`, `scratch/`).
+  - Staged and committed 75 project files as `feat: initialize DiskSweepr v1.0.0 modern windows cleaner`.
+  - Pushed to remote repository: [`bimbap/disksweepr`](https://github.com/bimbap/disksweepr.git) on branch `main`.
+
 
 
 
