@@ -301,6 +301,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
   const handleStartDeepScan = async () => {
     setIsScanningDeep(true);
     setDeepResults([]);
+    setDeepSearchQuery('');
     setSelectedDeepIds(new Set());
     setHasScannedDeep(false);
 
@@ -513,8 +514,10 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
           <h2>{t('recovery.title')}</h2>
           <p>{t('recovery.subtitle')}</p>
         </div>
+      </header>
 
-        {/* Tab Switcher */}
+      {/* Tab Switcher */}
+      <div className="recovery-tabs-row">
         <div className="segmented-tab-nav">
           <button
             type="button"
@@ -535,7 +538,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
             {deepResults.length > 0 && <span className="tab-count-badge font-mono">{deepResults.length}</span>}
           </button>
         </div>
-      </header>
+      </div>
 
       {/* Toast Notification */}
       {toastMessage && (
@@ -550,7 +553,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
       {activeTab === 'recycle_bin' && (
         <div className="recovery-tab-content">
           {/* Toolbar */}
-          <div className="module-toolbar" style={{ margin: '0 28px 14px 28px' }}>
+          <div className="recovery-toolbar">
             <div className="module-search-box">
               <Search size={14} className="module-search-icon" />
               <input
@@ -583,21 +586,11 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
                 {t('recovery.refresh')}
               </button>
 
-              {filteredBinItems.length > 0 && (
-                <>
-                  <button type="button" className="btn-ghost" onClick={handleSelectAllBin}>
-                    {t('large_files.select_all')} ({filteredBinItems.length})
-                  </button>
-                  <button type="button" className="btn-ghost" onClick={handleClearBinSelection}>
-                    {t('common.clear')}
-                  </button>
-                </>
-              )}
-
               {binItems.length > 0 && (
-                <span className="font-mono text-xs text-muted" style={{ padding: '0 4px' }}>
-                  {t('recovery.total_bin_size')}{' '}
-                  <strong className="text-secondary">{formatBytes(totalBinBytes)}</strong>
+                <span className="recovery-toolbar-stat">
+                  {t('recovery.items_total').replace('{count}', String(binItems.length))}
+                  <span className="stat-dot">•</span>
+                  <strong className="font-mono">{formatBytes(totalBinBytes)}</strong>
                 </span>
               )}
 
@@ -745,7 +738,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
                               title="Restore to original location"
                             >
                               <Undo2 size={13} style={{ marginRight: '4px' }} />
-                              Restore
+                              {t('recovery.restore_btn')}
                             </button>
                             <button
                               type="button"
@@ -809,9 +802,9 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
       {activeTab === 'deep' && (
         <div className="recovery-tab-content">
           {/* Config Bar */}
-          <div className="large-files-config-bar">
+          <div className="large-files-config-bar recovery-config-bar">
             {/* Target Scope */}
-            <div className="scope-selection-group">
+            <div className="scope-selection-group recovery-field">
               <span className="config-bar-label">{t('recovery.deep_target_scope')}</span>
               <div
                 className={`scope-dropdown-wrapper ${isScopeDropdownOpen ? 'active-dropdown' : ''}`}
@@ -917,7 +910,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
             </div>
 
             {/* Category Filter Dropdown */}
-            <div className="scope-selection-group">
+            <div className="scope-selection-group recovery-field">
               <span className="config-bar-label">{t('recovery.deep_category_filter')}</span>
               <div
                 className={`scope-dropdown-wrapper ${isCategoryDropdownOpen ? 'active-dropdown' : ''}`}
@@ -1014,8 +1007,10 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
                 <div className="scanning-dir-container">
                   <p className="scanning-dir-desc">
                     {deepProgress
-                      ? `${deepProgress.scannedFilesCount} locations audited • ${deepProgress.foundItemsCount} matching traces discovered`
-                      : 'Auditing unlinked sectors and file slack remnants...'}
+                      ? t('recovery.scan_progress')
+                          .replace('{scanned}', String(deepProgress.scannedFilesCount))
+                          .replace('{found}', String(deepProgress.foundItemsCount))
+                      : t('recovery.scan_idle')}
                   </p>
                   <div className="scanning-dir-badge" title={deepProgress?.currentPath || resolvedDeepTarget}>
                     <Folder size={13} className="scanning-dir-badge-icon" />
@@ -1047,32 +1042,14 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
               </div>
             )}
 
-            {!isScanningDeep && deepResults.length > 0 && filteredDeepResults.length === 0 && (
-              <div className="empty-state-card">
-                <div className="empty-state-icon-box">
-                  <Search size={30} />
-                </div>
-                <h3>{t('recovery.no_deep_search')}</h3>
-                <p className="font-mono text-muted text-xs">"{deepSearchQuery}"</p>
-                <button
-                  type="button"
-                  className="btn-ghost"
-                  style={{ marginTop: '12px' }}
-                  onClick={() => setDeepSearchQuery('')}
-                >
-                  {t('recovery.reset_filter')}
-                </button>
-              </div>
-            )}
-
-            {!isScanningDeep && filteredDeepResults.length > 0 && (
+            {!isScanningDeep && deepResults.length > 0 && (
               <>
-                <div className="module-toolbar" style={{ margin: '0 0 14px 0' }}>
+                <div className="recovery-toolbar recovery-toolbar-inline">
                   <div className="module-search-box">
                     <Search size={14} className="module-search-icon" />
                     <input
                       type="text"
-                      placeholder="Filter traces by name..."
+                      placeholder={t('recovery.deep_search_placeholder')}
                       value={deepSearchQuery}
                       onChange={(e) => setDeepSearchQuery(e.target.value)}
                     />
@@ -1088,14 +1065,33 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
                   </div>
 
                   <div className="module-toolbar-actions">
-                    <button type="button" className="btn-ghost" onClick={handleSelectAllDeep}>
-                      {t('large_files.select_all')} ({filteredDeepResults.length})
-                    </button>
-                    <button type="button" className="btn-ghost" onClick={handleClearDeepSelection}>
-                      {t('common.clear')}
-                    </button>
+                    <span className="recovery-toolbar-stat">
+                      {t('recovery.traces_found').replace('{count}', String(filteredDeepResults.length))}
+                      <span className="stat-dot">•</span>
+                      <strong className="font-mono">
+                        {formatBytes(filteredDeepResults.reduce((acc, it) => acc + (it.sizeBytes || 0), 0))}
+                      </strong>
+                    </span>
                   </div>
                 </div>
+
+                {filteredDeepResults.length === 0 ? (
+                  <div className="empty-state-card">
+                    <div className="empty-state-icon-box">
+                      <Search size={30} />
+                    </div>
+                    <h3>{t('recovery.no_deep_search')}</h3>
+                    <p className="font-mono text-muted text-xs">"{deepSearchQuery}"</p>
+                    <button
+                      type="button"
+                      className="btn-ghost"
+                      style={{ marginTop: '12px' }}
+                      onClick={() => setDeepSearchQuery('')}
+                    >
+                      {t('recovery.reset_filter')}
+                    </button>
+                  </div>
+                ) : (
 
                 <div className="recovery-table-wrapper">
                   <div className="recovery-table">
@@ -1122,7 +1118,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
                         <span>{t('recovery.col_name')}</span>
                       </div>
                       <div className="col-status">
-                        <span>Status</span>
+                        <span>{t('recovery.col_status')}</span>
                       </div>
                       <div className="col-size">
                         <span>{t('recovery.col_size')}</span>
@@ -1189,6 +1185,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
                     </div>
                   </div>
                 </div>
+                )}
               </>
             )}
           </div>
