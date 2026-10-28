@@ -783,23 +783,27 @@
   - `npx tsc --noEmit` & `npm run build`: 0 errors.
   - Installer build strictly held until user command.
 
-### Phase 50: Fast Search Target Entity Filter (All / Files / Folders)
-- [x] **Target Entity Types & Option Architecture** ([`types.ts`](file:///m:/testProject/disksweepr/src/shared/types.ts)):
-  - Added `FastSearchTargetKind = 'all' | 'files' | 'folders'`.
-  - Added `targetKind?: FastSearchTargetKind` to `FastSearchOptions`.
-- [x] **Backend Traversal Acceleration** ([`fastSearchService.ts`](file:///m:/testProject/disksweepr/src/main/services/fastSearchService.ts)):
-  - When `targetKind === 'folders'`: Skips all file evaluations and stat calls immediately, accelerating directory-only discovery by up to 10x.
-  - When `targetKind === 'files'`: Traverses folder trees but suppresses adding directories to search matches.
-  - When `targetKind === 'all'`: Matches both individual files and folder directories.
-  - Dynamically imports `electron.shell` inside `deleteFile` to ensure unit testability in pure Node.js environments.
-- [x] **UI Dropdown & Reactive Filtering** ([`FastSearchView.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/FastSearchView.tsx), [`SettingsContext.tsx`](file:///m:/testProject/disksweepr/src/renderer/context/SettingsContext.tsx)):
-  - Added dedicated **Target Dropdown** (`Semua (File & Folder)`, `Hanya File`, `Hanya Folder`) in the collapsible filters bar with `Layers`, `FileText`, and `Folder` icons.
-  - Added client-side reactive filtering in `filteredResults` memo so switching targets filters already-fetched results instantly without needing to re-scan.
-  - Integrated full i18n support in EN & ID across all target options and reset handlers.
-- [x] **Unit Testing & Verification**:
-  - Added unit test suite [`tests/fastSearch.test.ts`](file:///m:/testProject/disksweepr/tests/fastSearch.test.ts) verifying all 3 target modes.
-  - `npm test`: 19/19 unit tests passing (100% green).
-  - `npx tsc --noEmit` & `npm run build`: 0 errors.
+### Phase 51: Multi-Drive Whole PC Scanning & Duplicate Hunter Hardening
+- [x] **Whole PC Multi-Drive Scanning**: Added `scanAllDrives` support to Duplicate Hunter with real-time `AbortSignal` cancellation on both sample phase and full comparison hash streams.
+- [x] **Safety Checks & Batch Actions**: Added safety modal warning when all copies of a duplicate cluster are selected, quick per-cluster action buttons ("Keep Newest", "Keep Oldest"), pagination controls, and automated unit tests ([`tests/duplicates.test.ts`](file:///m:/testProject/disksweepr/tests/duplicates.test.ts)).
+
+### Phase 52: File Recovery & Undelete Module with High-End Frosted Glass UX
+- [x] **Native Windows COM & Deep Scanner Engine** ([`recoveryService.ts`](file:///m:/testProject/disksweepr/src/main/services/recoveryService.ts)):
+  - Tab 1: Recycle Bin Manager using native Windows COM `Shell.Application` Namespace 10, invoking standard verbs `Restore` and `Delete`, and native `Clear-RecycleBin -Force`.
+  - Tab 2: Deep Recovery Engine scanning drive roots and target directories for unlinked/orphaned file remnants with category filtering (`images`, `documents`, `media`, `archives`).
+- [x] **UI/UX Polish & Modal Backdrop Frosted Glass** ([`RecoveryView.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/RecoveryView.tsx), [`index.css`](file:///m:/testProject/disksweepr/src/renderer/index.css)):
+  - **Frosted Glass Backdrop**: Replaced dark opaque tint with `--bg-overlay: rgba(8, 12, 20, 0.50)` and `backdrop-filter: blur(16px)` / `-webkit-backdrop-filter: blur(16px)` for modern Apple/Raycast frosted glass.
+  - **Outside Click & Keyboard Escape**: Clicking outside the modal card or pressing `Escape` dismisses confirmation modals across the entire app (`RecoveryView`, `DuplicateHunterView`, `LargeFilesView`, `DevProjectsView`, `PowerToolsView`).
+  - **Modal Close `X` Button**: Added `.modal-close-btn` with `<X size={16} />` in modal headers.
+  - **Selection Size Indicator**: Shows live total byte size alongside item count in sticky bottom action bars and confirmation modals (`items selected • {formatBytes(totalSelectedBytes)}`).
+  - **Open Original Location**: Added companion action button (`btn-action-explorer`) in Recycle Bin rows to immediately reveal parent directories in Windows Explorer.
+  - **Search State Distinction**: Differentiates clean empty state from "No search results match query" with a 1-click filter reset button.
+  - **Toolbar Size Counter**: Live counter displaying total Recycle Bin storage consumption on the system.
+- [x] **Verification**:
+  - `npm test`: 24/24 unit tests passed (100% green).
+  - `npx tsc --noEmit`: 0 errors.
+  - `npm run build`: Bundled cleanly in 13.6s.
+
 
 
 
