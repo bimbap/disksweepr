@@ -2,7 +2,9 @@ import {
   Sparkles,
   Search,
   HardDriveDownload,
+  Copy,
   FolderGit2,
+  Wrench,
   History,
 } from 'lucide-react';
 import { NavModule } from '../../shared/types';
@@ -57,6 +59,18 @@ export const NavRail: React.FC<NavRailProps> = ({ activeModule, onSelectModule }
 
         <button
           type="button"
+          className={`rail-item ${activeModule === 'duplicates' ? 'active' : ''}`}
+          onClick={() => onSelectModule('duplicates')}
+          title={t('nav.duplicates')}
+        >
+          <div className="rail-icon-wrapper">
+            <Copy size={20} />
+          </div>
+          <span className="rail-label">{t('nav.duplicates')}</span>
+        </button>
+
+        <button
+          type="button"
           className={`rail-item ${activeModule === 'dev_projects' ? 'active' : ''}`}
           onClick={() => onSelectModule('dev_projects')}
           title="Developer Workspaces & Build Artifacts"
@@ -65,6 +79,18 @@ export const NavRail: React.FC<NavRailProps> = ({ activeModule, onSelectModule }
             <FolderGit2 size={20} />
           </div>
           <span className="rail-label">{t('nav.dev_repos')}</span>
+        </button>
+
+        <button
+          type="button"
+          className={`rail-item ${activeModule === 'tools' ? 'active' : ''}`}
+          onClick={() => onSelectModule('tools')}
+          title={t('nav.tools')}
+        >
+          <div className="rail-icon-wrapper">
+            <Wrench size={20} />
+          </div>
+          <span className="rail-label">{t('nav.tools')}</span>
         </button>
 
         <button

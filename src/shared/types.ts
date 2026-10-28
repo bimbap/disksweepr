@@ -97,7 +97,7 @@ export interface ScanOptions {
   scanMode?: 'quick' | 'full' | 'custom';
 }
 
-export type NavModule = 'system' | 'large_files' | 'dev_projects' | 'history' | 'fast_search';
+export type NavModule = 'system' | 'large_files' | 'duplicates' | 'dev_projects' | 'tools' | 'history' | 'fast_search';
 
 export type FastSearchFileType = 'all' | 'documents' | 'images' | 'media' | 'archives' | 'executables' | 'code';
 export type FastSearchSizeFilter = 'all' | 'tiny' | 'small' | 'medium' | 'large' | 'custom';
@@ -187,12 +187,91 @@ export interface HistoryRecord {
   id: string;
   timestamp: number;
   driveLetter: string;
-  module: 'system' | 'large_files' | 'dev_projects';
+  module: 'system' | 'large_files' | 'dev_projects' | 'duplicates' | 'tools';
   reclaimedBytes: number;
   filesCount: number;
   summary: string;
   elapsedMs?: number;
   items?: HistoryDetailItem[];
+}
+
+// --- Virtual Disks (WSL2 & Docker VHDX) ---
+export interface VirtualDiskItem {
+  id: string;
+  name: string;
+  path: string;
+  sizeBytes: number;
+  type: 'wsl' | 'docker' | 'custom';
+  distroName?: string;
+}
+
+export interface CompactVDiskResult {
+  path: string;
+  beforeBytes: number;
+  afterBytes: number;
+  reclaimedBytes: number;
+  success: boolean;
+  error?: string;
+}
+
+// --- Duplicate Files Hunter ---
+export interface DuplicateFile {
+  path: string;
+  name: string;
+  sizeBytes: number;
+  modifiedTime: number;
+  selected?: boolean;
+}
+
+export interface DuplicateGroup {
+  id: string;
+  hash: string;
+  sizeBytes: number;
+  files: DuplicateFile[];
+  wastedBytes: number;
+}
+
+export interface DuplicateScanOptions {
+  targetPath: string;
+  minSizeBytes?: number;
+}
+
+export interface DuplicateScanProgress {
+  currentPath: string;
+  stage: 'indexing' | 'hashing';
+  scannedFilesCount: number;
+  duplicatesFoundCount: number;
+}
+
+// --- Empty Folders Sweeper ---
+export interface EmptyFolderItem {
+  id: string;
+  path: string;
+  name: string;
+  parentPath: string;
+  selected?: boolean;
+}
+
+// --- Windows Component Store (DISM) ---
+export interface DismAnalysisResult {
+  reportedSizeMB: number;
+  actualSizeMB: number;
+  sharedSizeMB: number;
+  backupsSizeMB: number;
+  reclaimablePackages: number;
+  cleanupRecommended: boolean;
+  rawOutput: string;
+}
+
+export interface DismCleanResult {
+  success: boolean;
+  output: string;
+  error?: string;
+}
+
+// --- Windows Explorer Context Menu ---
+export interface ContextMenuStatus {
+  enabled: boolean;
 }
 
 export interface CleanerApi {
@@ -226,6 +305,28 @@ export interface CleanerApi {
   onDevScanProgress(callback: (progress: DevScanProgress) => void): () => void;
   deleteDevArtifacts(artifactPaths: string[]): Promise<{ deletedPaths: string[]; failedPaths: string[]; reclaimedBytes: number }>;
   selectFolderDialog(): Promise<string | null>;
+
+  // Virtual Disks (WSL2 & Docker)
+  scanVirtualDisks(): Promise<VirtualDiskItem[]>;
+  compactVirtualDisk(vhdxPath: string): Promise<CompactVDiskResult>;
+
+  // Duplicate Files Hunter
+  scanDuplicates(options: DuplicateScanOptions): Promise<DuplicateGroup[]>;
+  cancelDuplicateScan(): Promise<void>;
+  onDuplicateScanProgress(callback: (progress: DuplicateScanProgress) => void): () => void;
+  deleteDuplicates(filePaths: string[], useTrash?: boolean): Promise<{ deletedPaths: string[]; failedPaths: string[]; reclaimedBytes: number }>;
+
+  // Empty Folders Sweeper
+  scanEmptyFolders(targetPath: string): Promise<EmptyFolderItem[]>;
+  deleteEmptyFolders(folderPaths: string[]): Promise<{ deletedPaths: string[]; failedPaths: string[] }>;
+
+  // Windows Component Store (DISM)
+  analyzeComponentStore(): Promise<DismAnalysisResult>;
+  cleanComponentStore(): Promise<DismCleanResult>;
+
+  // Windows Context Menu
+  getContextMenuStatus(): Promise<ContextMenuStatus>;
+  setContextMenuStatus(enable: boolean): Promise<boolean>;
 
   // History & Logs
   getHistory(): Promise<HistoryRecord[]>;

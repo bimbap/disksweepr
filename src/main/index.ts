@@ -7,6 +7,11 @@ import { LargeFileService } from './services/largeFileService';
 import { DevCleanerService } from './services/devCleanerService';
 import { HistoryService } from './services/historyService';
 import { FastSearchService } from './services/fastSearchService';
+import { VirtualDiskService } from './services/virtualDiskService';
+import { DuplicateService } from './services/duplicateService';
+import { EmptyFolderService } from './services/emptyFolderService';
+import { DismService } from './services/dismService';
+import { ContextMenuService } from './services/contextMenuService';
 import { getDriveTelemetry } from './services/telemetryService';
 import { getCategoryDefinitionsForDrive } from './services/ruleRegistry';
 import { getRunningAppsForCategories, closeRunningApps } from './services/processService';
@@ -26,6 +31,11 @@ const largeFileService = new LargeFileService();
 const devCleanerService = new DevCleanerService();
 const historyService = new HistoryService();
 const fastSearchService = new FastSearchService();
+const virtualDiskService = new VirtualDiskService();
+const duplicateService = new DuplicateService();
+const emptyFolderService = new EmptyFolderService();
+const dismService = new DismService();
+const contextMenuService = new ContextMenuService();
 let latestScanResult: ScanResult | null = null;
 
 function parsePathArg(argv: string[]): string | null {
@@ -324,6 +334,82 @@ ipcMain.handle('cleaner:open-file', async (_, filePath: string) => {
 ipcMain.handle('cleaner:delete-file', async (_, filePath: string) => {
   if (!filePath) return false;
   return await fastSearchService.deleteFile(filePath);
+});
+
+// --- VIRTUAL DISKS (WSL2 & DOCKER) IPC ---
+ipcMain.handle('cleaner:scan-vdisks', async () => {
+  return await virtualDiskService.scanVirtualDisks();
+});
+
+ipcMain.handle('cleaner:compact-vdisk', async (_, vhdxPath: string) => {
+  const result = await virtualDiskService.compactVirtualDisk(vhdxPath);
+  if (result.success && result.reclaimedBytes > 0) {
+    const driveLetter = path.parse(vhdxPath).root || 'C:';
+    await historyService.addRecord({
+      timestamp: Date.now(),
+      driveLetter,
+      module: 'tools',
+      reclaimedBytes: result.reclaimedBytes,
+      filesCount: 1,
+      summary: `Compacted Virtual Disk (${path.basename(vhdxPath)})`,
+    });
+  }
+  return result;
+});
+
+// --- DUPLICATE FILES HUNTER IPC ---
+ipcMain.handle('cleaner:scan-duplicates', async (_, options: any) => {
+  return await duplicateService.scanDuplicates(options, (progress) => {
+    mainWindow?.webContents.send('cleaner:duplicate-scan-progress', progress);
+  });
+});
+
+ipcMain.handle('cleaner:cancel-scan-duplicates', async () => {
+  duplicateService.cancelScan();
+});
+
+ipcMain.handle('cleaner:delete-duplicates', async (_, filePaths: string[], useTrash: boolean = true) => {
+  const result = await duplicateService.deleteDuplicates(filePaths, useTrash);
+  if (result.deletedPaths.length > 0 && result.reclaimedBytes > 0) {
+    const first = result.deletedPaths[0];
+    const driveLetter = path.parse(first).root || 'C:';
+    await historyService.addRecord({
+      timestamp: Date.now(),
+      driveLetter,
+      module: 'duplicates',
+      reclaimedBytes: result.reclaimedBytes,
+      filesCount: result.deletedPaths.length,
+      summary: `Purged ${result.deletedPaths.length} duplicate files`,
+    });
+  }
+  return result;
+});
+
+// --- EMPTY FOLDERS SWEEPER IPC ---
+ipcMain.handle('cleaner:scan-empty-folders', async (_, targetPath: string) => {
+  return await emptyFolderService.scanEmptyFolders(targetPath);
+});
+
+ipcMain.handle('cleaner:delete-empty-folders', async (_, folderPaths: string[]) => {
+  return await emptyFolderService.deleteEmptyFolders(folderPaths);
+});
+
+// --- DISM COMPONENT STORE IPC ---
+ipcMain.handle('cleaner:analyze-component-store', async () => {
+  return await dismService.analyzeComponentStore();
+});
+
+ipcMain.handle('cleaner:clean-component-store', async () => {
+  return await dismService.cleanComponentStore();
+});
+
+// --- WINDOWS CONTEXT MENU IPC ---
+ipcMain.handle('cleaner:get-context-menu-status', async () => {
+  return await contextMenuService.getStatus();
+});
+
+ipcMain.handle('cleaner:set-context-menu-status', async (_, enable: boolean) => {
+  return await contextMenuService.setStatus(enable);
 });
 
 // Window controls

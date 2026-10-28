@@ -84,6 +84,33 @@ contextBridge.exposeInMainWorld('cleanerApi', {
   openFile: (filePath: string) => ipcRenderer.invoke('cleaner:open-file', filePath),
   deleteFile: (filePath: string) => ipcRenderer.invoke('cleaner:delete-file', filePath),
 
+  // Virtual Disks (WSL2 & Docker)
+  scanVirtualDisks: () => ipcRenderer.invoke('cleaner:scan-vdisks'),
+  compactVirtualDisk: (vhdxPath: string) => ipcRenderer.invoke('cleaner:compact-vdisk', vhdxPath),
+
+  // Duplicate Files Hunter
+  scanDuplicates: (options: any) => ipcRenderer.invoke('cleaner:scan-duplicates', options),
+  cancelDuplicateScan: () => ipcRenderer.invoke('cleaner:cancel-scan-duplicates'),
+  onDuplicateScanProgress: (callback: (progress: any) => void) => {
+    const handler = (_: any, data: any) => callback(data);
+    ipcRenderer.on('cleaner:duplicate-scan-progress', handler);
+    return () => ipcRenderer.removeListener('cleaner:duplicate-scan-progress', handler);
+  },
+  deleteDuplicates: (filePaths: string[], useTrash?: boolean) =>
+    ipcRenderer.invoke('cleaner:delete-duplicates', filePaths, useTrash),
+
+  // Empty Folders Sweeper
+  scanEmptyFolders: (targetPath: string) => ipcRenderer.invoke('cleaner:scan-empty-folders', targetPath),
+  deleteEmptyFolders: (folderPaths: string[]) => ipcRenderer.invoke('cleaner:delete-empty-folders', folderPaths),
+
+  // Windows Component Store (DISM)
+  analyzeComponentStore: () => ipcRenderer.invoke('cleaner:analyze-component-store'),
+  cleanComponentStore: () => ipcRenderer.invoke('cleaner:clean-component-store'),
+
+  // Windows Context Menu
+  getContextMenuStatus: () => ipcRenderer.invoke('cleaner:get-context-menu-status'),
+  setContextMenuStatus: (enable: boolean) => ipcRenderer.invoke('cleaner:set-context-menu-status', enable),
+
   minimizeWindow: () => ipcRenderer.send('cleaner:window-minimize'),
   maximizeWindow: () => ipcRenderer.send('cleaner:window-maximize'),
   closeWindow: () => ipcRenderer.send('cleaner:window-close'),

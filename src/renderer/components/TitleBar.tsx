@@ -12,6 +12,7 @@ import {
   Moon,
   Scale,
   ExternalLink,
+  MousePointerClick,
 } from 'lucide-react';
 import { DriveStat } from '../../shared/types';
 import { useSettings } from '../context/SettingsContext';
@@ -54,8 +55,23 @@ export const TitleBar: React.FC<TitleBarProps> = ({ currentDrive, showDrivePill 
   const [isLicenseClosing, setIsLicenseClosing] = useState(false);
   const [githubProfile, setGithubProfile] = useState<GithubUserProfile | null>(null);
   const [avatarFailed, setAvatarFailed] = useState(false);
+  const [contextMenuEnabled, setContextMenuEnabled] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { theme, toggleTheme, language, setLanguage, t } = useSettings();
+
+  useEffect(() => {
+    if (showSettingsDropdown) {
+      window.cleanerApi?.getContextMenuStatus?.().then((st) => {
+        if (st) setContextMenuEnabled(st.enabled);
+      });
+    }
+  }, [showSettingsDropdown]);
+
+  const handleToggleContextMenu = async () => {
+    const next = !contextMenuEnabled;
+    const ok = await window.cleanerApi?.setContextMenuStatus?.(next);
+    if (ok) setContextMenuEnabled(next);
+  };
 
   const fetchGithubProfile = async () => {
     try {
@@ -248,6 +264,24 @@ export const TitleBar: React.FC<TitleBarProps> = ({ currentDrive, showDrivePill 
                         <Moon size={10} className="theme-thumb-icon icon-moon" />
                       )}
                     </div>
+                  </div>
+                </div>
+
+                {/* Explorer Context Menu Toggle */}
+                <div
+                  className="dropdown-row dropdown-row-theme"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleToggleContextMenu();
+                  }}
+                  title={t('settings.context_menu_tooltip')}
+                >
+                  <div className="dropdown-row-title">
+                    <MousePointerClick size={13} className="dropdown-row-icon text-muted" />
+                    <span>{t('settings.context_menu')}</span>
+                  </div>
+                  <div className={`toggle-switch ${contextMenuEnabled ? 'active' : ''}`}>
+                    <div className="toggle-thumb" />
                   </div>
                 </div>
 

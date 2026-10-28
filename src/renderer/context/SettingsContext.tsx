@@ -17,13 +17,17 @@ const translations: Record<Language, Record<string, string>> = {
     // Nav
     'nav.cleanup': 'Cleanup',
     'nav.large_files': 'Large Files',
+    'nav.duplicates': 'Duplicates',
     'nav.dev_repos': 'Dev Repos',
     'nav.fast_search': 'Fast Search',
+    'nav.tools': 'Power Tools',
     'nav.history': 'History',
 
     // Settings Dropdown
     'settings.language': 'Language',
     'settings.mode': 'Mode',
+    'settings.context_menu': 'Explorer Context Menu',
+    'settings.context_menu_tooltip': 'Add "Clean with DiskSweepr" to Windows Explorer right-click menu',
     'settings.license': 'License (MIT)',
     'settings.about': 'About DiskSweepr',
 
@@ -57,6 +61,9 @@ const translations: Record<Language, Record<string, string>> = {
     'common.select_all': 'Select All',
     'common.reveal_explorer': 'Reveal in Explorer',
     'common.open_in_explorer': 'Open in Windows Explorer',
+    'common.browse': 'Browse...',
+    'common.refresh': 'Refresh',
+    'common.scanning': 'Scanning...',
 
     // System Cleanup Stage & Options
     'cleanup.welcome_title': 'Welcome to DiskSweepr',
@@ -388,18 +395,80 @@ const translations: Record<Language, Record<string, string>> = {
     'fast_search.traversing_tree': 'Traversing directory tree in parallel...',
     'fast_search.try_broadening': 'Try broadening your query, changing the type filter, or switching target scope.',
     'fast_search.suggestions': 'Suggestions:',
+
+    // Duplicate Files Hunter
+    'duplicates.title': 'Duplicate Files Hunter',
+    'duplicates.subtitle': 'Reclaim lost gigabytes by detecting identical redundant files via cryptographic hashing',
+    'duplicates.wasted': 'Wasted Storage',
+    'duplicates.target_path': 'Scan Location',
+    'duplicates.min_size': 'Minimum File Size',
+    'duplicates.scan_now': 'Scan Redundancies',
+    'duplicates.select_older': 'Select Older Clones',
+    'duplicates.select_newer': 'Select Newer Clones',
+    'duplicates.send_to_trash': 'Move to Recycle Bin (Safe)',
+    'duplicates.filter_placeholder': 'Filter files by name or directory...',
+    'duplicates.delete_selected': 'Purge Selected',
+    'duplicates.empty_title': 'No Duplicate Redundancies Found',
+    'duplicates.empty_desc': 'Target directory is clean and contains no identical redundant files matching the minimum size threshold.',
+    'duplicates.wasted_label': 'wasted',
+    'duplicates.original_tag': 'Newest / Keep',
+
+    // Power Tools
+    'tools.title': 'Advanced Power Tools',
+    'tools.subtitle': 'Deep system maintenance, virtual machine compaction, and storage optimization routines',
+    'tools.tab_vhdx': 'WSL2 / Docker VHDX Shrinker',
+    'tools.tab_empty_folders': 'Empty Folders Sweeper',
+    'tools.tab_dism': 'DISM Component Store',
+
+    // VHDX
+    'tools.vhdx_banner_title': 'WSL2 & Docker Dynamic Disk Shrinker',
+    'tools.vhdx_banner_desc': 'Virtual hard disks (.vhdx) expand as you work inside containers/WSL2, but never shrink automatically when files are deleted. Compaction reclaims unused space without losing data.',
+    'tools.compact_success': 'Compaction successful',
+    'tools.no_vhdx_title': 'No Active Virtual Disks Found',
+    'tools.no_vhdx_desc': 'No WSL2 distributions or Docker Desktop data volumes were detected in standard locations.',
+    'tools.compacting': 'Compacting',
+    'tools.compact_btn': 'Compact Disk',
+
+    // Empty Folders
+    'tools.empty_banner_title': 'Prune Empty Directory Trees',
+    'tools.empty_banner_desc': 'Recursively detect and eliminate zero-byte abandoned folders and nested directory ghost trees.',
+    'tools.empty_root_path': 'Root Folder to Cleanse',
+    'tools.scan_empty_now': 'Scan Empty Folders',
+    'tools.pruned_success': 'Folder pruning completed',
+    'tools.empty_folders_found': 'empty folders discovered',
+    'tools.delete_selected_folders': 'Prune Selected Folders',
+
+    // DISM
+    'tools.dism_banner_title': 'Windows Component Store (WinSxS) Cleanup',
+    'tools.dism_banner_desc': 'Analyze and purge superseded Windows update packages and obsolete component backups via native DISM engine.',
+    'tools.analyzing': 'Analyzing WinSxS...',
+    'tools.analyze_dism': 'Analyze Component Store',
+    'tools.dism_clean_success': 'DISM Component Store deep cleanup completed successfully!',
+    'tools.dism_reported_size': 'Reported Size',
+    'tools.dism_actual_size': 'Actual Size',
+    'tools.dism_backups_size': 'Backups & Disabled Features',
+    'tools.dism_reclaimable_pkgs': 'Reclaimable Packages',
+    'tools.dism_recommendation': 'Recommendation',
+    'tools.dism_cleanup_recommended': 'Cleanup is recommended',
+    'tools.dism_cleanup_not_needed': 'Store is healthy, cleanup not necessary',
+    'tools.cleaning_dism': 'Cleaning WinSxS',
+    'tools.run_dism_cleanup': 'Run DISM Deep Cleanup',
   },
   id: {
     // Nav
     'nav.cleanup': 'Pembersih',
     'nav.large_files': 'File Besar',
+    'nav.duplicates': 'File Duplikat',
     'nav.dev_repos': 'Workspace Dev',
     'nav.fast_search': 'Pencarian Kilat',
+    'nav.tools': 'Power Tools',
     'nav.history': 'Riwayat',
 
     // Settings Dropdown
     'settings.language': 'Bahasa',
     'settings.mode': 'Mode',
+    'settings.context_menu': 'Menu Klik Kanan Explorer',
+    'settings.context_menu_tooltip': 'Tambahkan opsi "Clean with DiskSweepr" pada menu klik kanan Windows Explorer',
     'settings.license': 'Lisensi (MIT)',
     'settings.about': 'Tentang DiskSweepr',
 
@@ -433,6 +502,9 @@ const translations: Record<Language, Record<string, string>> = {
     'common.select_all': 'Pilih Semua',
     'common.reveal_explorer': 'Buka di Explorer',
     'common.open_in_explorer': 'Buka di Windows Explorer',
+    'common.browse': 'Pilih Folder...',
+    'common.refresh': 'Segarkan',
+    'common.scanning': 'Memindai...',
 
     // System Cleanup Stage & Options
     'cleanup.welcome_title': 'Selamat Datang di DiskSweepr',
@@ -764,6 +836,64 @@ const translations: Record<Language, Record<string, string>> = {
     'fast_search.traversing_tree': 'Menelusuri direktori secara paralel...',
     'fast_search.try_broadening': 'Coba perluas kata kunci, ubah filter tipe berkas, atau ganti target pencarian.',
     'fast_search.suggestions': 'Saran:',
+
+    // Duplicate Files Hunter
+    'duplicates.title': 'Pemburu File Duplikat',
+    'duplicates.subtitle': 'Bebaskan gigabyte terbuang dengan mendeteksi file identik redundant melalui verifikasi hash kriptografi',
+    'duplicates.wasted': 'Ruang Terbuang',
+    'duplicates.target_path': 'Lokasi Pemindaian',
+    'duplicates.min_size': 'Ukuran File Minimal',
+    'duplicates.scan_now': 'Pindai Duplikat',
+    'duplicates.select_older': 'Pilih Klon Lama',
+    'duplicates.select_newer': 'Pilih Klon Baru',
+    'duplicates.send_to_trash': 'Pindahkan ke Recycle Bin (Aman)',
+    'duplicates.filter_placeholder': 'Cari berdasarkan nama file atau folder...',
+    'duplicates.delete_selected': 'Hapus yang Dipilih',
+    'duplicates.empty_title': 'Tidak Ditemukan File Duplikat',
+    'duplicates.empty_desc': 'Direktori target bersih dan tidak memiliki file ganda identik yang melebihi batas ukuran minimum.',
+    'duplicates.wasted_label': 'terbuang',
+    'duplicates.original_tag': 'Terbaru / Simpan',
+
+    // Power Tools
+    'tools.title': 'Power Tools Tingkat Lanjut',
+    'tools.subtitle': 'Pemeliharaan sistem mendalam, kompresi virtual machine, dan optimasi ruang penyimpanan',
+    'tools.tab_vhdx': 'WSL2 / Docker VHDX Shrinker',
+    'tools.tab_empty_folders': 'Pembersih Folder Kosong',
+    'tools.tab_dism': 'Pembersih WinSxS (DISM)',
+
+    // VHDX
+    'tools.vhdx_banner_title': 'Kompresi Hard Disk Virtual WSL2 & Docker',
+    'tools.vhdx_banner_desc': 'Virtual hard disk (.vhdx) akan terus membesar saat wadah kontainer/WSL2 aktif, tetapi tidak pernah mengecil otomatis saat file dihapus. Kompresi akan merebut kembali ruang kosong tanpa merusak data.',
+    'tools.compact_success': 'Kompresi berhasil',
+    'tools.no_vhdx_title': 'Tidak Ada Virtual Disk Aktif',
+    'tools.no_vhdx_desc': 'Distribusi WSL2 atau volume data Docker Desktop tidak terdeteksi pada lokasi standar.',
+    'tools.compacting': 'Mengompresi',
+    'tools.compact_btn': 'Kompresi Disk',
+
+    // Empty Folders
+    'tools.empty_banner_title': 'Pangkas Struktur Direktori Kosong',
+    'tools.empty_banner_desc': 'Pindai dan lenyapkan folder kosong tak bertuan serta percabangan direktori hantu tanpa isi secara aman.',
+    'tools.empty_root_path': 'Folder Utama untuk Dibersihkan',
+    'tools.scan_empty_now': 'Pindai Folder Kosong',
+    'tools.pruned_success': 'Pembersihan folder kosong selesai',
+    'tools.empty_folders_found': 'folder kosong ditemukan',
+    'tools.delete_selected_folders': 'Pangkas Folder Terpilih',
+
+    // DISM
+    'tools.dism_banner_title': 'Pembersihan Windows Component Store (WinSxS)',
+    'tools.dism_banner_desc': 'Analisis dan singkirkan paket update Windows usang dan cadangan komponen basi melalui engine native DISM.',
+    'tools.analyzing': 'Menganalisis WinSxS...',
+    'tools.analyze_dism': 'Analisis Component Store',
+    'tools.dism_clean_success': 'Pembersihan mendalam DISM WinSxS berhasil diselesaikan!',
+    'tools.dism_reported_size': 'Ukuran Terlapor',
+    'tools.dism_actual_size': 'Ukuran Nyata',
+    'tools.dism_backups_size': 'Cadangan & Fitur Nonaktif',
+    'tools.dism_reclaimable_pkgs': 'Paket Dapat Direbut',
+    'tools.dism_recommendation': 'Rekomendasi',
+    'tools.dism_cleanup_recommended': 'Pembersihan disarankan',
+    'tools.dism_cleanup_not_needed': 'Kondisi store sehat, tidak perlu dibersihkan',
+    'tools.cleaning_dism': 'Membersihkan WinSxS',
+    'tools.run_dism_cleanup': 'Jalankan Pembersihan DISM',
   },
 };
 

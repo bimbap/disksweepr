@@ -4,7 +4,9 @@ import { NavRail } from './components/NavRail';
 import { SystemCleanupView } from './components/SystemCleanupView';
 import { FastSearchView } from './components/FastSearchView';
 import { LargeFilesView } from './components/LargeFilesView';
+import { DuplicateHunterView } from './components/DuplicateHunterView';
 import { DevProjectsView } from './components/DevProjectsView';
+import { PowerToolsView } from './components/PowerToolsView';
 import { HistoryView } from './components/HistoryView';
 import {
   CategoryDefinition,
@@ -254,8 +256,24 @@ export const App: React.FC = () => {
             />
           )}
 
+          {activeModule === 'duplicates' && (
+            <DuplicateHunterView
+              currentDriveLetter={selectedDriveLetter}
+              onOpenExplorer={(p) => window.cleanerApi?.openPathInExplorer(p)}
+              onRefreshDriveStats={refreshDriveStats}
+            />
+          )}
+
           {activeModule === 'dev_projects' && (
             <DevProjectsView
+              onOpenExplorer={(p) => window.cleanerApi?.openPathInExplorer(p)}
+              onRefreshDriveStats={refreshDriveStats}
+            />
+          )}
+
+          {activeModule === 'tools' && (
+            <PowerToolsView
+              currentDriveLetter={selectedDriveLetter}
               onOpenExplorer={(p) => window.cleanerApi?.openPathInExplorer(p)}
               onRefreshDriveStats={refreshDriveStats}
             />

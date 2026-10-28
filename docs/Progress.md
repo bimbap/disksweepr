@@ -735,22 +735,39 @@
   - Staged and committed 75 project files as `feat: initialize DiskSweepr v1.0.0 modern windows cleaner`.
   - Pushed to remote repository: [`bimbap/disksweepr`](https://github.com/bimbap/disksweepr.git) on branch `main`.
 
-### Phase 50: Expanded Cleaner Rule Categories (11 New Targets) & Process Interceptors
-- [x] **Rule Registry Expansion** ([`ruleRegistry.ts`](file:///m:/testProject/disksweepr/src/main/services/ruleRegistry.ts)):
-  - Added 11 high-value cleanup categories categorized across all 5 groups:
-    - **System**: Windows Prefetch (`system_prefetch`), DirectX/NVIDIA/AMD Shader Cache (`directx_shader_cache`), Windows Event Logs (`system_event_logs`), Previous Windows Installations (`system_windows_old`).
-    - **Browsers**: Mozilla Firefox (`browser_firefox`), Opera & Opera GX (`browser_opera`).
-    - **Apps**: Microsoft Teams classic & new (`app_teams`), Steam client & shader caches (`app_steam`), Epic Games Launcher (`app_epic_games`), Zoom Meetings (`app_zoom`).
-    - **Developer**: Gradle & Android Build Caches (`dev_gradle`).
-    - **Secondary Drives**: Steam Library Downloads & Shaders (`${normDrive}_steam_library_cache`).
-  - Enhanced `expandEnvVars` to explicitly handle `%SYSTEMDRIVE%`, `%PROGRAMFILES%`, and `%PROGRAMFILES(X86)%`.
-- [x] **Process Interceptors & File Lock Trapping** ([`processService.ts`](file:///m:/testProject/disksweepr/src/main/services/processService.ts)):
-  - Registered process names for Firefox, Opera, Teams, Steam, Epic Games, and Zoom in `CATEGORY_PROCESS_MAP` to prevent file locks during cleanup.
-- [x] **Visual Category UI Enhancement** ([`CategoryCard.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/CategoryCard.tsx)):
-  - Added dedicated icons (`Gamepad2` for Steam/Epic, `Cpu` for Shaders, `Zap` for Prefetch, `FileText` for Event Logs).
-- [x] **Verification**:
+### Phase 51: Advanced Power Tools Suite & Shell Integration (5 New Modules)
+- [x] **WSL2 & Docker VHDX Compactor Engine** ([`virtualDiskService.ts`](file:///m:/testProject/disksweepr/src/main/services/virtualDiskService.ts)):
+  - Automatically identifies `.vhdx` container virtual hard disks across WSL2 distributions (`%LOCALAPPDATA%\Packages\*\LocalState\ext4.vhdx`) and Docker Desktop (`%LOCALAPPDATA%\Docker\wsl\data\ext4.vhdx`).
+  - Performs graceful `wsl --shutdown` and executes single-batch `diskpart compact vdisk` via temporary script files to shrink dynamic disks and reclaim gigabytes without data loss.
+- [x] **Duplicate Files Hunter with Cryptographic Hashing** ([`duplicateService.ts`](file:///m:/testProject/disksweepr/src/main/services/duplicateService.ts), [`DuplicateHunterView.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/DuplicateHunterView.tsx)):
+  - High-performance 3-phase duplicate detection pipeline:
+    - Phase 1: Rapid file size grouping (filtered by configurable minimum size: 1MB, 5MB, 10MB, 50MB).
+    - Phase 2: 4 KB head-chunk MD5 quick hashing to eliminate unequal files with zero disk overhead.
+    - Phase 3: Full-stream SHA-256 cryptographic verification with cancellation support and live progress events.
+  - Interactive UI with smart multi-selection ("Select Older Clones", "Select Newer Clones"), live search filter, safe Recycle Bin toggling, and Explorer reveal.
+- [x] **Empty Folders Sweeper with Safety Whitelist** ([`emptyFolderService.ts`](file:///m:/testProject/disksweepr/src/main/services/emptyFolderService.ts)):
+  - Bottom-up post-order recursive directory traversal to identify zero-byte abandoned folders and nested empty branches.
+  - Whitelist protection guards against accidental deletion of user shell roots (Desktop, Documents, Downloads, Pictures, Videos, Music) and OS-critical folders (`Windows`, `Program Files`, `ProgramData`, `$Recycle.Bin`, `System Volume Information`, `.git`).
+  - Deepest-first pruning sequence prevents parent removal race conditions.
+- [x] **Windows Component Store (DISM WinSxS) Analyzer & Cleaner** ([`dismService.ts`](file:///m:/testProject/disksweepr/src/main/services/dismService.ts)):
+  - Analyzes the Windows Component Store via native `dism /Online /Cleanup-Image /AnalyzeComponentStore` to extract reported size, actual size, backup footprint, and cleanup recommendations.
+  - Triggers deep package purge via `dism /Online /Cleanup-Image /StartComponentCleanup /ResetBase`.
+- [x] **Windows Explorer Context Menu Integration** ([`contextMenuService.ts`](file:///m:/testProject/disksweepr/src/main/services/contextMenuService.ts)):
+  - Per-user shell registration in `HKCU\Software\Classes\Directory\shell\DiskSweepr`, `Directory\Background\shell`, and `Drive\shell`.
+  - Zero elevation required; seamlessly integrates "Scan with DiskSweepr" into native Windows Explorer right-click menus.
+  - Dedicated interactive toggle switch inside the TitleBar Settings dropdown.
+- [x] **Navigation & View Integration**:
+  - Registered `'duplicates'` and `'tools'` in `NavModule` union type.
+  - Added dedicated navigation buttons in [`NavRail.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/NavRail.tsx).
+  - Wired full views in [`App.tsx`](file:///m:/testProject/disksweepr/src/renderer/App.tsx) and tabbed interface in [`PowerToolsView.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/PowerToolsView.tsx).
+  - Complete English and Indonesian i18n in [`SettingsContext.tsx`](file:///m:/testProject/disksweepr/src/renderer/context/SettingsContext.tsx).
+  - Linear/Raycast dark and light theme styles added in [`index.css`](file:///m:/testProject/disksweepr/src/renderer/index.css).
+- [x] **Quality Gate & Testing**:
   - `npx tsc --noEmit`: 0 errors.
-  - `npm test`: 8/8 unit tests passed.
+  - `npm test`: 12/12 unit tests passed (including new [`tests/emptyFolder.test.ts`](file:///m:/testProject/disksweepr/tests/emptyFolder.test.ts)).
+  - `npm run build`: Renderer and Main bundles compiled cleanly in 3.85s.
+  - Binary packaging held on standby until user explicit build command.
+
 
 
 
