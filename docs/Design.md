@@ -126,8 +126,8 @@ Every data list or audit view in DiskSweepr (e.g. Fast Search, Recovery & Undele
   * Subtle hover transition: `background: var(--bg-surface-hover)`.
   * Selected row styling: `background: var(--accent-subtle)`.
   * Click on row toggles selection; click on path reveals in Windows Explorer via `onOpenExplorer(parentDir)`.
-* **Responsive Breakpoints**:
-  * On viewports `< 1000px`, non-essential columns (such as date deleted) use `.col-hide-sm` to maintain ample breathing room for names and paths.
+* **Responsive Horizontal Scroll**:
+  * On viewports narrower than table min-width (`< 1000px`), tables preserve all essential columns (name, path, status, date, size, action) and enable smooth horizontal scrolling (`overflow-x: auto`) rather than truncating or hiding columns.
 
 ### 4.5 Standard Pagination Pattern (`table-pagination-bar`)
 For any view displaying scalable items (Fast Search, Duplicate Hunter, File Recovery):

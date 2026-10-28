@@ -6964,15 +6964,24 @@ body.theme-light .btn-primary:hover:not(:disabled) {
 .fast-search-results-area {
   flex: 1;
   overflow-y: auto;
+  overflow-x: auto;
   position: relative;
+  -webkit-overflow-scrolling: touch;
+}
+
+.fast-search-results-area::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
 
 .fast-search-table-wrapper {
   width: 100%;
+  min-width: 100%;
 }
 
 .fast-search-table {
   width: 100%;
+  min-width: 760px;
   border-collapse: separate;
   border-spacing: 0;
   text-align: left;
@@ -9215,30 +9224,40 @@ body.theme-light .recovery-deep-row.row-selected {
   padding-right: 28px;
 }
 
+.recovery-results-table {
+  min-width: 880px;
+}
+
 .recovery-results-table .col-recovery-check {
-  width: 62px;
+  width: 52px;
+  min-width: 52px;
 }
 
 .recovery-results-table .col-search-name {
-  width: 38%;
+  width: 32%;
+  min-width: 220px;
 }
 
 .recovery-results-table .col-search-path {
-  width: 30%;
+  width: 26%;
+  min-width: 180px;
 }
 
 .recovery-results-table .col-recovery-date {
   width: 140px;
+  min-width: 130px;
   white-space: nowrap;
 }
 
 .recovery-results-table .col-recovery-status {
-  width: 170px;
+  width: 140px;
+  min-width: 130px;
   white-space: nowrap;
 }
 
 .recovery-results-table .col-search-size {
   width: 100px;
+  min-width: 90px;
   white-space: nowrap;
   text-align: right;
 }
@@ -9248,7 +9267,8 @@ body.theme-light .recovery-deep-row.row-selected {
 }
 
 .recovery-results-table .col-recovery-actions {
-  width: 118px;
+  width: 110px;
+  min-width: 100px;
   text-align: right;
 }
 
@@ -9286,10 +9306,6 @@ body.theme-light .recovery-deep-row.row-selected {
 }
 
 @media (max-width: 1000px) {
-  .recovery-results-table .col-hide-sm {
-    display: none;
-  }
-
   .recovery-toolbar,
   .recovery-tabs-row {
     padding-left: 20px;

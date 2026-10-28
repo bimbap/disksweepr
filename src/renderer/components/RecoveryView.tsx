@@ -836,7 +836,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
                         onSort={() => handleBinSort('location')}
                       />
                       <SortableTh
-                        className="col-recovery-date col-hide-sm"
+                        className="col-recovery-date"
                         label={t('recovery.col_date_del')}
                         active={binSort.field === 'date'}
                         dir={binSort.dir}
@@ -893,7 +893,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
                             </span>
                           </td>
 
-                          <td className="col-recovery-date col-hide-sm">
+                          <td className="col-recovery-date">
                             <span className="date-badge-text">{item.dateDeleted}</span>
                           </td>
 
@@ -1317,7 +1317,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
                         onSort={() => handleDeepSort('status')}
                       />
                       <SortableTh
-                        className="col-recovery-date col-hide-sm"
+                        className="col-recovery-date"
                         label={t('recovery.col_date_mod')}
                         active={deepSort.field === 'date'}
                         dir={deepSort.dir}
@@ -1391,7 +1391,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
                             </span>
                           </td>
 
-                          <td className="col-recovery-date col-hide-sm">
+                          <td className="col-recovery-date">
                             <span className="date-badge-text">{formatRecoveryDate(item.modifiedTime)}</span>
                           </td>
 
