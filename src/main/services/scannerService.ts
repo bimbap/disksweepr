@@ -2,16 +2,16 @@ import fs from 'fs';
 import path from 'path';
 import { exec } from 'child_process';
 import util from 'util';
-import {
+import type {
   CategoryDefinition,
   ScannedCategory,
   ScannedFile,
   ScanOptions,
   ScanProgress,
   ScanResult,
-} from '../../shared/types';
-import { expandEnvVars, getCategoryDefinitionsForDrive } from './ruleRegistry';
-import { matchesExtension } from '../../shared/filters';
+} from '../../shared/types.ts';
+import { expandEnvVars, getCategoryDefinitionsForDrive } from './ruleRegistry.ts';
+import { matchesExtension } from '../../shared/filters.ts';
 
 const execPromise = util.promisify(exec);
 

@@ -6,6 +6,7 @@ import {
   getSecondaryMediaPaths,
   CATEGORY_DEFINITIONS,
 } from '../src/main/services/ruleRegistry.ts';
+import { ScannerService } from '../src/main/services/scannerService.ts';
 
 test('CATEGORY_DEFINITIONS includes user_media_hunter with defaultSelected true and group media', () => {
   const mediaCat = CATEGORY_DEFINITIONS.find((d) => d.id === 'user_media_hunter');
@@ -34,4 +35,10 @@ test('getSecondaryMediaPaths discovers drive root and fallback paths', () => {
   assert.ok(paths.includes('Z:\\'));
   assert.ok(paths.includes('Z:\\Downloads'));
   assert.ok(paths.includes('Z:\\Videos'));
+});
+
+test('ScannerService initializes properly', () => {
+  const scanner = new ScannerService();
+  assert.ok(scanner);
+  assert.equal(typeof scanner.scan, 'function');
 });
