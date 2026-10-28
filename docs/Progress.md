@@ -799,10 +799,11 @@
   - **Open Original Location**: Added companion action button (`btn-action-explorer`) in Recycle Bin rows to immediately reveal parent directories in Windows Explorer.
   - **Search State Distinction**: Differentiates clean empty state from "No search results match query" with a 1-click filter reset button.
   - **Toolbar Size Counter**: Live counter displaying total Recycle Bin storage consumption on the system.
+  - **FastSearch-Style Table & Pagination**: Adopted Fast Search's responsive `<table>` architecture (`fast-search-table`, `SortableTh`, `PaginationBar`) with 50-item pages, bidirectional column sorting (name, original location, deletion date, status, size), and shared utility functions (`src/shared/recoveryUtils.ts`).
 - [x] **Verification**:
-  - `npm test`: 24/24 unit tests passed (100% green).
+  - `npm test`: 28/28 unit tests passed (100% green).
   - `npx tsc --noEmit`: 0 errors.
-  - `npm run build`: Bundled cleanly in 13.6s.
+  - `npm run build`: Bundled cleanly in 11.06s.
 
 
 
