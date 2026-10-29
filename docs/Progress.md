@@ -876,6 +876,9 @@
   - Fixed backslash escaping on `string devPath = "\\\\\\\\.\\\\" + cleanDrive;` inside the TypeScript template literal so C# compiles `\\\\.\\` (`\\.\M:`) cleanly without `Newline in constant`.
 - [x] **Removed `.bak` and `.old` from `ORPHAN_FILE_PATTERNS`** ([`recoveryService.ts`](file:///m:/testProject/disksweepr/src/main/services/recoveryService.ts), [`tests/recovery.test.ts`](file:///m:/testProject/disksweepr/tests/recovery.test.ts)):
   - Normal live `.bak` and `.old` backup files (such as `config-20260818-110845.json.bak` in `M:\minecraft_sftp\config\SimpleVoice-Geyser`) are no longer matched by Stage 3 (`scanOrphanFragments`). Deep Recovery strictly returns genuinely deleted `$MFT` records, orphaned `$Recycle.Bin` remnants, `found.000\*.chk` cluster fragments, and crash-recovery files (`~$*`, `.asd`, `.wbk`, `.xlk`, `.crdownload`, `.part`).
+- [x] **Recycle Bin & Deep Recovery Action Loading States** ([`RecoveryView.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/RecoveryView.tsx), [`SettingsContext.tsx`](file:///m:/testProject/disksweepr/src/renderer/context/SettingsContext.tsx)):
+  - Added dedicated `WaveEqualizerLoader` state cards in Tab 1 when emptying the Recycle Bin (`Emptying Windows Recycle Bin...`), permanently purging selected items (`Permanently Deleting Selected Items...`), or restoring files (`Restoring Selected Files...`), and in Tab 2 when reconstructing files to a folder (`Recovering Selected Files...`).
+
 
 
 

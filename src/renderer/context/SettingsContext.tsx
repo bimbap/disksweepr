@@ -553,6 +553,13 @@ const translations: Record<Language, Record<string, string>> = {
     'recovery.deep_search_placeholder': 'Filter traces by name or path...',
     'recovery.scan_progress': '{scanned} locations audited • {found} matching traces discovered',
     'recovery.scan_idle': 'Auditing unlinked sectors and file slack remnants...',
+    'recovery.emptying_bin_title': 'Emptying Windows Recycle Bin...',
+    'recovery.emptying_bin_desc': 'Permanently removing all deleted items from mounted partitions...',
+    'recovery.purging_bin_title': 'Permanently Deleting Selected Items...',
+    'recovery.purging_bin_desc': 'Unlinking selected Recycle Bin files from storage...',
+    'recovery.restoring_bin_title': 'Restoring Selected Files...',
+    'recovery.restoring_bin_desc': 'Moving selected items back to their original folder locations...',
+    'recovery.recovering_deep_desc': 'Reconstructing raw file clusters and writing recovered files to destination folder...',
   },
   id: {
     // Nav
@@ -1094,6 +1101,13 @@ const translations: Record<Language, Record<string, string>> = {
     'recovery.deep_search_placeholder': 'Filter jejak berdasarkan nama atau lokasi...',
     'recovery.scan_progress': '{scanned} lokasi diperiksa • {found} jejak file cocok ditemukan',
     'recovery.scan_idle': 'Memeriksa sektor tak terhubung dan sisa file...',
+    'recovery.emptying_bin_title': 'Mengosongkan Recycle Bin Windows...',
+    'recovery.emptying_bin_desc': 'Menghapus permanen seluruh item terhapus dari partisi penyimpanan...',
+    'recovery.purging_bin_title': 'Menghapus Permanen Item Terpilih...',
+    'recovery.purging_bin_desc': 'Memusnahkan file terpilih dari Recycle Bin secara permanen...',
+    'recovery.restoring_bin_title': 'Memulihkan File Terpilih...',
+    'recovery.restoring_bin_desc': 'Memindahkan item terpilih kembali ke folder lokasi aslinya...',
+    'recovery.recovering_deep_desc': 'Merekonstruksi klaster sektor mentah dan menulis file ke folder tujuan...',
   },
 };
 

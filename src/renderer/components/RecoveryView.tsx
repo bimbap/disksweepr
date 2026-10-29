@@ -132,6 +132,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
   const [binSearchQuery, setBinSearchQuery] = useState('');
   const [selectedBinIds, setSelectedBinIds] = useState<Set<string>>(new Set());
   const [isProcessingBin, setIsProcessingBin] = useState(false);
+  const [binActionType, setBinActionType] = useState<'empty' | 'purge' | 'restore' | null>(null);
   const [showConfirmEmpty, setShowConfirmEmpty] = useState(false);
   const [showConfirmRestore, setShowConfirmRestore] = useState(false);
   const [showConfirmPurge, setShowConfirmPurge] = useState(false);
@@ -286,6 +287,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
   const handleRestoreSelected = async () => {
     setShowConfirmRestore(false);
     if (selectedBinIds.size === 0) return;
+    setBinActionType('restore');
     setIsProcessingBin(true);
 
     try {
@@ -300,10 +302,12 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
       console.error('Failed to restore items:', err);
     } finally {
       setIsProcessingBin(false);
+      setBinActionType(null);
     }
   };
 
   const handleSingleRestore = async (item: RecycleBinItem) => {
+    setBinActionType('restore');
     setIsProcessingBin(true);
     try {
       const res = await window.cleanerApi?.restoreRecycleBinItems([item.path]);
@@ -314,12 +318,14 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
       console.error('Failed to restore item:', err);
     } finally {
       setIsProcessingBin(false);
+      setBinActionType(null);
     }
   };
 
   const handlePurgeSelected = async () => {
     setShowConfirmPurge(false);
     if (selectedBinIds.size === 0) return;
+    setBinActionType('purge');
     setIsProcessingBin(true);
 
     try {
@@ -334,11 +340,13 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
       console.error('Failed to purge items:', err);
     } finally {
       setIsProcessingBin(false);
+      setBinActionType(null);
     }
   };
 
   const handleEmptyRecycleBin = async () => {
     setShowConfirmEmpty(false);
+    setBinActionType('empty');
     setIsProcessingBin(true);
 
     try {
@@ -350,6 +358,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
       console.error('Failed to empty recycle bin:', err);
     } finally {
       setIsProcessingBin(false);
+      setBinActionType(null);
     }
   };
 
@@ -761,17 +770,33 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
 
           {/* Results */}
           <div className="fast-search-results-area">
-            {isLoadingBin ? (
+            {isLoadingBin || isProcessingBin ? (
               <div className="recovery-state-wrap">
                 <div className="empty-state-card scanning-active-card">
                   <div
                     className="empty-state-icon-box"
                     style={{ background: 'transparent', width: '64px', height: '44px' }}
                   >
-                    <WaveEqualizerLoader height={28} ariaLabel="Loading Recycle Bin" />
+                    <WaveEqualizerLoader height={28} ariaLabel="Processing Recycle Bin" />
                   </div>
-                  <h3>{t('recovery.tab_recycle_bin')}</h3>
-                  <p>{t('cleanup.audit_filesystem')}</p>
+                  <h3>
+                    {isProcessingBin
+                      ? binActionType === 'empty'
+                        ? t('recovery.emptying_bin_title')
+                        : binActionType === 'purge'
+                        ? t('recovery.purging_bin_title')
+                        : t('recovery.restoring_bin_title')
+                      : t('recovery.tab_recycle_bin')}
+                  </h3>
+                  <p>
+                    {isProcessingBin
+                      ? binActionType === 'empty'
+                        ? t('recovery.emptying_bin_desc')
+                        : binActionType === 'purge'
+                        ? t('recovery.purging_bin_desc')
+                        : t('recovery.restoring_bin_desc')
+                      : t('cleanup.audit_filesystem')}
+                  </p>
                 </div>
               </div>
             ) : binItems.length === 0 ? (
@@ -924,7 +949,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
             )}
           </div>
 
-          {sortedBinItems.length > PAGE_SIZE && (
+          {!isLoadingBin && !isProcessingBin && sortedBinItems.length > PAGE_SIZE && (
             <PaginationBar
               page={safeBinPage}
               totalPages={binTotalPages}
@@ -935,7 +960,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
           )}
 
           {/* Sticky Bottom Action Bar for Recycle Bin */}
-          {selectedBinIds.size > 0 && (
+          {!isLoadingBin && !isProcessingBin && selectedBinIds.size > 0 && (
             <div className="module-bottom-bar">
               <div className="bar-info">
                 <span className="badge-count">{selectedBinIds.size}</span>
@@ -1170,7 +1195,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
           </div>
 
           {/* Deep results toolbar */}
-          {!isScanningDeep && deepResults.length > 0 && (
+          {!isScanningDeep && !isRecovering && deepResults.length > 0 && (
             <div className="recovery-toolbar">
               <div className="module-search-box">
                 <Search size={14} className="module-search-icon" />
@@ -1230,7 +1255,22 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
               </div>
             )}
 
-            {!isScanningDeep && !hasScannedDeep && deepResults.length === 0 && (
+            {isRecovering && !isScanningDeep && (
+              <div className="recovery-state-wrap">
+                <div className="empty-state-card scanning-active-card">
+                  <div
+                    className="empty-state-icon-box"
+                    style={{ background: 'transparent', width: '64px', height: '44px' }}
+                  >
+                    <WaveEqualizerLoader height={28} ariaLabel={t('recovery.recovering_files')} />
+                  </div>
+                  <h3>{t('recovery.recovering_files')}</h3>
+                  <p>{t('recovery.recovering_deep_desc')}</p>
+                </div>
+              </div>
+            )}
+
+            {!isScanningDeep && !isRecovering && !hasScannedDeep && deepResults.length === 0 && (
               <div className="recovery-state-wrap">
                 <div className="empty-state-card">
                   <div className="empty-state-icon-box">
@@ -1242,7 +1282,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
               </div>
             )}
 
-            {!isScanningDeep && hasScannedDeep && deepResults.length === 0 && (
+            {!isScanningDeep && !isRecovering && hasScannedDeep && deepResults.length === 0 && (
               <div className="recovery-state-wrap">
                 <div className="empty-state-card clean">
                   <div className="empty-state-icon-box clean">
@@ -1254,7 +1294,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
               </div>
             )}
 
-            {!isScanningDeep && deepResults.length > 0 && filteredDeepResults.length === 0 && (
+            {!isScanningDeep && !isRecovering && deepResults.length > 0 && filteredDeepResults.length === 0 && (
               <div className="recovery-state-wrap">
                 <div className="empty-state-card">
                   <div className="empty-state-icon-box">
@@ -1274,7 +1314,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
               </div>
             )}
 
-            {!isScanningDeep && filteredDeepResults.length > 0 && (
+            {!isScanningDeep && !isRecovering && filteredDeepResults.length > 0 && (
               <div className="fast-search-table-wrapper">
                 <table className="fast-search-table recovery-results-table">
                   <thead>
@@ -1407,7 +1447,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
             )}
           </div>
 
-          {!isScanningDeep && sortedDeepResults.length > PAGE_SIZE && (
+          {!isScanningDeep && !isRecovering && sortedDeepResults.length > PAGE_SIZE && (
             <PaginationBar
               page={safeDeepPage}
               totalPages={deepTotalPages}
@@ -1418,7 +1458,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
           )}
 
           {/* Sticky Bottom Bar for Deep Recovery */}
-          {selectedDeepIds.size > 0 && (
+          {!isScanningDeep && !isRecovering && selectedDeepIds.size > 0 && (
             <div className="module-bottom-bar">
               <div className="bar-info">
                 <span className="badge-count">{selectedDeepIds.size}</span>
