@@ -1963,24 +1963,6 @@ body.theme-light .brand-badge {
   overflow-x: hidden;
   padding: 6px 0;
   align-items: center;
-  scrollbar-width: thin;
-}
-
-.nav-rail-items::-webkit-scrollbar {
-  width: 3px;
-}
-
-.nav-rail-items::-webkit-scrollbar-thumb {
-  background: transparent;
-  border-radius: 999px;
-}
-
-.nav-rail:hover .nav-rail-items::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.18);
-}
-
-body.theme-light .nav-rail:hover .nav-rail-items::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.18);
 }
 
 .rail-item {

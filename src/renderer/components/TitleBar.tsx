@@ -146,9 +146,20 @@ export const TitleBar: React.FC<TitleBarProps> = ({ currentDrive, showDrivePill 
         setShowSettingsDropdown(false);
       }
     };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowSettingsDropdown(false);
+        if (showLicenseModal) handleCloseLicenseModal();
+        if (showAboutModal) handleCloseAboutModal();
+      }
+    };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showLicenseModal, showAboutModal]);
 
   const handleMinimize = () => {
     window.cleanerApi?.minimizeWindow();
@@ -216,17 +227,6 @@ export const TitleBar: React.FC<TitleBarProps> = ({ currentDrive, showDrivePill 
                   <div className="lang-segment-pill">
                     <button
                       type="button"
-                      className={`lang-sub-btn ${language === 'id' ? 'active' : ''}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setLanguage('id');
-                      }}
-                      title="Bahasa Indonesia"
-                    >
-                      ID
-                    </button>
-                    <button
-                      type="button"
                       className={`lang-sub-btn ${language === 'en' ? 'active' : ''}`}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -235,6 +235,17 @@ export const TitleBar: React.FC<TitleBarProps> = ({ currentDrive, showDrivePill 
                       title="English"
                     >
                       EN
+                    </button>
+                    <button
+                      type="button"
+                      className={`lang-sub-btn ${language === 'id' ? 'active' : ''}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setLanguage('id');
+                      }}
+                      title="Bahasa Indonesia"
+                    >
+                      ID
                     </button>
                   </div>
                 </div>
@@ -285,6 +296,8 @@ export const TitleBar: React.FC<TitleBarProps> = ({ currentDrive, showDrivePill 
                   </div>
                 </div>
 
+                <div className="dropdown-divider" />
+
                 {/* 3. License Row (MIT Open Source) */}
                 <button
                   type="button"
@@ -294,8 +307,6 @@ export const TitleBar: React.FC<TitleBarProps> = ({ currentDrive, showDrivePill 
                   <Scale size={13} className="dropdown-row-icon text-muted" />
                   <span>{t('settings.license')}</span>
                 </button>
-
-                <div className="dropdown-divider" />
 
                 {/* 4. About Cleaner Row */}
                 <button

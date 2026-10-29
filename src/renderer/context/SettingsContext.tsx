@@ -1105,7 +1105,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   });
 
   const [language, setLanguageState] = useState<Language>(() => {
-    return (localStorage.getItem('cleaner_lang') as Language) || 'id';
+    return (localStorage.getItem('disksweepr_lang') as Language) || 'en';
   });
 
   useEffect(() => {
@@ -1115,7 +1115,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [theme]);
 
   useEffect(() => {
-    localStorage.setItem('cleaner_lang', language);
+    localStorage.setItem('disksweepr_lang', language);
   }, [language]);
 
   const toggleTheme = () => {
