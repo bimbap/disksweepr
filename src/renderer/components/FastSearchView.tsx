@@ -1424,9 +1424,9 @@ export const FastSearchView: React.FC<FastSearchViewProps> = ({
               </div>
               <button
                 type="button"
-                className="btn-close-modal"
+                className="modal-close-btn"
                 onClick={() => setDeleteConfirmItem(null)}
-                title="Cancel"
+                title={t('common.cancel')}
               >
                 <X size={16} />
               </button>

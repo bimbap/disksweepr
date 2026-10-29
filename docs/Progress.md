@@ -807,6 +807,20 @@
   - `npx tsc --noEmit`: 0 errors.
   - `npm run build`: Bundled cleanly.
 
+### Phase 53: Pre-Release System & UI/UX Audit, Dynamic Alt+Tab Window Titles, & Scrollable NavRail
+- [x] **Default Module Launch Fix** ([`src/main/index.ts`](file:///m:/testProject/disksweepr/src/main/index.ts)):
+  - Fixed `parsePathArg` in Electron main process which previously treated `argv[1] === '.'` (or the app's own workspace directory in dev mode) as a right-click Context Menu folder argument, causing the app to auto-switch to `Large Files` on launch instead of `Cleaner` (`system`).
+- [x] **Scrollable NavRail & Relaxed Minimum Window Bounds** ([`src/main/index.ts`](file:///m:/testProject/disksweepr/src/main/index.ts), [`src/renderer/index.css`](file:///m:/testProject/disksweepr/src/renderer/index.css)):
+  - Lowered `BrowserWindow` minimum dimensions to `minWidth: 680, minHeight: 400`.
+  - Enabled independent vertical scrolling (`overflow-y: auto; min-height: 0;`) on `.nav-rail-items` with `flex-shrink: 0` on `.rail-item` and a subtle hover-only 3px scrollbar so all 8 navigation items remain accessible on short windows without squishing or clipping.
+- [x] **Dynamic Alt+Tab Window Titles per Feature** ([`src/renderer/App.tsx`](file:///m:/testProject/disksweepr/src/renderer/App.tsx), [`index.html`](file:///m:/testProject/disksweepr/index.html)):
+  - Synchronized `document.title` dynamically with active module and language using standard hyphen separator: `DiskSweepr - <Feature Name>` (e.g. `DiskSweepr - Pembersih`, `DiskSweepr - Pencarian Kilat`, `DiskSweepr - File Besar`, etc.).
+- [x] **Cross-Module Audit & Polish**:
+  - Replaced hardcoded `'M:\\testProject'` default path in [`DevProjectsView.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/DevProjectsView.tsx) with dynamic active drive root (`${currentDriveLetter}\\`).
+  - Replaced native browser `window.confirm()` in [`HistoryView.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/HistoryView.tsx) with the custom frosted-glass confirmation modal, and added filter pills/badges for `Duplicates` and `Power Tools` history records.
+  - Standardized `.modal-close-btn`, localized `NavRail` tooltips, and added `Escape` key dismissal across all confirmation modals (`ConfirmCleanModal`, `FastSearchView`, `LargeFilesView`, `DuplicateHunterView`, `DevProjectsView`, `PowerToolsView`, `HistoryView`).
+
+
 
 
 

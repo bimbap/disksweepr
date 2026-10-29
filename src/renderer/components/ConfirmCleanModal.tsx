@@ -40,6 +40,14 @@ export const ConfirmCleanModal: React.FC<ConfirmCleanModalProps> = ({
         }
       });
     }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onCancel();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const handleCloseAndClean = async () => {
@@ -71,8 +79,8 @@ export const ConfirmCleanModal: React.FC<ConfirmCleanModalProps> = ({
               </p>
             </div>
           </div>
-          <button type="button" className="control-btn" onClick={onCancel}>
-            <X size={14} />
+          <button type="button" className="modal-close-btn" onClick={onCancel} title={t('common.cancel')}>
+            <X size={16} />
           </button>
         </div>
 

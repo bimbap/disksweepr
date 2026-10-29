@@ -9,6 +9,7 @@ import { DevProjectsView } from './components/DevProjectsView';
 import { PowerToolsView } from './components/PowerToolsView';
 import { RecoveryView } from './components/RecoveryView';
 import { HistoryView } from './components/HistoryView';
+import { useSettings } from './context/SettingsContext';
 import {
   CategoryDefinition,
   CleanProgress,
@@ -23,6 +24,7 @@ import {
 type AppStage = 'idle' | 'scanning' | 'scanned' | 'cleaning' | 'completed';
 
 export const App: React.FC = () => {
+  const { t, language } = useSettings();
   const [activeModule, setActiveModule] = useState<NavModule>('system');
   const [stage, setStage] = useState<AppStage>('idle');
   const [drives, setDrives] = useState<DriveStat[]>([]);
@@ -32,6 +34,22 @@ export const App: React.FC = () => {
   const [cleanReport, setCleanReport] = useState<CleanReport | null>(null);
   const [cliTargetFolder, setCliTargetFolder] = useState<string | undefined>(undefined);
   const isScanCancelledRef = useRef(false);
+
+  // Sync window title dynamically for Alt+Tab & taskbar per active module
+  useEffect(() => {
+    const moduleTitleKeyMap: Record<NavModule, string> = {
+      system: 'nav.cleanup',
+      fast_search: 'nav.fast_search',
+      large_files: 'nav.large_files',
+      duplicates: 'nav.duplicates',
+      dev_projects: 'nav.dev_repos',
+      tools: 'nav.tools',
+      recovery: 'nav.recovery',
+      history: 'nav.history',
+    };
+    const moduleLabel = t(moduleTitleKeyMap[activeModule] || 'nav.cleanup');
+    document.title = `DiskSweepr - ${moduleLabel}`;
+  }, [activeModule, language, t]);
 
   // Progress telemetry
   const [scanProgress, setScanProgress] = useState<ScanProgress>({
@@ -267,6 +285,7 @@ export const App: React.FC = () => {
 
           {activeModule === 'dev_projects' && (
             <DevProjectsView
+              currentDriveLetter={selectedDriveLetter}
               onOpenExplorer={(p) => window.cleanerApi?.openPathInExplorer(p)}
               onRefreshDriveStats={refreshDriveStats}
             />

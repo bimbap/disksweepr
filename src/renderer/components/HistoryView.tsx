@@ -3,6 +3,9 @@ import {
   Sparkles,
   HardDriveDownload,
   FolderGit2,
+  Copy,
+  Wrench,
+  AlertTriangle,
   History,
   Download,
   Trash2,
@@ -24,9 +27,10 @@ export const HistoryView: React.FC = () => {
   const [history, setHistory] = useState<HistoryRecord[]>([]);
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [moduleFilter, setModuleFilter] = useState<'all' | 'system' | 'large_files' | 'dev_projects'>('all');
+  const [moduleFilter, setModuleFilter] = useState<'all' | 'system' | 'large_files' | 'duplicates' | 'dev_projects' | 'tools'>('all');
   const [detailFileFilter, setDetailFileFilter] = useState('');
   const [statusMessage, setStatusMessage] = useState<string>('');
+  const [showClearModal, setShowClearModal] = useState<boolean>(false);
 
   // Pagination states (25 items per page max)
   const SESSIONS_PER_PAGE = 25;
@@ -56,6 +60,16 @@ export const HistoryView: React.FC = () => {
     loadHistory();
   }, []);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showClearModal) {
+        setShowClearModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showClearModal]);
+
   const formatDate = (timestamp: number) => {
     const d = new Date(timestamp);
     return `${d.toLocaleDateString(undefined, {
@@ -77,14 +91,13 @@ export const HistoryView: React.FC = () => {
     }
   };
 
-  const handleClear = async () => {
-    if (window.confirm(t('history.confirm_clear'))) {
-      await window.cleanerApi.clearHistory();
-      setHistory([]);
-      setSelectedRecordId(null);
-      setStatusMessage(t('history.cleared_toast'));
-      setTimeout(() => setStatusMessage(''), 3000);
-    }
+  const handleConfirmClear = async () => {
+    setShowClearModal(false);
+    await window.cleanerApi.clearHistory();
+    setHistory([]);
+    setSelectedRecordId(null);
+    setStatusMessage(t('history.cleared_toast'));
+    setTimeout(() => setStatusMessage(''), 3000);
   };
 
   const totalReclaimedLifetime = history.reduce((acc, r) => acc + r.reclaimedBytes, 0);
@@ -135,10 +148,22 @@ export const HistoryView: React.FC = () => {
           icon: <HardDriveDownload size={14} className="text-cyan" />,
           badgeClass: 'badge-module-large',
         };
+      case 'duplicates':
+        return {
+          title: t('nav.duplicates'),
+          icon: <Copy size={14} className="text-cyan" />,
+          badgeClass: 'badge-module-large',
+        };
       case 'dev_projects':
         return {
           title: t('history.module_dev_repos'),
           icon: <FolderGit2 size={14} className="text-purple" />,
+          badgeClass: 'badge-module-dev',
+        };
+      case 'tools':
+        return {
+          title: t('nav.tools'),
+          icon: <Wrench size={14} className="text-purple" />,
           badgeClass: 'badge-module-dev',
         };
       case 'system':
@@ -196,7 +221,7 @@ export const HistoryView: React.FC = () => {
               <button
                 type="button"
                 className="history-action-btn danger"
-                onClick={handleClear}
+                onClick={() => setShowClearModal(true)}
                 title={t('history.tooltip_clear_history')}
               >
                 <Trash2 size={14} />
@@ -256,6 +281,20 @@ export const HistoryView: React.FC = () => {
             onClick={() => setModuleFilter('dev_projects')}
           >
             {t('history.filter_dev')}
+          </button>
+          <button
+            type="button"
+            className={`k-pill ${moduleFilter === 'duplicates' ? 'active' : ''}`}
+            onClick={() => setModuleFilter('duplicates')}
+          >
+            {t('nav.duplicates')}
+          </button>
+          <button
+            type="button"
+            className={`k-pill ${moduleFilter === 'tools' ? 'active' : ''}`}
+            onClick={() => setModuleFilter('tools')}
+          >
+            {t('nav.tools')}
           </button>
         </div>
 
@@ -563,6 +602,40 @@ export const HistoryView: React.FC = () => {
           </>
         )}
       </div>
+
+      {/* Clear History Confirmation Modal */}
+      {showClearModal && (
+        <div className="modal-backdrop" onClick={() => setShowClearModal(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-header-left">
+                <div className="modal-icon-badge warning">
+                  <AlertTriangle size={18} />
+                </div>
+                <h3 className="modal-title">{t('history.clear_history')}</h3>
+              </div>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setShowClearModal(false)}
+                title={t('common.cancel')}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <p className="modal-desc">{t('history.confirm_clear')}</p>
+            <div className="modal-actions">
+              <button type="button" className="btn-ghost" onClick={() => setShowClearModal(false)}>
+                {t('common.cancel')}
+              </button>
+              <button type="button" className="btn-danger" onClick={handleConfirmClear}>
+                <Trash2 size={14} style={{ marginRight: '6px' }} />
+                {t('history.clear_history')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   FolderGit2,
   FolderOpen,
@@ -17,16 +17,20 @@ import { WaveEqualizerLoader } from './WaveEqualizerLoader';
 import { formatMiddleTruncate } from '../../shared/formatters';
 
 interface DevProjectsViewProps {
+  currentDriveLetter?: string;
   onOpenExplorer: (path: string) => void;
   onRefreshDriveStats: () => void;
 }
 
 export const DevProjectsView: React.FC<DevProjectsViewProps> = ({
+  currentDriveLetter = 'C:',
   onOpenExplorer,
   onRefreshDriveStats,
 }) => {
   const { t } = useSettings();
-  const [workspacePath, setWorkspacePath] = useState<string>('M:\\testProject');
+  const defaultDriveRoot = `${currentDriveLetter.replace(/\\+$/, '')}\\`;
+  const [workspacePath, setWorkspacePath] = useState<string>(defaultDriveRoot);
+  const [hasCustomWorkspace, setHasCustomWorkspace] = useState<boolean>(false);
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [currentScanningDir, setCurrentScanningDir] = useState<string>('');
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
@@ -38,6 +42,22 @@ export const DevProjectsView: React.FC<DevProjectsViewProps> = ({
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
   const [statusMessage, setStatusMessage] = useState<string>('');
   const dragCounterRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (!hasCustomWorkspace && currentDriveLetter) {
+      setWorkspacePath(`${currentDriveLetter.replace(/\\+$/, '')}\\`);
+    }
+  }, [currentDriveLetter, hasCustomWorkspace]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showConfirmModal) {
+        setShowConfirmModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showConfirmModal]);
 
   const formatSize = (bytes: number) => {
     if (bytes >= 1024 * 1024 * 1024) {
@@ -51,6 +71,7 @@ export const DevProjectsView: React.FC<DevProjectsViewProps> = ({
       const selected = await window.cleanerApi.selectFolderDialog();
       if (selected) {
         setWorkspacePath(selected);
+        setHasCustomWorkspace(true);
       }
     } catch (err) {
       console.error('Failed to select folder:', err);
@@ -107,6 +128,7 @@ export const DevProjectsView: React.FC<DevProjectsViewProps> = ({
 
       if (droppedPath) {
         setWorkspacePath(droppedPath);
+        setHasCustomWorkspace(true);
         setStatusMessage(t('dev_repos.target_folder_set').replace('{path}', droppedPath));
       }
     }

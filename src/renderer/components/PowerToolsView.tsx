@@ -107,8 +107,19 @@ export const PowerToolsView: React.FC<PowerToolsViewProps> = ({
         setIsScopeDropdownOpen(false);
       }
     };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowEmptyConfirmModal(false);
+        setShowDismConfirmModal(false);
+        setIsScopeDropdownOpen(false);
+      }
+    };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   const activeDriveStat = driveStats.find((d) => d.letter === selectedDrive);

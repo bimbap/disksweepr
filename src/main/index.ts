@@ -43,12 +43,20 @@ const recoveryService = new RecoveryService();
 let latestScanResult: ScanResult | null = null;
 
 function parsePathArg(argv: string[]): string | null {
-  for (const raw of argv.slice(1)) {
+  const startIndex = app.isPackaged ? 1 : 2;
+  const appRoot = path.resolve(app.getAppPath()).toLowerCase();
+  const cwdRoot = path.resolve(process.cwd()).toLowerCase();
+
+  for (const raw of argv.slice(startIndex)) {
     if (!raw || raw.startsWith('--') || raw.startsWith('-')) continue;
     try {
-      const clean = raw.replace(/^["']|["']$/g, '');
+      const clean = raw.replace(/^["']|["']$/g, '').trim();
+      if (!clean || clean === '.' || clean === './' || clean === '.\\') continue;
       if (fs.existsSync(clean) && fs.statSync(clean).isDirectory()) {
-        return path.resolve(clean);
+        const resolved = path.resolve(clean);
+        const lower = resolved.toLowerCase();
+        if (lower === appRoot || lower === cwdRoot) continue;
+        return resolved;
       }
     } catch {
       // Ignore unreadable argument
@@ -80,8 +88,8 @@ if (!gotTheLock) {
     mainWindow = new BrowserWindow({
       width: 980,
       height: 700,
-      minWidth: 840,
-      minHeight: 580,
+      minWidth: 680,
+      minHeight: 400,
       frame: false,
       transparent: true,
       backgroundColor: '#00000000',
@@ -384,6 +392,13 @@ ipcMain.handle('cleaner:delete-duplicates', async (_, filePaths: string[], useTr
       reclaimedBytes: result.reclaimedBytes,
       filesCount: result.deletedPaths.length,
       summary: `Purged ${result.deletedPaths.length} duplicate files`,
+      items: result.deletedPaths.map((p) => ({
+        name: path.basename(p),
+        path: p,
+        sizeBytes: 0,
+        category: 'Duplicate File',
+        status: 'purged' as const,
+      })),
     });
   }
   return result;

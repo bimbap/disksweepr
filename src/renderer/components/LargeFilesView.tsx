@@ -134,8 +134,19 @@ export const LargeFilesView: React.FC<LargeFilesViewProps> = ({
         setIsSizeDropdownOpen(false);
       }
     };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowConfirmModal(false);
+        setIsScopeDropdownOpen(false);
+        setIsSizeDropdownOpen(false);
+      }
+    };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   const activeDriveStat = driveStats.find((d) => d.letter === selectedDrive);

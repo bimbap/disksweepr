@@ -26,7 +26,7 @@ export const NavRail: React.FC<NavRailProps> = ({ activeModule, onSelectModule }
           type="button"
           className={`rail-item ${activeModule === 'system' ? 'active' : ''}`}
           onClick={() => onSelectModule('system')}
-          title="System Cleanup & Junk Files"
+          title={t('nav.cleanup')}
         >
           <div className="rail-icon-wrapper">
             <Sparkles size={20} />
@@ -50,7 +50,7 @@ export const NavRail: React.FC<NavRailProps> = ({ activeModule, onSelectModule }
           type="button"
           className={`rail-item ${activeModule === 'large_files' ? 'active' : ''}`}
           onClick={() => onSelectModule('large_files')}
-          title="Large Space Hog Hunter"
+          title={t('nav.large_files')}
         >
           <div className="rail-icon-wrapper">
             <HardDriveDownload size={20} />
@@ -74,7 +74,7 @@ export const NavRail: React.FC<NavRailProps> = ({ activeModule, onSelectModule }
           type="button"
           className={`rail-item ${activeModule === 'dev_projects' ? 'active' : ''}`}
           onClick={() => onSelectModule('dev_projects')}
-          title="Developer Workspaces & Build Artifacts"
+          title={t('nav.dev_repos')}
         >
           <div className="rail-icon-wrapper">
             <FolderGit2 size={20} />
@@ -110,7 +110,7 @@ export const NavRail: React.FC<NavRailProps> = ({ activeModule, onSelectModule }
           type="button"
           className={`rail-item ${activeModule === 'history' ? 'active' : ''}`}
           onClick={() => onSelectModule('history')}
-          title="History & Audit Logs"
+          title={t('nav.history')}
         >
           <div className="rail-icon-wrapper">
             <History size={20} />
