@@ -14,34 +14,36 @@ test('RecoveryService ignores normal active files and only detects orphaned/dele
   const tempDir = path.join(os.tmpdir(), `disksweepr_recovery_test_${Date.now()}`);
   fs.mkdirSync(tempDir, { recursive: true });
 
-  // Normal live files MUST NOT be returned by Deep Recovery
+  // Normal live files (including live .bak/.old config backups!) MUST NOT be returned by Deep Recovery
   const activeImg = path.join(tempDir, 'active_photo.jpg');
   const activeVideo = path.join(tempDir, 'active_movie.mkv');
+  const activeBak = path.join(tempDir, 'config-20260818.json.bak');
   fs.writeFileSync(activeImg, Buffer.from('LIVE_JPEG_FILE'));
   fs.writeFileSync(activeVideo, Buffer.from('LIVE_MKV_FILE'));
+  fs.writeFileSync(activeBak, Buffer.from('{}'));
 
-  // Orphaned / backup / lost-cluster files SHOULD be detected
-  const orphanImgBak = path.join(tempDir, 'deleted_photo.jpg.bak');
+  // Genuine crash-recovery / incomplete download / lost-cluster files SHOULD be detected
+  const orphanImgPart = path.join(tempDir, 'unfinished_photo.jpg.crdownload');
   const orphanDocAsd = path.join(tempDir, 'unsaved_report.docx.asd');
   const foundDir = path.join(tempDir, 'found.000');
   fs.mkdirSync(foundDir, { recursive: true });
   const chkFragment = path.join(foundDir, 'file0001.chk');
 
-  fs.writeFileSync(orphanImgBak, Buffer.from('RECOVERABLE_JPEG_BACKUP'));
+  fs.writeFileSync(orphanImgPart, Buffer.from('RECOVERABLE_JPEG_PARTIAL'));
   fs.writeFileSync(orphanDocAsd, Buffer.from('RECOVERABLE_WORD_AUTORECOVER'));
   fs.writeFileSync(chkFragment, Buffer.from('CHKDSK_CLUSTER_DATA'));
 
-  // 1. Test images category filter: only deleted_photo.jpg.bak should match, NOT active_photo.jpg!
+  // 1. Test images category filter: only unfinished_photo.jpg.crdownload should match, NOT active_photo.jpg!
   const imgResults = await service.scanDeepRecovery({
     targetPath: tempDir,
     category: 'images',
   });
 
-  assert.equal(imgResults.length, 1, 'Should find only orphaned image backup and ignore active photo.jpg');
-  assert.equal(imgResults[0].name, 'deleted_photo.jpg.bak');
+  assert.equal(imgResults.length, 1, 'Should find only partial image remnant and ignore active photo.jpg');
+  assert.equal(imgResults[0].name, 'unfinished_photo.jpg.crdownload');
   assert.equal(imgResults[0].status, 'recoverable');
 
-  // 2. Test all category filter: should find the 3 orphaned items and 0 active files
+  // 2. Test all category filter: should find the 3 orphaned items and 0 active files (and 0 live .bak files!)
   const allResults = await service.scanDeepRecovery({
     targetPath: tempDir,
     category: 'all',
@@ -49,6 +51,7 @@ test('RecoveryService ignores normal active files and only detects orphaned/dele
   const foundNames = allResults.map((r) => r.name);
   assert.ok(!foundNames.includes('active_photo.jpg'), 'Must never include normal active photo.jpg');
   assert.ok(!foundNames.includes('active_movie.mkv'), 'Must never include normal active movie.mkv');
+  assert.ok(!foundNames.includes('config-20260818.json.bak'), 'Must never include normal active .bak files');
   assert.equal(allResults.length, 3);
 
   // 3. Test recovering files to destination directory
@@ -56,7 +59,7 @@ test('RecoveryService ignores normal active files and only detects orphaned/dele
   const recoverRes = await service.recoverDeepFiles(imgResults, destDir);
 
   assert.equal(recoverRes.recoveredCount, 1);
-  assert.ok(fs.existsSync(path.join(destDir, 'deleted_photo.jpg.bak')));
+  assert.ok(fs.existsSync(path.join(destDir, 'unfinished_photo.jpg.crdownload')));
 
   // Clean up
   fs.rmSync(tempDir, { recursive: true, force: true });

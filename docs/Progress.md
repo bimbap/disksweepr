@@ -870,6 +870,14 @@
 - [x] **Documentation Guardrails Updated** ([`docs/Design.md`](file:///m:/testProject/disksweepr/docs/Design.md), [`docs/Rules.md`](file:///m:/testProject/disksweepr/docs/Rules.md), [`docs/PRD.md`](file:///m:/testProject/disksweepr/docs/PRD.md)):
   - Documented strict installer invariants prohibiting GDI+ emoji feature badges, enforcing `Form.Icon` + `Form.Text`, and requiring NSIS multi-user + custom shortcut wizard pages.
 
+### Phase 58: Fix `ENAMETOOLONG` & C# Backslash Escaping in `$MFT` Scanner + Remove Live `.bak`/`.old` False Positives
+- [x] **Fixed `spawn ENAMETOOLONG` & C# Device Path Escaping in `recoveryService.ts`** ([`recoveryService.ts`](file:///m:/testProject/disksweepr/src/main/services/recoveryService.ts)):
+  - Passing the ~16 KB C# `CSHARP_MFT_ENGINE` source via `powershell -EncodedCommand <base64>` generated a ~44 KB UTF-16LE base64 command line, exceeding the Windows `CreateProcess` 32,767-character limit (`ENAMETOOLONG`) and silently skipping Stage 1 (`$MFT` scan). Switched both `scanNtfsMftNativeWin32` and `recoverFromNtfsMft` to write a temporary `.ps1` file in `os.tmpdir()` and execute `powershell -NoProfile -ExecutionPolicy Bypass -File "<temp.ps1>"`.
+  - Fixed backslash escaping on `string devPath = "\\\\\\\\.\\\\" + cleanDrive;` inside the TypeScript template literal so C# compiles `\\\\.\\` (`\\.\M:`) cleanly without `Newline in constant`.
+- [x] **Removed `.bak` and `.old` from `ORPHAN_FILE_PATTERNS`** ([`recoveryService.ts`](file:///m:/testProject/disksweepr/src/main/services/recoveryService.ts), [`tests/recovery.test.ts`](file:///m:/testProject/disksweepr/tests/recovery.test.ts)):
+  - Normal live `.bak` and `.old` backup files (such as `config-20260818-110845.json.bak` in `M:\minecraft_sftp\config\SimpleVoice-Geyser`) are no longer matched by Stage 3 (`scanOrphanFragments`). Deep Recovery strictly returns genuinely deleted `$MFT` records, orphaned `$Recycle.Bin` remnants, `found.000\*.chk` cluster fragments, and crash-recovery files (`~$*`, `.asd`, `.wbk`, `.xlk`, `.crdownload`, `.part`).
+
+
 
 
 

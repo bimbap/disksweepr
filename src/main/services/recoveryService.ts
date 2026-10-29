@@ -93,7 +93,7 @@ const CATEGORY_EXTENSIONS: Record<string, Set<string>> = {
   ]),
 };
 
-// Patterns of genuine orphaned / auto-recovery / lost-cluster file remnants
+// Patterns of genuine orphaned / auto-recovery / lost-cluster file remnants (strictly NOT normal .bak/.old files!)
 const ORPHAN_FILE_PATTERNS = [
   /^~\$.+/i, // Office AutoRecover lock/shadow remnants
   /^~WRL\d+\.tmp$/i, // Word recovery temporary document
@@ -101,8 +101,6 @@ const ORPHAN_FILE_PATTERNS = [
   /\.wbk$/i, // Word backup copy
   /\.xlk$/i, // Excel backup copy
   /\.chk$/i, // CHKDSK recovered lost cluster fragment
-  /\.bak$/i, // Explicit backup file
-  /\.old$/i, // Old displaced file
   /\.crdownload$/i, // Unfinished browser download remnant
   /\.part$/i, // Unfinished partial file
 ];
@@ -507,7 +505,7 @@ public class NtfsMftEngine {
 
     public static void ScanVolume(string driveLetter, int maxRecordsToScan, string outFilePath) {
         string cleanDrive = driveLetter.TrimEnd(':', '\\\\', '/').ToUpperInvariant() + ":";
-        string devPath = "\\\\.\\" + cleanDrive;
+        string devPath = "\\\\\\\\.\\\\" + cleanDrive;
 
         using (SafeFileHandle handle = CreateFile(devPath, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, IntPtr.Zero, OPEN_EXISTING, 0, IntPtr.Zero)) {
             if (handle.IsInvalid) return;
@@ -794,7 +792,7 @@ public class NtfsMftEngine {
 
     public static bool RecoverDataRuns(string driveLetter, long fileSize, long bytesPerCluster, string runsSpec, string destPath) {
         string cleanDrive = driveLetter.TrimEnd(':', '\\\\', '/').ToUpperInvariant() + ":";
-        string devPath = "\\\\.\\" + cleanDrive;
+        string devPath = "\\\\\\\\.\\\\" + cleanDrive;
 
         using (SafeFileHandle handle = CreateFile(devPath, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, IntPtr.Zero, OPEN_EXISTING, 0, IntPtr.Zero)) {
             if (handle.IsInvalid) return false;
@@ -1182,10 +1180,9 @@ foreach ($item in $items) {
     onTick: (curPath: string, recordsScanned: number) => void
   ): Promise<void> {
     const cleanDrive = driveLetter.replace(/[:\\/]+$/, '').toUpperCase() + ':';
-    const tempOutFile = path.join(
-      os.tmpdir(),
-      `disksweepr_mft_scan_${cleanDrive[0]}_${Date.now()}.tsv`
-    );
+    const stamp = `${cleanDrive[0]}_${Date.now()}`;
+    const tempOutFile = path.join(os.tmpdir(), `disksweepr_mft_scan_${stamp}.tsv`);
+    const tempPs1File = path.join(os.tmpdir(), `disksweepr_mft_scan_${stamp}.ps1`);
 
     const psScript = `
 Add-Type -TypeDefinition @'
@@ -1195,8 +1192,8 @@ ${CSHARP_MFT_ENGINE}
 `;
 
     try {
-      const encoded = Buffer.from(psScript, 'utf16le').toString('base64');
-      await execAsync(`powershell -NoProfile -EncodedCommand ${encoded}`, {
+      await fs.promises.writeFile(tempPs1File, psScript, 'utf8');
+      await execAsync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${tempPs1File}"`, {
         maxBuffer: 10 * 1024 * 1024,
         timeout: 45000,
       });
@@ -1302,6 +1299,9 @@ ${CSHARP_MFT_ENGINE}
       try {
         if (fs.existsSync(tempOutFile)) {
           fs.unlinkSync(tempOutFile);
+        }
+        if (fs.existsSync(tempPs1File)) {
+          fs.unlinkSync(tempPs1File);
         }
       } catch {}
     }
@@ -1559,6 +1559,7 @@ ${CSHARP_MFT_ENGINE}
 
     const cleanDrive = item.sourcePath.replace(/^\\\\\.\\/, '');
     const runsSpec = item.dataRuns.map((r) => `${r.clusterOffset}:${r.clusterCount}`).join(';');
+    const tempPs1File = path.join(os.tmpdir(), `disksweepr_mft_recover_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.ps1`);
 
     const psScript = `
 Add-Type -TypeDefinition @'
@@ -1569,8 +1570,8 @@ if ($ok) { Write-Output "OK" } else { Write-Output "FAIL" }
 `;
 
     try {
-      const encoded = Buffer.from(psScript, 'utf16le').toString('base64');
-      const { stdout } = await execAsync(`powershell -NoProfile -EncodedCommand ${encoded}`, {
+      await fs.promises.writeFile(tempPs1File, psScript, 'utf8');
+      const { stdout } = await execAsync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${tempPs1File}"`, {
         maxBuffer: 5 * 1024 * 1024,
         timeout: 120000,
       });
@@ -1578,6 +1579,12 @@ if ($ok) { Write-Output "OK" } else { Write-Output "FAIL" }
     } catch (err) {
       console.error('Raw NTFS sector recovery failed:', err);
       return false;
+    } finally {
+      try {
+        if (fs.existsSync(tempPs1File)) {
+          fs.unlinkSync(tempPs1File);
+        }
+      } catch {}
     }
   }
 
