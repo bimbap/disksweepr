@@ -50,8 +50,11 @@ function parsePathArg(argv: string[]): string | null {
   for (const raw of argv.slice(startIndex)) {
     if (!raw || raw.startsWith('--') || raw.startsWith('-')) continue;
     try {
-      const clean = raw.replace(/^["']|["']$/g, '').trim();
+      let clean = raw.replace(/^["']+|["']+$/g, '').trim();
       if (!clean || clean === '.' || clean === './' || clean === '.\\') continue;
+      if (/^[A-Za-z]:$/.test(clean)) {
+        clean = `${clean}\\`;
+      }
       if (fs.existsSync(clean) && fs.statSync(clean).isDirectory()) {
         const resolved = path.resolve(clean);
         const lower = resolved.toLowerCase();

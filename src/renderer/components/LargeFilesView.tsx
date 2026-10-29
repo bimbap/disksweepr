@@ -55,8 +55,14 @@ export const LargeFilesView: React.FC<LargeFilesViewProps> = ({
 
   useEffect(() => {
     if (initialCustomPath) {
-      setScanScope('custom');
-      setCustomFolderPath(initialCustomPath);
+      const driveRootMatch = initialCustomPath.match(/^([A-Za-z]:)\\?$/);
+      if (driveRootMatch) {
+        setScanScope('drive');
+        setSelectedDrive(driveRootMatch[1].toUpperCase());
+      } else {
+        setScanScope('custom');
+        setCustomFolderPath(initialCustomPath);
+      }
     }
   }, [initialCustomPath]);
   const [minSizeMB, setMinSizeMB] = useState<number>(500);

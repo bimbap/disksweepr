@@ -1,4 +1,5 @@
 import { exec } from 'child_process';
+import { app } from 'electron';
 import util from 'util';
 import { ContextMenuStatus } from '../../shared/types';
 
@@ -19,25 +20,28 @@ export class ContextMenuService {
   }
 
   public async setStatus(enable: boolean): Promise<boolean> {
-    const appPath = process.execPath;
-    const cleanAppPath = appPath.replace(/\//g, '\\');
+    const appPath = process.execPath.replace(/\//g, '\\');
+    const appRoot = app.getAppPath().replace(/\//g, '\\');
+    const launcherPrefix = app.isPackaged
+      ? `\\"${appPath}\\"`
+      : `\\"${appPath}\\" \\"${appRoot}\\"`;
 
     if (enable) {
       try {
         // 1. Directory right-click
         await execPromise(`reg add "${this.baseKey}" /ve /d "Scan with DiskSweepr" /f`);
-        await execPromise(`reg add "${this.baseKey}" /v Icon /d "\\"${cleanAppPath}\\"" /f`);
-        await execPromise(`reg add "${this.baseKey}\\command" /ve /d "\\"${cleanAppPath}\\" \\"%1\\"" /f`);
+        await execPromise(`reg add "${this.baseKey}" /v Icon /d "\\"${appPath}\\"" /f`);
+        await execPromise(`reg add "${this.baseKey}\\command" /ve /d "${launcherPrefix} \\"%V\\"" /f`);
 
         // 2. Directory background right-click (inside folder)
         await execPromise(`reg add "${this.bgKey}" /ve /d "Scan with DiskSweepr" /f`);
-        await execPromise(`reg add "${this.bgKey}" /v Icon /d "\\"${cleanAppPath}\\"" /f`);
-        await execPromise(`reg add "${this.bgKey}\\command" /ve /d "\\"${cleanAppPath}\\" \\"%V\\"" /f`);
+        await execPromise(`reg add "${this.bgKey}" /v Icon /d "\\"${appPath}\\"" /f`);
+        await execPromise(`reg add "${this.bgKey}\\command" /ve /d "${launcherPrefix} \\"%V\\"" /f`);
 
         // 3. Drive right-click
         await execPromise(`reg add "${this.driveKey}" /ve /d "Scan with DiskSweepr" /f`);
-        await execPromise(`reg add "${this.driveKey}" /v Icon /d "\\"${cleanAppPath}\\"" /f`);
-        await execPromise(`reg add "${this.driveKey}\\command" /ve /d "\\"${cleanAppPath}\\" \\"%1\\"" /f`);
+        await execPromise(`reg add "${this.driveKey}" /v Icon /d "\\"${appPath}\\"" /f`);
+        await execPromise(`reg add "${this.driveKey}\\command" /ve /d "${launcherPrefix} \\"%V\\"" /f`);
 
         return true;
       } catch (err) {
