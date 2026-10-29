@@ -136,6 +136,58 @@ test('parseDeletedNtfsMftRecord parses a synthetic deleted NTFS $MFT record and 
   fs.rmSync(destDir, { recursive: true, force: true });
 });
 
+test('parseDeletedNtfsMftRecord falls back to $FILE_NAME size and cluster runs for deleted archives with zeroed $DATA realSize', () => {
+  const record = Buffer.alloc(1024, 0);
+  record.write('FILE', 0, 'ascii');
+  record.writeUInt16LE(48, 20); // First attribute offset
+  record.writeUInt16LE(0x0000, 22); // Flags = 0x0000 (Deleted File!)
+
+  // Attribute 1 at offset 48: 0x30 ($FILE_NAME) for "backup_project.zip"
+  const fileName = 'backup_project.zip';
+  const nameUtf16 = Buffer.from(fileName, 'utf16le');
+  const fnValueLen = 66 + nameUtf16.length;
+  const fnAttrLen = Math.ceil((24 + fnValueLen) / 8) * 8;
+  record.writeUInt32LE(0x30, 48);
+  record.writeUInt32LE(fnAttrLen, 52);
+  record.writeUInt8(0, 56); // Resident
+  record.writeUInt32LE(fnValueLen, 64);
+  record.writeUInt16LE(24, 68);
+
+  const fnValStart = 48 + 24;
+  record.writeUInt32LE(5, fnValStart); // Root directory
+  record.writeBigUInt64LE(133450000000000000n, fnValStart + 16);
+  record.writeBigUInt64LE(10485760n, fnValStart + 40); // Allocated size in $FILE_NAME (10 MB)
+  record.writeBigUInt64LE(9850120n, fnValStart + 48); // Real size in $FILE_NAME (~9.85 MB)
+  record.writeUInt8(fileName.length, fnValStart + 64);
+  record.writeUInt8(1, fnValStart + 65);
+  nameUtf16.copy(record, fnValStart + 66);
+
+  // Attribute 2: 0x80 ($DATA - Non-Resident with zeroed RealSize & AllocSize, but intact DataRun!)
+  const dataAttrOffset = 48 + fnAttrLen;
+  // DataRun: 0x21 (1 byte length, 2 bytes offset), length = 10 clusters (0x0A), offset = 0x0500 (cluster 1280), end = 0x00
+  const dataRunBytes = Buffer.from([0x21, 0x0a, 0x00, 0x05, 0x00]);
+  const dataAttrLen = 72; // 64-byte header + 8-byte runlist
+  record.writeUInt32LE(0x80, dataAttrOffset);
+  record.writeUInt32LE(dataAttrLen, dataAttrOffset + 4);
+  record.writeUInt8(1, dataAttrOffset + 8); // Non-Resident = 1
+  record.writeUInt16LE(64, dataAttrOffset + 32); // RunList offset = 64
+  record.writeBigUInt64LE(0n, dataAttrOffset + 40); // AllocSize zeroed by OS on delete
+  record.writeBigUInt64LE(0n, dataAttrOffset + 48); // RealSize zeroed by OS on delete
+  dataRunBytes.copy(record, dataAttrOffset + 64);
+
+  record.writeUInt32LE(0xffffffff, dataAttrOffset + dataAttrLen);
+
+  const item = parseDeletedNtfsMftRecord(record, 255, 'M:', 4096);
+  assert.ok(item, 'Should parse deleted non-resident archive even when $DATA size is zeroed');
+  assert.equal(item.name, 'backup_project.zip');
+  assert.equal(item.extension, '.zip');
+  assert.equal(item.sizeBytes, 9850120, 'Should fallback to $FILE_NAME RealSize');
+  assert.equal(item.status, 'recoverable');
+  assert.ok(item.dataRuns && item.dataRuns.length === 1);
+  assert.equal(item.dataRuns[0].clusterOffset, 1280);
+  assert.equal(item.dataRuns[0].clusterCount, 10);
+});
+
 test('RecoveryService handles empty or cancelled deep recovery cleanly', async () => {
   const service = new RecoveryService();
   const tempDir = path.join(os.tmpdir(), `disksweepr_recovery_cancel_${Date.now()}`);

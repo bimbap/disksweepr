@@ -1,4 +1,5 @@
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -12,7 +13,22 @@ import type {
 const execAsync = promisify(exec);
 
 const CATEGORY_EXTENSIONS: Record<string, Set<string>> = {
-  images: new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.svg', '.tiff', '.ico']),
+  images: new Set([
+    '.jpg',
+    '.jpeg',
+    '.png',
+    '.webp',
+    '.gif',
+    '.bmp',
+    '.svg',
+    '.tiff',
+    '.tif',
+    '.ico',
+    '.heic',
+    '.raw',
+    '.psd',
+    '.ai',
+  ]),
   documents: new Set([
     '.pdf',
     '.docx',
@@ -25,9 +41,56 @@ const CATEGORY_EXTENSIONS: Record<string, Set<string>> = {
     '.csv',
     '.rtf',
     '.md',
+    '.odt',
+    '.ods',
+    '.odp',
+    '.epub',
+    '.json',
+    '.xml',
+    '.sql',
   ]),
-  media: new Set(['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.mp3', '.wav', '.flac', '.aac', '.m4a']),
-  archives: new Set(['.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.iso']),
+  media: new Set([
+    '.mp4',
+    '.mkv',
+    '.avi',
+    '.mov',
+    '.wmv',
+    '.webm',
+    '.flv',
+    '.m4v',
+    '.mp3',
+    '.wav',
+    '.flac',
+    '.aac',
+    '.m4a',
+    '.ogg',
+    '.opus',
+    '.wma',
+  ]),
+  archives: new Set([
+    '.zip',
+    '.rar',
+    '.7z',
+    '.tar',
+    '.gz',
+    '.tgz',
+    '.bz2',
+    '.tbz2',
+    '.xz',
+    '.txz',
+    '.zst',
+    '.iso',
+    '.cab',
+    '.wim',
+    '.apk',
+    '.jar',
+    '.nupkg',
+    '.vsix',
+    '.dmg',
+    '.img',
+    '.vhd',
+    '.vhdx',
+  ]),
 };
 
 // Patterns of genuine orphaned / auto-recovery / lost-cluster file remnants
@@ -59,7 +122,6 @@ export function parseRecycleBinMetadataBuffer(buf: Buffer): ParsedRecycleMetadat
     const version = buf.readBigUInt64LE(0);
     const sizeBytes = Number(buf.readBigUInt64LE(8));
     const filetime = buf.readBigUInt64LE(16);
-    // Convert Windows FILETIME (100ns intervals since Jan 1, 1601) to Unix epoch ms
     const EPOCH_DIFF = 116444736000000000n;
     const deletedTimeMs =
       filetime > EPOCH_DIFF ? Number((filetime - EPOCH_DIFF) / 10000n) : Date.now();
@@ -90,6 +152,8 @@ export function parseRecycleBinMetadataBuffer(buf: Buffer): ParsedRecycleMetadat
 
 /**
  * Parses an NTFS $MFT 1024-byte FILE record buffer for a deleted file (flags === 0x00).
+ * Also supports fallback size calculation from $FILE_NAME (0x30) or cluster run counts when
+ * Windows resets the $DATA realSize field on deletion.
  */
 export function parseDeletedNtfsMftRecord(
   recordBuf: Buffer,
@@ -98,15 +162,13 @@ export function parseDeletedNtfsMftRecord(
   bytesPerCluster: number
 ): DeepRecoveryItem | null {
   if (!recordBuf || recordBuf.length < 1024) return null;
-
-  // Check "FILE" magic signature (0x454C4946)
   if (recordBuf.toString('ascii', 0, 4) !== 'FILE') return null;
 
   const flags = recordBuf.readUInt16LE(22);
-  // In NTFS, flags === 0x00 means Deleted File (0x01 = In-Use File, 0x02 = Deleted Dir, 0x03 = In-Use Dir)
+  // 0x0000 = Deleted File
   if (flags !== 0x0000) return null;
 
-  // Apply Update Sequence Array (USA) fixup to ensure sector integrity
+  // Apply Update Sequence Array (USA) fixup
   const usaOffset = recordBuf.readUInt16LE(4);
   const usaCount = recordBuf.readUInt16LE(6);
   const buf = Buffer.from(recordBuf);
@@ -126,6 +188,8 @@ export function parseDeletedNtfsMftRecord(
   let parentRecordNum = 0;
   let modifiedTimeMs = 0;
   let fileSize = 0;
+  let fnRealSize = 0;
+  let fnAllocSize = 0;
   let residentDataBase64: string | undefined;
   const dataRuns: Array<{ clusterOffset: number; clusterCount: number }> = [];
 
@@ -157,21 +221,23 @@ export function parseDeletedNtfsMftRecord(
       const valOffset = attrOffset + buf.readUInt16LE(attrOffset + 20);
       const valLen = buf.readUInt32LE(attrOffset + 16);
       if (valOffset + 66 <= buf.length && valOffset + valLen <= buf.length) {
-        // First 6 bytes of $FILE_NAME is parent MFT record number (48-bit little endian)
         const pLow = buf.readUInt32LE(valOffset);
         const pHigh = buf.readUInt16LE(valOffset + 4);
         const pRec = pLow + pHigh * 0x100000000;
         const fnMtimeFt = buf.readBigUInt64LE(valOffset + 16);
+        const allocSz = Number(buf.readBigUInt64LE(valOffset + 40));
+        const realSz = Number(buf.readBigUInt64LE(valOffset + 48));
         const fnNameLen = buf.readUInt8(valOffset + 64);
         const fnNamespace = buf.readUInt8(valOffset + 65);
         const nameEnd = valOffset + 66 + fnNameLen * 2;
         if (nameEnd <= buf.length) {
           const candidateName = buf.subarray(valOffset + 66, nameEnd).toString('utf16le');
-          // Prefer Win32 (1) or Win32&DOS (3) or POSIX (0) over DOS-8.3 (2)
           if (!fileName || fnNamespace !== 2 || nameNamespace === 2) {
             fileName = candidateName;
             nameNamespace = fnNamespace;
             parentRecordNum = pRec;
+            if (realSz > 0) fnRealSize = realSz;
+            if (allocSz > 0) fnAllocSize = allocSz;
             if (!modifiedTimeMs) {
               modifiedTimeMs = filetimeToMs(fnMtimeFt);
             }
@@ -180,7 +246,7 @@ export function parseDeletedNtfsMftRecord(
       }
     }
 
-    // 0x80 = $DATA (Only unnamed default data stream: nameLen === 0)
+    // 0x80 = $DATA (Default unnamed stream)
     if (attrType === 0x80 && nameLen === 0) {
       if (nonResident === 0) {
         const valLen = buf.readUInt32LE(attrOffset + 16);
@@ -191,10 +257,10 @@ export function parseDeletedNtfsMftRecord(
         }
       } else {
         const runListOffset = attrOffset + buf.readUInt16LE(attrOffset + 32);
+        const allocSize = Number(buf.readBigUInt64LE(attrOffset + 40));
         const realSize = Number(buf.readBigUInt64LE(attrOffset + 48));
-        fileSize = realSize;
+        fileSize = realSize > 0 ? realSize : allocSize;
 
-        // Decode NTFS Data Runs (LCN/VCN runlist)
         let pos = runListOffset;
         let currentLcn = 0n;
         const attrEnd = attrOffset + attrLen;
@@ -218,7 +284,6 @@ export function parseDeletedNtfsMftRecord(
             for (let i = 0; i < offBytes; i++) {
               runOffset |= BigInt(buf.readUInt8(pos + i)) << BigInt(i * 8);
             }
-            // Sign-extend negative relative LCN offset
             const signBit = 1n << BigInt(offBytes * 8 - 1);
             if ((runOffset & signBit) !== 0n) {
               runOffset -= 1n << BigInt(offBytes * 8);
@@ -240,8 +305,17 @@ export function parseDeletedNtfsMftRecord(
     attrOffset += attrLen;
   }
 
-  // Filter out system metadata files ($MFT, $LogFile, etc.) and empty records
-  if (!fileName || fileName.startsWith('$') || fileSize <= 0) return null;
+  const totalRunBytes = dataRuns.reduce(
+    (acc, r) => acc + r.clusterCount * (bytesPerCluster || 4096),
+    0
+  );
+  if (fileSize <= 0) {
+    fileSize = fnRealSize > 0 ? fnRealSize : fnAllocSize > 0 ? fnAllocSize : totalRunBytes;
+  }
+
+  if (!fileName || (fileName.startsWith('$') && !fileName.startsWith('$R')) || fileSize <= 0) {
+    return null;
+  }
 
   const hasData = Boolean(residentDataBase64) || dataRuns.length > 0;
   const ext = path.extname(fileName).toLowerCase();
@@ -268,6 +342,503 @@ export function parseDeletedNtfsMftRecord(
     residentDataBase64,
   };
 }
+
+/**
+ * Native C# P/Invoke engine for reading raw NTFS volumes (`\\.\X:`) and scanning the entire $MFT.
+ * Bypasses Node.js libuv `fs.open` device limitations by calling Win32 `CreateFileW`, `SetFilePointerEx`, and `ReadFile` directly.
+ * Also correlates deleted `$Ixxxxxx` Recycle Bin metadata records with deleted `$Rxxxxxx` payload records
+ * so files emptied from the Recycle Bin recover their true original filenames and sizes!
+ */
+const CSHARP_MFT_ENGINE = `
+using System;
+using System.IO;
+using System.Text;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
+
+public class NtfsMftEngine {
+    [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    private static extern SafeFileHandle CreateFile(
+        string lpFileName,
+        uint dwDesiredAccess,
+        uint dwShareMode,
+        IntPtr lpSecurityAttributes,
+        uint dwCreationDisposition,
+        uint dwFlagsAndAttributes,
+        IntPtr hTemplateFile);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool SetFilePointerEx(
+        SafeFileHandle hFile,
+        long liDistanceToMove,
+        out long lpNewFilePointer,
+        uint dwMoveMethod);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool ReadFile(
+        SafeFileHandle hFile,
+        byte[] lpBuffer,
+        uint nNumberOfBytesToRead,
+        out uint lpNumberOfBytesRead,
+        IntPtr lpOverlapped);
+
+    private const uint GENERIC_READ = 0x80000000;
+    private const uint FILE_SHARE_READ = 0x00000001;
+    private const uint FILE_SHARE_WRITE = 0x00000002;
+    private const uint FILE_SHARE_DELETE = 0x00000004;
+    private const uint OPEN_EXISTING = 3;
+
+    public class DataRun {
+        public long ClusterOffset;
+        public long ClusterCount;
+    }
+
+    public class DirNode {
+        public string Name;
+        public long Parent;
+    }
+
+    public class RecycleMeta {
+        public string OriginalPath;
+        public long SizeBytes;
+        public long DeletedMs;
+    }
+
+    public class DeletedCandidate {
+        public long RecordNum;
+        public string Name;
+        public long ParentRecord;
+        public long SizeBytes;
+        public long ModifiedMs;
+        public string ResidentBase64;
+        public List<DataRun> Runs = new List<DataRun>();
+    }
+
+    private static bool ReadSectorAligned(SafeFileHandle handle, long byteOffset, byte[] buffer, int count, out uint bytesRead) {
+        bytesRead = 0;
+        long newPos;
+        if (!SetFilePointerEx(handle, byteOffset, out newPos, 0)) return false;
+        return ReadFile(handle, buffer, (uint)count, out bytesRead, IntPtr.Zero);
+    }
+
+    private static void ApplyUsaFixup(byte[] rec, int offset) {
+        ushort usaOffset = BitConverter.ToUInt16(rec, offset + 4);
+        ushort usaCount = BitConverter.ToUInt16(rec, offset + 6);
+        if (usaOffset > 0 && usaOffset + usaCount * 2 <= 1024 && usaCount >= 2) {
+            ushort usn = BitConverter.ToUInt16(rec, offset + usaOffset);
+            for (int i = 1; i < usaCount; i++) {
+                int secEnd = offset + i * 512 - 2;
+                if (BitConverter.ToUInt16(rec, secEnd) == usn) {
+                    ushort fix = BitConverter.ToUInt16(rec, offset + usaOffset + i * 2);
+                    rec[secEnd] = (byte)(fix & 0xFF);
+                    rec[secEnd + 1] = (byte)((fix >> 8) & 0xFF);
+                }
+            }
+        }
+    }
+
+    private static long FiletimeToMs(ulong ft) {
+        const ulong EPOCH_DIFF = 116444736000000000UL;
+        if (ft <= EPOCH_DIFF) return 0;
+        return (long)((ft - EPOCH_DIFF) / 10000UL);
+    }
+
+    private static List<DataRun> DecodeDataRuns(byte[] buf, int startPos, int endPos) {
+        List<DataRun> runs = new List<DataRun>();
+        int pos = startPos;
+        long currentLcn = 0;
+        while (pos < endPos) {
+            byte header = buf[pos++];
+            if (header == 0) break;
+            int lenBytes = header & 0x0F;
+            int offBytes = (header >> 4) & 0x0F;
+            if (lenBytes == 0 || pos + lenBytes + offBytes > endPos) break;
+
+            long runLen = 0;
+            for (int i = 0; i < lenBytes; i++) {
+                runLen |= ((long)buf[pos + i]) << (i * 8);
+            }
+            pos += lenBytes;
+
+            if (offBytes > 0) {
+                long runOff = 0;
+                for (int i = 0; i < offBytes; i++) {
+                    runOff |= ((long)buf[pos + i]) << (i * 8);
+                }
+                long signBit = 1L << (offBytes * 8 - 1);
+                if ((runOff & signBit) != 0) {
+                    runOff -= (1L << (offBytes * 8));
+                }
+                currentLcn += runOff;
+                pos += offBytes;
+
+                if (currentLcn > 0 && runLen > 0) {
+                    runs.Add(new DataRun { ClusterOffset = currentLcn, ClusterCount = runLen });
+                }
+            } else {
+                // Sparse run
+            }
+        }
+        return runs;
+    }
+
+    private static RecycleMeta ParseRecycleMetaBytes(byte[] data) {
+        if (data == null || data.Length < 28) return null;
+        try {
+            ulong ver = BitConverter.ToUInt64(data, 0);
+            long sz = (long)BitConverter.ToUInt64(data, 8);
+            ulong ft = BitConverter.ToUInt64(data, 16);
+            long delMs = FiletimeToMs(ft);
+            string orig = "";
+            if (ver == 2UL) {
+                int charCount = (int)BitConverter.ToUInt32(data, 24);
+                int byteLen = Math.Min(data.Length - 28, charCount * 2);
+                if (byteLen > 0) orig = Encoding.Unicode.GetString(data, 28, byteLen).TrimEnd('\\0');
+            } else if (ver == 1UL) {
+                orig = Encoding.Unicode.GetString(data, 24, data.Length - 24).TrimEnd('\\0');
+            }
+            if (string.IsNullOrEmpty(orig)) return null;
+            return new RecycleMeta { OriginalPath = orig, SizeBytes = sz, DeletedMs = delMs };
+        } catch {
+            return null;
+        }
+    }
+
+    public static void ScanVolume(string driveLetter, int maxRecordsToScan, string outFilePath) {
+        string cleanDrive = driveLetter.TrimEnd(':', '\\\\', '/').ToUpperInvariant() + ":";
+        string devPath = "\\\\.\\" + cleanDrive;
+
+        using (SafeFileHandle handle = CreateFile(devPath, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, IntPtr.Zero, OPEN_EXISTING, 0, IntPtr.Zero)) {
+            if (handle.IsInvalid) return;
+
+            byte[] boot = new byte[4096];
+            uint br;
+            if (!ReadSectorAligned(handle, 0, boot, 4096, out br) || br < 512) return;
+
+            string oem = Encoding.ASCII.GetString(boot, 3, 4);
+            if (oem != "NTFS") return;
+
+            int bytesPerSector = BitConverter.ToUInt16(boot, 11);
+            int sectorsPerCluster = boot[13];
+            long bytesPerCluster = (long)bytesPerSector * sectorsPerCluster;
+            long mftStartCluster = (long)BitConverter.ToUInt64(boot, 48);
+            if (bytesPerCluster <= 0 || mftStartCluster <= 0) return;
+
+            byte[] rec0 = new byte[4096];
+            if (!ReadSectorAligned(handle, mftStartCluster * bytesPerCluster, rec0, 4096, out br) || br < 1024) return;
+            if (Encoding.ASCII.GetString(rec0, 0, 4) != "FILE") return;
+            ApplyUsaFixup(rec0, 0);
+
+            List<DataRun> mftRuns = new List<DataRun>();
+            int aOff = BitConverter.ToUInt16(rec0, 20);
+            while (aOff > 0 && aOff + 16 <= 1024) {
+                uint aType = BitConverter.ToUInt32(rec0, aOff);
+                if (aType == 0xFFFFFFFF || aType == 0) break;
+                int aLen = (int)BitConverter.ToUInt32(rec0, aOff + 4);
+                if (aLen <= 0 || aOff + aLen > 1024) break;
+                if (aType == 0x80 && rec0[aOff + 8] == 1) {
+                    int rlOff = aOff + BitConverter.ToUInt16(rec0, aOff + 32);
+                    mftRuns = DecodeDataRuns(rec0, rlOff, aOff + aLen);
+                    break;
+                }
+                aOff += aLen;
+            }
+            if (mftRuns.Count == 0) {
+                mftRuns.Add(new DataRun { ClusterOffset = mftStartCluster, ClusterCount = 65536 });
+            }
+
+            Dictionary<long, DirNode> dirMap = new Dictionary<long, DirNode>();
+            dirMap[5] = new DirNode { Name = cleanDrive, Parent = 5 };
+
+            // Map of "$Ixxxxxx" key (suffix after $I) -> RecycleMeta (from both live $Recycle.Bin and deleted $I records in MFT!)
+            Dictionary<string, RecycleMeta> recycleMetaMap = new Dictionary<string, RecycleMeta>(StringComparer.OrdinalIgnoreCase);
+
+            // Pre-populate recycleMetaMap from any remaining $I files on disk inside $Recycle.Bin
+            try {
+                string rbRoot = cleanDrive + "\\\\$Recycle.Bin";
+                if (Directory.Exists(rbRoot)) {
+                    foreach (string sidDir in Directory.GetDirectories(rbRoot)) {
+                        try {
+                            foreach (string iFile in Directory.GetFiles(sidDir, "$I*")) {
+                                string baseName = Path.GetFileName(iFile);
+                                if (baseName.Length > 2) {
+                                    string key = baseName.Substring(2);
+                                    byte[] iBytes = File.ReadAllBytes(iFile);
+                                    RecycleMeta rm = ParseRecycleMetaBytes(iBytes);
+                                    if (rm != null) recycleMetaMap[key] = rm;
+                                }
+                            }
+                        } catch { }
+                    }
+                }
+            } catch { }
+
+            List<DeletedCandidate> candidates = new List<DeletedCandidate>();
+
+            int batchRecords = 1024; // 1 MB per read
+            byte[] batchBuf = new byte[batchRecords * 1024];
+            long globalRecordIndex = 0;
+
+            foreach (DataRun mftRun in mftRuns) {
+                if (globalRecordIndex >= maxRecordsToScan) break;
+                long runByteStart = mftRun.ClusterOffset * bytesPerCluster;
+                long totalRecordsInRun = (mftRun.ClusterCount * bytesPerCluster) / 1024;
+
+                for (long r = 0; r < totalRecordsInRun; r += batchRecords) {
+                    if (globalRecordIndex >= maxRecordsToScan) break;
+                    int recsToRead = (int)Math.Min((long)batchRecords, totalRecordsInRun - r);
+                    int bytesToRead = ((recsToRead * 1024 + 4095) / 4096) * 4096;
+                    if (bytesToRead > batchBuf.Length) bytesToRead = batchBuf.Length;
+
+                    uint readNow;
+                    if (!ReadSectorAligned(handle, runByteStart + r * 1024, batchBuf, bytesToRead, out readNow) || readNow < 1024) {
+                        break;
+                    }
+
+                    int actualRecs = Math.Min(recsToRead, (int)(readNow / 1024));
+                    for (int i = 0; i < actualRecs; i++) {
+                        long recNum = globalRecordIndex + i;
+                        if (recNum < 24) continue;
+
+                        int baseOff = i * 1024;
+                        if (batchBuf[baseOff] != 'F' || batchBuf[baseOff + 1] != 'I' || batchBuf[baseOff + 2] != 'L' || batchBuf[baseOff + 3] != 'E') {
+                            continue;
+                        }
+
+                        ushort flags = BitConverter.ToUInt16(batchBuf, baseOff + 22);
+                        // We only care about directories (0x02, 0x03) and deleted files (0x00)
+                        if (flags != 0x0000 && flags != 0x0002 && flags != 0x0003) continue;
+
+                        ApplyUsaFixup(batchBuf, baseOff);
+
+                        int attrPos = BitConverter.ToUInt16(batchBuf, baseOff + 20);
+                        string bestName = null;
+                        int bestNs = -1;
+                        long parentRec = 5;
+                        long stdMtime = 0;
+                        long fnMtime = 0;
+                        long fnSize = 0;
+                        long dataSize = 0;
+                        byte[] residentBytes = null;
+                        List<DataRun> fileRuns = null;
+
+                        while (attrPos > 0 && attrPos + 16 <= 1024) {
+                            int cur = baseOff + attrPos;
+                            uint aType = BitConverter.ToUInt32(batchBuf, cur);
+                            if (aType == 0xFFFFFFFF || aType == 0) break;
+                            int aLen = (int)BitConverter.ToUInt32(batchBuf, cur + 4);
+                            if (aLen <= 0 || attrPos + aLen > 1024) break;
+
+                            byte nonRes = batchBuf[cur + 8];
+                            byte nameLen = batchBuf[cur + 9];
+
+                            if (aType == 0x10 && nonRes == 0) {
+                                int vOff = cur + BitConverter.ToUInt16(batchBuf, cur + 20);
+                                if (vOff + 32 <= baseOff + 1024) {
+                                    stdMtime = FiletimeToMs(BitConverter.ToUInt64(batchBuf, vOff + 8));
+                                }
+                            } else if (aType == 0x30 && nonRes == 0) {
+                                int vOff = cur + BitConverter.ToUInt16(batchBuf, cur + 20);
+                                int vLen = (int)BitConverter.ToUInt32(batchBuf, cur + 16);
+                                if (vOff + 66 <= baseOff + 1024 && vOff + vLen <= baseOff + 1024) {
+                                    uint pLow = BitConverter.ToUInt32(batchBuf, vOff);
+                                    ushort pHigh = BitConverter.ToUInt16(batchBuf, vOff + 4);
+                                    long pR = (long)pLow + ((long)pHigh << 32);
+                                    long fMt = FiletimeToMs(BitConverter.ToUInt64(batchBuf, vOff + 16));
+                                    long allocSz = (long)BitConverter.ToUInt64(batchBuf, vOff + 40);
+                                    long realSz = (long)BitConverter.ToUInt64(batchBuf, vOff + 48);
+                                    byte fnLen = batchBuf[vOff + 64];
+                                    byte fnNs = batchBuf[vOff + 65];
+                                    if (vOff + 66 + fnLen * 2 <= baseOff + 1024) {
+                                        string cand = Encoding.Unicode.GetString(batchBuf, vOff + 66, fnLen * 2);
+                                        if (bestName == null || fnNs != 2 || bestNs == 2) {
+                                            bestName = cand;
+                                            bestNs = fnNs;
+                                            parentRec = pR;
+                                            fnMtime = fMt;
+                                            long sz = realSz > 0 ? realSz : allocSz;
+                                            if (sz > 0) fnSize = sz;
+                                        }
+                                    }
+                                }
+                            } else if (flags == 0x0000 && aType == 0x80 && nameLen == 0) {
+                                if (nonRes == 0) {
+                                    int vLen = (int)BitConverter.ToUInt32(batchBuf, cur + 16);
+                                    int vOff = cur + BitConverter.ToUInt16(batchBuf, cur + 20);
+                                    if (vLen > 0 && vOff + vLen <= baseOff + 1024) {
+                                        dataSize = vLen;
+                                        residentBytes = new byte[vLen];
+                                        Buffer.BlockCopy(batchBuf, vOff, residentBytes, 0, vLen);
+                                    }
+                                } else {
+                                    int rlOff = cur + BitConverter.ToUInt16(batchBuf, cur + 32);
+                                    long allocSz = (long)BitConverter.ToUInt64(batchBuf, cur + 40);
+                                    long realSz = (long)BitConverter.ToUInt64(batchBuf, cur + 48);
+                                    dataSize = realSz > 0 ? realSz : allocSz;
+                                    fileRuns = DecodeDataRuns(batchBuf, rlOff, cur + aLen);
+                                }
+                            }
+
+                            attrPos += aLen;
+                        }
+
+                        if (string.IsNullOrEmpty(bestName)) continue;
+
+                        if (flags == 0x0002 || flags == 0x0003) {
+                            if (!bestName.StartsWith("$") || bestName.Equals("$Recycle.Bin", StringComparison.OrdinalIgnoreCase)) {
+                                dirMap[recNum] = new DirNode { Name = bestName, Parent = parentRec };
+                            }
+                            continue;
+                        }
+
+                        // Deleted File (flags == 0x0000)
+                        if (bestName.StartsWith("$I", StringComparison.OrdinalIgnoreCase) && bestName.Length > 2 && residentBytes != null) {
+                            RecycleMeta rm = ParseRecycleMetaBytes(residentBytes);
+                            if (rm != null) {
+                                recycleMetaMap[bestName.Substring(2)] = rm;
+                            }
+                            continue;
+                        }
+
+                        if (bestName.StartsWith("$") && !bestName.StartsWith("$R", StringComparison.OrdinalIgnoreCase)) {
+                            continue;
+                        }
+
+                        long totalRunBytes = 0;
+                        if (fileRuns != null) {
+                            foreach (var fr in fileRuns) totalRunBytes += fr.ClusterCount * bytesPerCluster;
+                        }
+
+                        long finalSize = dataSize > 0 ? dataSize : (fnSize > 0 ? fnSize : totalRunBytes);
+                        bool hasData = (residentBytes != null && residentBytes.Length > 0) || (fileRuns != null && fileRuns.Count > 0);
+                        if (!hasData && finalSize <= 0) continue;
+
+                        candidates.Add(new DeletedCandidate {
+                            RecordNum = recNum,
+                            Name = bestName,
+                            ParentRecord = parentRec,
+                            SizeBytes = finalSize,
+                            ModifiedMs = stdMtime > 0 ? stdMtime : fnMtime,
+                            ResidentBase64 = residentBytes != null ? Convert.ToBase64String(residentBytes) : "",
+                            Runs = fileRuns ?? new List<DataRun>()
+                        });
+                    }
+
+                    globalRecordIndex += actualRecs;
+                }
+            }
+
+            // Write TSV lines to outFilePath:
+            // RecordNum \t Name \t FullPath \t SizeBytes \t ModifiedMs \t BytesPerCluster \t ResidentBase64 \t RunsSpec
+            using (StreamWriter sw = new StreamWriter(outFilePath, false, Encoding.UTF8)) {
+                foreach (var c in candidates) {
+                    string resolvedName = c.Name;
+                    string resolvedFullPath = null;
+                    long resolvedSize = c.SizeBytes;
+                    long resolvedTime = c.ModifiedMs;
+
+                    // If this deleted record was a Recycle Bin payload ($Rxxxxxx.ext), restore its original name & path from $Ixxxxxx!
+                    if (c.Name.StartsWith("$R", StringComparison.OrdinalIgnoreCase) && c.Name.Length > 2) {
+                        string suffixKey = c.Name.Substring(2);
+                        RecycleMeta rm;
+                        if (recycleMetaMap.TryGetValue(suffixKey, out rm)) {
+                            resolvedFullPath = rm.OriginalPath;
+                            resolvedName = Path.GetFileName(rm.OriginalPath);
+                            if (resolvedSize <= 0 && rm.SizeBytes > 0) resolvedSize = rm.SizeBytes;
+                            if (rm.DeletedMs > 0) resolvedTime = rm.DeletedMs;
+                        }
+                    }
+
+                    if (resolvedFullPath == null) {
+                        List<string> parts = new List<string>();
+                        long curP = c.ParentRecord;
+                        int depth = 0;
+                        while (curP != 5 && depth < 15) {
+                            DirNode dn;
+                            if (!dirMap.TryGetValue(curP, out dn)) {
+                                parts.Insert(0, "[Folder_" + curP + "]");
+                                break;
+                            }
+                            parts.Insert(0, dn.Name);
+                            if (dn.Parent == curP) break;
+                            curP = dn.Parent;
+                            depth++;
+                        }
+                        string dirPrefix = parts.Count > 0 ? (cleanDrive + "\\\\" + string.Join("\\\\", parts)) : cleanDrive;
+                        resolvedFullPath = dirPrefix + "\\\\" + resolvedName;
+                    }
+
+                    if (resolvedSize <= 0) continue;
+
+                    StringBuilder runSb = new StringBuilder();
+                    for (int idx = 0; idx < c.Runs.Count; idx++) {
+                        if (idx > 0) runSb.Append(";");
+                        runSb.Append(c.Runs[idx].ClusterOffset).Append(":").Append(c.Runs[idx].ClusterCount);
+                    }
+
+                    sw.WriteLine(string.Join("\\t", new string[] {
+                        c.RecordNum.ToString(),
+                        resolvedName.Replace("\\t", " "),
+                        resolvedFullPath.Replace("\\t", " "),
+                        resolvedSize.ToString(),
+                        resolvedTime.ToString(),
+                        bytesPerCluster.ToString(),
+                        c.ResidentBase64 ?? "",
+                        runSb.ToString()
+                    }));
+                }
+            }
+        }
+    }
+
+    public static bool RecoverDataRuns(string driveLetter, long fileSize, long bytesPerCluster, string runsSpec, string destPath) {
+        string cleanDrive = driveLetter.TrimEnd(':', '\\\\', '/').ToUpperInvariant() + ":";
+        string devPath = "\\\\.\\" + cleanDrive;
+
+        using (SafeFileHandle handle = CreateFile(devPath, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, IntPtr.Zero, OPEN_EXISTING, 0, IntPtr.Zero)) {
+            if (handle.IsInvalid) return false;
+
+            using (FileStream outFs = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None)) {
+                long remaining = fileSize;
+                int chunkSize = 1024 * 1024; // 1 MB sector-aligned buffer
+                byte[] buf = new byte[chunkSize];
+
+                string[] parts = runsSpec.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (string part in parts) {
+                    if (remaining <= 0) break;
+                    string[] kv = part.Split(':');
+                    if (kv.Length != 2) continue;
+                    long clusterOff = long.Parse(kv[0]);
+                    long clusterCnt = long.Parse(kv[1]);
+
+                    long diskOffset = clusterOff * bytesPerCluster;
+                    long runBytesLeft = clusterCnt * bytesPerCluster;
+
+                    while (runBytesLeft > 0 && remaining > 0) {
+                        int alignedToRead = (int)Math.Min((long)chunkSize, runBytesLeft);
+                        alignedToRead = ((alignedToRead + 4095) / 4096) * 4096;
+                        if (alignedToRead > buf.Length) alignedToRead = buf.Length;
+
+                        uint br;
+                        if (!ReadSectorAligned(handle, diskOffset, buf, alignedToRead, out br) || br == 0) {
+                            break;
+                        }
+
+                        int toWrite = (int)Math.Min((long)br, remaining);
+                        outFs.Write(buf, 0, toWrite);
+
+                        diskOffset += br;
+                        runBytesLeft -= br;
+                        remaining -= toWrite;
+                    }
+                }
+            }
+            return true;
+        }
+    }
+}
+`;
 
 export class RecoveryService {
   private abortController: AbortController | null = null;
@@ -463,10 +1034,10 @@ foreach ($item in $items) {
   /**
    * Deep Recovery Engine:
    * Never copies normal live user files! Scans exclusively for genuinely deleted / orphaned data:
-   * 1. Raw NTFS Master File Table ($MFT) Deleted Records (flags === 0x00) on the target drive (`\\.\X:`)
-   * 2. Unindexed / Orphaned $Recycle.Bin `$R*` & `$I*` remnants across all SIDs on the target drive
-   * 3. Volume Shadow Copy (`\\?\GLOBALROOT\Device\HarddiskVolumeShadowCopy*`) files that were deleted from the live disk
-   * 4. Lost cluster fragments (`found.000\*.chk`) and orphaned application recovery backups (`~$*`, `.asd`, `.wbk`, `.bak`, `.crdownload`, `.part`)
+   * 1. Raw NTFS Master File Table ($MFT) Deleted Records via native Win32 C# P/Invoke (`CreateFileW` on `\\.\X:`),
+   *    including automatic correlation of deleted `$Ixxxxxx` & `$Rxxxxxx` records from emptied Recycle Bins!
+   * 2. Orphaned $Recycle.Bin `$R*` remnants that are not in the active Recycle Bin
+   * 3. Lost cluster fragments (`found.000\*.chk`) and orphaned application recovery backups (`~$*`, `.asd`, `.wbk`, `.bak`, `.crdownload`, `.part`)
    */
   public async scanDeepRecovery(
     options: DeepRecoveryScanOptions,
@@ -484,7 +1055,7 @@ foreach ($item in $items) {
 
     const category = options.category || 'all';
     const allowedExts = category !== 'all' ? CATEGORY_EXTENSIONS[category] : null;
-    const maxResults = options.maxResults || 500;
+    const maxResults = options.maxResults || 1500;
 
     const results: DeepRecoveryItem[] = [];
     const seenKeys = new Set<string>();
@@ -503,13 +1074,20 @@ foreach ($item in $items) {
       }
     };
 
-    const matchesCategory = (ext: string): boolean => {
+    const matchesCategory = (ext: string, fileName?: string): boolean => {
       if (!allowedExts) return true;
-      return allowedExts.has(ext.toLowerCase());
+      const lowerExt = ext.toLowerCase();
+      if (allowedExts.has(lowerExt)) return true;
+      if (fileName) {
+        const lowerName = fileName.toLowerCase();
+        for (const allowed of allowedExts) {
+          if (lowerName.endsWith(allowed)) return true;
+        }
+      }
+      return false;
     };
 
     // Exclude any items that are currently sitting in the active Recycle Bin (Tab 1)
-    // so Deep Recovery (Tab 2) strictly lists permanently deleted / unindexed remnants
     const activeRecyclePaths = new Set<string>();
     const activeRecycleOrigPaths = new Set<string>();
     try {
@@ -525,10 +1103,11 @@ foreach ($item in $items) {
     }
 
     // =========================================================================
-    // STAGE 1: Raw NTFS $MFT Deleted File Record Scanner (`\\.\X:`)
+    // STAGE 1: Native Win32 Raw NTFS $MFT Deleted Record & Emptied Recycle Bin Scanner
     // =========================================================================
     if (!signal.aborted && results.length < maxResults) {
-      await this.scanNtfsMftDeletedRecords(
+      emitProgress(`${driveLetter}\\$MFT (Initializing raw sector Master File Table scan...)`);
+      await this.scanNtfsMftNativeWin32(
         driveLetter,
         isDriveRootScan ? null : rootPath,
         matchesCategory,
@@ -588,16 +1167,13 @@ foreach ($item in $items) {
   }
 
   /**
-   * Opens raw NTFS volume `\\.\X:` (requires Administrator privileges) and reads the Master File Table ($MFT)
-   * to find deleted file records (Flags == 0x0000) whose clusters are still recoverable on disk.
-   * Uses a two-pass strategy:
-   * - Pass 1: Scans MFT runs to build the directory tree map (recordNumber -> {name, parent}) AND collect deleted file records.
-   * - Pass 2: Resolves full folder paths for all collected deleted records using the complete directory map!
+   * Executes the C# Win32 P/Invoke raw NTFS $MFT scanner (`CreateFileW` on `\\.\X:`)
+   * and parses all deleted file records (`Flags == 0x0000`).
    */
-  private async scanNtfsMftDeletedRecords(
+  private async scanNtfsMftNativeWin32(
     driveLetter: string,
     scopePrefix: string | null,
-    matchesCategory: (ext: string) => boolean,
+    matchesCategory: (ext: string, fileName?: string) => boolean,
     maxResults: number,
     signal: AbortSignal,
     results: DeepRecoveryItem[],
@@ -606,159 +1182,63 @@ foreach ($item in $items) {
     onTick: (curPath: string, recordsScanned: number) => void
   ): Promise<void> {
     const cleanDrive = driveLetter.replace(/[:\\/]+$/, '').toUpperCase() + ':';
-    const volumeDevicePath = `\\\\.\\${cleanDrive}`;
+    const tempOutFile = path.join(
+      os.tmpdir(),
+      `disksweepr_mft_scan_${cleanDrive[0]}_${Date.now()}.tsv`
+    );
 
-    let fd: number | null = null;
+    const psScript = `
+Add-Type -TypeDefinition @'
+${CSHARP_MFT_ENGINE}
+'@
+[NtfsMftEngine]::ScanVolume('${cleanDrive}', 500000, '${tempOutFile.replace(/'/g, "''")}')
+`;
+
     try {
-      fd = await new Promise<number>((resolve, reject) => {
-        fs.open(volumeDevicePath, 'r', (err, handle) => {
-          if (err) reject(err);
-          else resolve(handle);
-        });
+      const encoded = Buffer.from(psScript, 'utf16le').toString('base64');
+      await execAsync(`powershell -NoProfile -EncodedCommand ${encoded}`, {
+        maxBuffer: 10 * 1024 * 1024,
+        timeout: 45000,
       });
 
-      // Read NTFS Boot Sector (4096-byte aligned buffer for raw volume compatibility)
-      const bootSector = Buffer.alloc(4096);
-      const { bytesRead: bootRead } = await this.readRawBytes(fd, bootSector, 0, 4096, 0);
-      if (bootRead < 512) return;
+      if (signal.aborted || !fs.existsSync(tempOutFile)) return;
 
-      const oemId = bootSector.toString('ascii', 3, 7);
-      if (oemId !== 'NTFS') return;
+      const content = await fs.promises.readFile(tempOutFile, 'utf8');
+      const lines = content.split(/\r?\n/);
+      onTick(`${cleanDrive}\\$MFT (Parsing ${lines.length.toLocaleString()} deleted MFT records...)`, lines.length);
 
-      const bytesPerSector = bootSector.readUInt16LE(11);
-      const sectorsPerCluster = bootSector.readUInt8(13);
-      const bytesPerCluster = bytesPerSector * sectorsPerCluster;
-      const mftStartCluster = Number(bootSector.readBigUInt64LE(48));
+      const parsedCandidates: DeepRecoveryItem[] = [];
 
-      if (bytesPerCluster <= 0 || mftStartCluster <= 0) return;
+      for (const line of lines) {
+        if (!line) continue;
+        const cols = line.split('\t');
+        if (cols.length < 8) continue;
 
-      const mftByteOffset = mftStartCluster * bytesPerCluster;
+        const recordNum = parseInt(cols[0], 10);
+        const fileName = cols[1];
+        const fullPath = cols[2];
+        const sizeBytes = parseInt(cols[3], 10);
+        const modifiedMs = parseInt(cols[4], 10);
+        const bytesPerCluster = parseInt(cols[5], 10) || 4096;
+        const residentBase64 = cols[6] || undefined;
+        const runsSpec = cols[7] || '';
 
-      // Read Record 0 ($MFT itself) using 4096-byte aligned buffer
-      const mftRecord0Buf = Buffer.alloc(4096);
-      const { bytesRead: rec0Read } = await this.readRawBytes(
-        fd,
-        mftRecord0Buf,
-        0,
-        4096,
-        mftByteOffset
-      );
-      if (rec0Read < 1024 || mftRecord0Buf.toString('ascii', 0, 4) !== 'FILE') return;
+        if (!fileName || sizeBytes <= 0) continue;
 
-      const mftRecord0 = mftRecord0Buf.subarray(0, 1024);
-      const mftRuns = this.extractMftDataRuns(mftRecord0);
-      const runsToScan =
-        mftRuns.length > 0
-          ? mftRuns
-          : [{ clusterOffset: mftStartCluster, clusterCount: 32768 }];
+        const ext = path.extname(fileName).toLowerCase();
+        if (!matchesCategory(ext, fileName)) continue;
 
-      const dirMap = new Map<number, { name: string; parent: number }>();
-      dirMap.set(5, { name: cleanDrive, parent: 5 });
+        const lowerOrig = fullPath.toLowerCase();
 
-      const rawDeletedCandidates: DeepRecoveryItem[] = [];
-      const RECORDS_PER_BATCH = 512; // 512 KB (4096-byte aligned) per batch read
-      const batchBuf = Buffer.alloc(RECORDS_PER_BATCH * 1024);
-      let globalRecordIndex = 0;
-      const MAX_RECORDS_TO_SCAN = 250000;
-
-      for (const run of runsToScan) {
-        if (signal.aborted || globalRecordIndex >= MAX_RECORDS_TO_SCAN) {
-          break;
-        }
-
-        const runStartByte = run.clusterOffset * bytesPerCluster;
-        const runTotalBytes = run.clusterCount * bytesPerCluster;
-        const totalRecordsInRun = Math.floor(runTotalBytes / 1024);
-
-        for (let recInRun = 0; recInRun < totalRecordsInRun; recInRun += RECORDS_PER_BATCH) {
-          if (signal.aborted || globalRecordIndex >= MAX_RECORDS_TO_SCAN) {
-            break;
-          }
-
-          const recordsToRead = Math.min(RECORDS_PER_BATCH, totalRecordsInRun - recInRun);
-          // Align read length to 4096 bytes
-          const bytesToRead = Math.ceil((recordsToRead * 1024) / 4096) * 4096;
-          if (bytesToRead > batchBuf.length) break;
-          const readPos = runStartByte + recInRun * 1024;
-
-          let bytesRead = 0;
-          try {
-            const res = await this.readRawBytes(fd, batchBuf, 0, bytesToRead, readPos);
-            bytesRead = res.bytesRead;
-          } catch {
-            break;
-          }
-          if (bytesRead < 1024) break;
-
-          const actualRecords = Math.min(recordsToRead, Math.floor(bytesRead / 1024));
-          onTick(
-            `${cleanDrive}\\$MFT (Scanning sector record #${globalRecordIndex.toLocaleString()})`,
-            actualRecords
-          );
-
-          for (let i = 0; i < actualRecords; i++) {
-            const currentRecNum = globalRecordIndex + i;
-            if (currentRecNum < 24) continue; // Skip NTFS reserved metadata records (0..23)
-
-            const slice = batchBuf.subarray(i * 1024, (i + 1) * 1024);
-            if (slice.toString('ascii', 0, 4) !== 'FILE') continue;
-
-            const flags = slice.readUInt16LE(22);
-
-            // Always cache directory names (0x03 = Active Dir, 0x02 = Deleted Dir) so Pass 2 can resolve any parent folder!
-            if ((flags === 0x0003 || flags === 0x0002) && dirMap.size < 100000) {
-              const dirInfo = this.extractQuickFileNameAndParent(slice);
-              if (dirInfo && !dirInfo.name.startsWith('$')) {
-                dirMap.set(currentRecNum, dirInfo);
-              }
-              continue;
-            }
-
-            // 0x0000 = Permanently Deleted File Record!
-            if (flags === 0x0000 && rawDeletedCandidates.length < maxResults * 4) {
-              const parsedItem = parseDeletedNtfsMftRecord(
-                slice,
-                currentRecNum,
-                cleanDrive,
-                bytesPerCluster
-              );
-              if (!parsedItem) continue;
-              if (!matchesCategory(parsedItem.extension)) continue;
-
-              // Skip Recycle Bin metadata headers ($Ixxxxxx)
-              if (parsedItem.name.startsWith('$I') && parsedItem.name.length === 8) continue;
-
-              rawDeletedCandidates.push(parsedItem);
-            }
-          }
-
-          globalRecordIndex += actualRecords;
-        }
-      }
-
-      // Pass 2: Resolve complete parent folder paths now that dirMap has all directories across the MFT
-      // Sort most recently modified/deleted first so recently deleted files appear at the top
-      rawDeletedCandidates.sort((a, b) => (b.modifiedTime || 0) - (a.modifiedTime || 0));
-
-      for (const candidate of rawDeletedCandidates) {
-        if (results.length >= maxResults) break;
-
-        const resolvedParent = this.resolveParentPathFromMft(
-          candidate.originalPath,
-          dirMap,
-          cleanDrive
-        );
-        candidate.originalPath = path.join(resolvedParent, candidate.name);
-
-        // Skip internal browser/system temp cache noise unless user specifically scanned that folder
-        const lowerOrig = candidate.originalPath.toLowerCase();
+        // Filter out noisy browser cache chunks unless user explicitly targeted that folder
         if (
           !scopePrefix &&
           (lowerOrig.includes('\\appdata\\local\\temp\\') ||
             lowerOrig.includes('\\cache\\cache_data\\') ||
             lowerOrig.includes('\\code cache\\') ||
             lowerOrig.includes('\\gpucache\\') ||
-            lowerOrig.includes('\\$recycle.bin\\'))
+            lowerOrig.includes('\\ dawnwebgpucache\\') ||
+            lowerOrig.includes('\\service worker\\cachestorage\\'))
         ) {
           continue;
         }
@@ -767,151 +1247,64 @@ foreach ($item in $items) {
           continue;
         }
 
-        // Skip if a live file or active Recycle Bin item already exists for this path
-        if (fs.existsSync(candidate.originalPath)) continue;
+        // Must NOT be a live file or an item currently inside the active Recycle Bin (Tab 1)
+        if (fs.existsSync(fullPath)) continue;
         if (activeRecycleOrigPaths.has(lowerOrig)) continue;
 
-        const dedupKey = `${lowerOrig}_${candidate.sizeBytes}`;
+        const dataRuns: Array<{ clusterOffset: number; clusterCount: number }> = [];
+        if (runsSpec) {
+          for (const part of runsSpec.split(';')) {
+            const [cOff, cCnt] = part.split(':').map((n) => parseInt(n, 10));
+            if (cOff > 0 && cCnt > 0) {
+              dataRuns.push({ clusterOffset: cOff, clusterCount: cCnt });
+            }
+          }
+        }
+
+        const hasData = Boolean(residentBase64) || dataRuns.length > 0;
+
+        parsedCandidates.push({
+          id: `mft_${cleanDrive}_${recordNum}_${modifiedMs}`,
+          name: fileName,
+          originalPath: fullPath,
+          detectedType: ext.replace(/^\./, '').toUpperCase() || 'FILE',
+          sizeBytes,
+          status: hasData ? 'recoverable' : 'partially_overwritten',
+          modifiedTime: modifiedMs > 0 ? modifiedMs : undefined,
+          extension: ext,
+          recoverySource: 'ntfs_mft',
+          sourcePath: `\\\\.\\${cleanDrive}`,
+          mftRecordNumber: recordNum,
+          bytesPerCluster,
+          dataRuns: dataRuns.length > 0 ? dataRuns : undefined,
+          residentDataBase64: residentBase64,
+        });
+      }
+
+      // Sort recoverable items first, then most recently deleted/modified first
+      parsedCandidates.sort((a, b) => {
+        if (a.status !== b.status) {
+          return a.status === 'recoverable' ? -1 : 1;
+        }
+        return (b.modifiedTime || 0) - (a.modifiedTime || 0);
+      });
+
+      for (const cand of parsedCandidates) {
+        if (results.length >= maxResults) break;
+        const dedupKey = `${cand.originalPath.toLowerCase()}_${cand.sizeBytes}`;
         if (seenKeys.has(dedupKey)) continue;
         seenKeys.add(dedupKey);
-
-        results.push(candidate);
+        results.push(cand);
       }
     } catch {
-      // Raw volume access requires Administrator privileges or NTFS filesystem; silently continue to fallback scanners
+      // Fallback if PowerShell / Admin elevation unavailable
     } finally {
-      if (fd !== null) {
-        try {
-          fs.closeSync(fd);
-        } catch {
-          // Ignore close error
+      try {
+        if (fs.existsSync(tempOutFile)) {
+          fs.unlinkSync(tempOutFile);
         }
-      }
+      } catch {}
     }
-  }
-
-  private extractMftDataRuns(
-    mftRecord0: Buffer
-  ): Array<{ clusterOffset: number; clusterCount: number }> {
-    const runs: Array<{ clusterOffset: number; clusterCount: number }> = [];
-    let attrOffset = mftRecord0.readUInt16LE(20);
-    while (attrOffset > 0 && attrOffset + 16 <= mftRecord0.length) {
-      const attrType = mftRecord0.readUInt32LE(attrOffset);
-      if (attrType === 0xffffffff || attrType === 0) break;
-      const attrLen = mftRecord0.readUInt32LE(attrOffset + 4);
-      if (attrLen <= 0 || attrOffset + attrLen > mftRecord0.length) break;
-
-      const nonResident = mftRecord0.readUInt8(attrOffset + 8);
-      if (attrType === 0x80 && nonResident === 1) {
-        const runListOffset = attrOffset + mftRecord0.readUInt16LE(attrOffset + 32);
-        let pos = runListOffset;
-        let currentLcn = 0n;
-        const attrEnd = attrOffset + attrLen;
-        while (pos < attrEnd && pos < mftRecord0.length) {
-          const header = mftRecord0.readUInt8(pos);
-          pos++;
-          if (header === 0) break;
-          const lenBytes = header & 0x0f;
-          const offBytes = (header >> 4) & 0x0f;
-          if (lenBytes === 0 || pos + lenBytes + offBytes > attrEnd) break;
-
-          let runLength = 0n;
-          for (let i = 0; i < lenBytes; i++) {
-            runLength |= BigInt(mftRecord0.readUInt8(pos + i)) << BigInt(i * 8);
-          }
-          pos += lenBytes;
-
-          if (offBytes > 0) {
-            let runOffset = 0n;
-            for (let i = 0; i < offBytes; i++) {
-              runOffset |= BigInt(mftRecord0.readUInt8(pos + i)) << BigInt(i * 8);
-            }
-            const signBit = 1n << BigInt(offBytes * 8 - 1);
-            if ((runOffset & signBit) !== 0n) {
-              runOffset -= 1n << BigInt(offBytes * 8);
-            }
-            currentLcn += runOffset;
-            pos += offBytes;
-            if (currentLcn > 0n && runLength > 0n) {
-              runs.push({
-                clusterOffset: Number(currentLcn),
-                clusterCount: Number(runLength),
-              });
-            }
-          }
-        }
-        break;
-      }
-      attrOffset += attrLen;
-    }
-    return runs;
-  }
-
-  private extractQuickFileNameAndParent(
-    recordSlice: Buffer
-  ): { name: string; parent: number } | null {
-    let attrOffset = recordSlice.readUInt16LE(20);
-    let bestName = '';
-    let bestParent = 5;
-    let bestNs = -1;
-
-    while (attrOffset > 0 && attrOffset + 16 <= recordSlice.length) {
-      const attrType = recordSlice.readUInt32LE(attrOffset);
-      if (attrType === 0xffffffff || attrType === 0) break;
-      const attrLen = recordSlice.readUInt32LE(attrOffset + 4);
-      if (attrLen <= 0 || attrOffset + attrLen > recordSlice.length) break;
-
-      const nonResident = recordSlice.readUInt8(attrOffset + 8);
-      if (attrType === 0x30 && nonResident === 0) {
-        const valOffset = attrOffset + recordSlice.readUInt16LE(attrOffset + 20);
-        if (valOffset + 66 <= recordSlice.length) {
-          const pLow = recordSlice.readUInt32LE(valOffset);
-          const pHigh = recordSlice.readUInt16LE(valOffset + 4);
-          const pRec = pLow + pHigh * 0x100000000;
-          const fnLen = recordSlice.readUInt8(valOffset + 64);
-          const fnNs = recordSlice.readUInt8(valOffset + 65);
-          const nameEnd = valOffset + 66 + fnLen * 2;
-          if (nameEnd <= recordSlice.length) {
-            const name = recordSlice.subarray(valOffset + 66, nameEnd).toString('utf16le');
-            if (!bestName || fnNs !== 2 || bestNs === 2) {
-              bestName = name;
-              bestParent = pRec;
-              bestNs = fnNs;
-            }
-          }
-        }
-      }
-      attrOffset += attrLen;
-    }
-
-    return bestName ? { name: bestName, parent: bestParent } : null;
-  }
-
-  private resolveParentPathFromMft(
-    initialReconstructedPath: string,
-    dirMap: Map<number, { name: string; parent: number }>,
-    cleanDrive: string
-  ): string {
-    const match = initialReconstructedPath.match(/MFT#(\d+)/);
-    if (!match) return path.dirname(initialReconstructedPath);
-
-    let curRec = parseInt(match[1], 10);
-    const segments: string[] = [];
-    let depth = 0;
-
-    while (curRec !== 5 && depth < 12) {
-      const info = dirMap.get(curRec);
-      if (!info) {
-        segments.unshift(`[DeletedFolder_${curRec}]`);
-        break;
-      }
-      segments.unshift(info.name);
-      if (info.parent === curRec) break;
-      curRec = info.parent;
-      depth++;
-    }
-
-    return `${cleanDrive}\\${segments.join('\\')}`;
   }
 
   /**
@@ -921,7 +1314,7 @@ foreach ($item in $items) {
   private async scanDeepRecycleBinRemnants(
     recycleRoot: string,
     scopePrefix: string | null,
-    matchesCategory: (ext: string) => boolean,
+    matchesCategory: (ext: string, fileName?: string) => boolean,
     maxResults: number,
     signal: AbortSignal,
     results: DeepRecoveryItem[],
@@ -954,7 +1347,6 @@ foreach ($item in $items) {
 
         if (!entry.isFile() || !entry.name.startsWith('$R')) continue;
 
-        // Skip if this item is already displayed in Tab 1 (Active Recycle Bin Manager)
         if (activeRecyclePaths.has(path.resolve(fullPath).toLowerCase())) {
           continue;
         }
@@ -965,7 +1357,6 @@ foreach ($item in $items) {
           const stat = await fs.promises.stat(fullPath);
           if (stat.size <= 0) continue;
 
-          // Look for companion $Ixxxxxx metadata file to get original filename & path
           const iFileName = '$I' + entry.name.slice(2);
           const iFilePath = path.join(curDir, iFileName);
           let origPath = fullPath;
@@ -983,7 +1374,7 @@ foreach ($item in $items) {
           }
 
           const ext = path.extname(displayName).toLowerCase();
-          if (!matchesCategory(ext)) continue;
+          if (!matchesCategory(ext, displayName)) continue;
 
           if (scopePrefix && !origPath.toLowerCase().startsWith(scopePrefix.toLowerCase())) {
             continue;
@@ -1018,7 +1409,7 @@ foreach ($item in $items) {
    */
   private async scanOrphanFragments(
     rootPath: string,
-    matchesCategory: (ext: string) => boolean,
+    matchesCategory: (ext: string, fileName?: string) => boolean,
     maxResults: number,
     signal: AbortSignal,
     results: DeepRecoveryItem[],
@@ -1077,11 +1468,12 @@ foreach ($item in $items) {
           const stat = await fs.promises.stat(fullPath);
           const ext = path.extname(entry.name).toLowerCase();
 
-          // Determine underlying extension for .bak / .old / .crdownload / .part (e.g. "report.pdf.bak" -> ".pdf")
           const stemName = entry.name.replace(/\.(bak|old|crdownload|part|tmp)$/i, '');
           const effectiveExt = path.extname(stemName).toLowerCase() || ext;
 
-          if (!matchesCategory(effectiveExt) && !matchesCategory(ext)) continue;
+          if (!matchesCategory(effectiveExt, stemName) && !matchesCategory(ext, entry.name)) {
+            continue;
+          }
 
           const dedupKey = `${fullPath.toLowerCase()}_${stat.size}`;
           if (seenKeys.has(dedupKey)) continue;
@@ -1108,7 +1500,7 @@ foreach ($item in $items) {
 
   /**
    * Recovers selected deleted items to `destinationDir`:
-   * - For `ntfs_mft` records: reconstructs the deleted file directly from raw disk clusters (`\\.\X:`) or resident MFT bytes!
+   * - For `ntfs_mft` records: reconstructs the deleted file directly from raw disk clusters (`\\.\X:`) using Win32 P/Invoke or resident MFT bytes!
    * - For `recycle_remnant` / `orphan_fragment`: copies the physical remnant payload (`sourcePath`) and restores its original filename.
    */
   public async recoverDeepFiles(
@@ -1152,7 +1544,7 @@ foreach ($item in $items) {
 
   /**
    * Reconstructs a permanently deleted NTFS file by reading its Resident Data or Non-Resident Cluster Data Runs
-   * directly from the raw volume handle (`\\.\X:`).
+   * directly from the raw volume handle (`\\.\X:`) via native Win32 C# P/Invoke.
    */
   private async recoverFromNtfsMft(item: DeepRecoveryItem, finalPath: string): Promise<boolean> {
     if (item.residentDataBase64) {
@@ -1165,92 +1557,28 @@ foreach ($item in $items) {
       return false;
     }
 
-    let volFd: number | null = null;
-    let outFd: number | null = null;
+    const cleanDrive = item.sourcePath.replace(/^\\\\\.\\/, '');
+    const runsSpec = item.dataRuns.map((r) => `${r.clusterOffset}:${r.clusterCount}`).join(';');
+
+    const psScript = `
+Add-Type -TypeDefinition @'
+${CSHARP_MFT_ENGINE}
+'@
+$ok = [NtfsMftEngine]::RecoverDataRuns('${cleanDrive}', ${item.sizeBytes}, ${item.bytesPerCluster}, '${runsSpec}', '${finalPath.replace(/'/g, "''")}')
+if ($ok) { Write-Output "OK" } else { Write-Output "FAIL" }
+`;
 
     try {
-      volFd = await new Promise<number>((resolve, reject) => {
-        fs.open(item.sourcePath!, 'r', (err, handle) => {
-          if (err) reject(err);
-          else resolve(handle);
-        });
+      const encoded = Buffer.from(psScript, 'utf16le').toString('base64');
+      const { stdout } = await execAsync(`powershell -NoProfile -EncodedCommand ${encoded}`, {
+        maxBuffer: 5 * 1024 * 1024,
+        timeout: 120000,
       });
-
-      outFd = await new Promise<number>((resolve, reject) => {
-        fs.open(finalPath, 'w', (err, handle) => {
-          if (err) reject(err);
-          else resolve(handle);
-        });
-      });
-
-      let remainingBytes = item.sizeBytes;
-      const bytesPerCluster = item.bytesPerCluster;
-      const CHUNK_SIZE = 1024 * 1024; // 1 MB read buffer
-      const chunkBuf = Buffer.alloc(CHUNK_SIZE);
-
-      for (const run of item.dataRuns) {
-        if (remainingBytes <= 0) break;
-
-        let diskOffset = run.clusterOffset * bytesPerCluster;
-        let runBytesLeft = run.clusterCount * bytesPerCluster;
-
-        while (runBytesLeft > 0 && remainingBytes > 0) {
-          // Sector reads on raw volume handles must be aligned to cluster/sector multiples
-          const alignedReadLen = Math.min(CHUNK_SIZE, runBytesLeft);
-          const { bytesRead } = await this.readRawBytes(
-            volFd,
-            chunkBuf,
-            0,
-            alignedReadLen,
-            diskOffset
-          );
-          if (bytesRead <= 0) break;
-
-          const bytesToWrite = Math.min(bytesRead, remainingBytes);
-          await new Promise<void>((resolve, reject) => {
-            fs.write(outFd!, chunkBuf, 0, bytesToWrite, null, (err) => {
-              if (err) reject(err);
-              else resolve();
-            });
-          });
-
-          diskOffset += bytesRead;
-          runBytesLeft -= bytesRead;
-          remainingBytes -= bytesToWrite;
-        }
-      }
-
-      return true;
+      return stdout.trim().includes('OK') && fs.existsSync(finalPath);
     } catch (err) {
       console.error('Raw NTFS sector recovery failed:', err);
       return false;
-    } finally {
-      if (outFd !== null) {
-        try {
-          fs.closeSync(outFd);
-        } catch {}
-      }
-      if (volFd !== null) {
-        try {
-          fs.closeSync(volFd);
-        } catch {}
-      }
     }
-  }
-
-  private readRawBytes(
-    fd: number,
-    buffer: Buffer,
-    offset: number,
-    length: number,
-    position: number
-  ): Promise<{ bytesRead: number; buffer: Buffer }> {
-    return new Promise((resolve, reject) => {
-      fs.read(fd, buffer, offset, length, position, (err, bytesRead, buf) => {
-        if (err) reject(err);
-        else resolve({ bytesRead, buffer: buf });
-      });
-    });
   }
 
   private parseSizeStringToBytes(sizeStr: string): number {
