@@ -416,7 +416,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
       const items = await window.cleanerApi?.scanDeepRecovery({
         targetPath: resolvedDeepTarget,
         category: selectedCategory,
-        maxResults: 600,
+        maxResults: 2500,
       });
 
       if (items) {

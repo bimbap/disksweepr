@@ -1053,7 +1053,7 @@ foreach ($item in $items) {
 
     const category = options.category || 'all';
     const allowedExts = category !== 'all' ? CATEGORY_EXTENSIONS[category] : null;
-    const maxResults = options.maxResults || 1500;
+    const maxResults = options.maxResults || 2500;
 
     const results: DeepRecoveryItem[] = [];
     const seenKeys = new Set<string>();
@@ -1188,7 +1188,7 @@ foreach ($item in $items) {
 Add-Type -TypeDefinition @'
 ${CSHARP_MFT_ENGINE}
 '@
-[NtfsMftEngine]::ScanVolume('${cleanDrive}', 500000, '${tempOutFile.replace(/'/g, "''")}')
+[NtfsMftEngine]::ScanVolume('${cleanDrive}', 1000000, '${tempOutFile.replace(/'/g, "''")}')
 `;
 
     try {
@@ -1214,8 +1214,8 @@ ${CSHARP_MFT_ENGINE}
         const recordNum = parseInt(cols[0], 10);
         const fileName = cols[1];
         const fullPath = cols[2];
-        const sizeBytes = parseInt(cols[3], 10);
-        const modifiedMs = parseInt(cols[4], 10);
+        const sizeBytes = Number(cols[3]);
+        const modifiedMs = Number(cols[4]);
         const bytesPerCluster = parseInt(cols[5], 10) || 4096;
         const residentBase64 = cols[6] || undefined;
         const runsSpec = cols[7] || '';
