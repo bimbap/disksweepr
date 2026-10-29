@@ -45,7 +45,7 @@ const translations: Record<Language, Record<string, string>> = {
 
     // About Modal
     'about.title': 'About DiskSweepr',
-    'about.version': 'Version 1.0.0 (Windows x64)',
+    'about.version': 'Version 1.1.0 (Windows x64)',
     'about.developer': 'Developer',
     'about.developer_name': 'bapp',
     'about.purpose': 'Application Purpose',
@@ -586,7 +586,7 @@ const translations: Record<Language, Record<string, string>> = {
 
     // About Modal
     'about.title': 'Tentang DiskSweepr',
-    'about.version': 'Versi 1.0.0 (Windows x64)',
+    'about.version': 'Versi 1.1.0 (Windows x64)',
     'about.developer': 'Pengembang',
     'about.developer_name': 'bapp',
     'about.purpose': 'Tujuan Aplikasi',

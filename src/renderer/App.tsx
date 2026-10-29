@@ -1,15 +1,30 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, Suspense, lazy } from 'react';
 import { TitleBar } from './components/TitleBar';
 import { NavRail } from './components/NavRail';
 import { SystemCleanupView } from './components/SystemCleanupView';
-import { FastSearchView } from './components/FastSearchView';
-import { LargeFilesView } from './components/LargeFilesView';
-import { DuplicateHunterView } from './components/DuplicateHunterView';
-import { DevProjectsView } from './components/DevProjectsView';
-import { PowerToolsView } from './components/PowerToolsView';
-import { RecoveryView } from './components/RecoveryView';
-import { HistoryView } from './components/HistoryView';
 import { useSettings } from './context/SettingsContext';
+
+const FastSearchView = lazy(() =>
+  import('./components/FastSearchView').then((m) => ({ default: m.FastSearchView }))
+);
+const LargeFilesView = lazy(() =>
+  import('./components/LargeFilesView').then((m) => ({ default: m.LargeFilesView }))
+);
+const DuplicateHunterView = lazy(() =>
+  import('./components/DuplicateHunterView').then((m) => ({ default: m.DuplicateHunterView }))
+);
+const DevProjectsView = lazy(() =>
+  import('./components/DevProjectsView').then((m) => ({ default: m.DevProjectsView }))
+);
+const PowerToolsView = lazy(() =>
+  import('./components/PowerToolsView').then((m) => ({ default: m.PowerToolsView }))
+);
+const RecoveryView = lazy(() =>
+  import('./components/RecoveryView').then((m) => ({ default: m.RecoveryView }))
+);
+const HistoryView = lazy(() =>
+  import('./components/HistoryView').then((m) => ({ default: m.HistoryView }))
+);
 import {
   CategoryDefinition,
   CleanProgress,
@@ -258,58 +273,60 @@ export const App: React.FC = () => {
             />
           )}
 
-          {activeModule === 'fast_search' && (
-            <FastSearchView
-              currentDriveLetter={selectedDriveLetter}
-              onOpenExplorer={(p) => window.cleanerApi?.openPathInExplorer(p)}
-              onRefreshDriveStats={refreshDriveStats}
-            />
-          )}
+          <Suspense fallback={null}>
+            {activeModule === 'fast_search' && (
+              <FastSearchView
+                currentDriveLetter={selectedDriveLetter}
+                onOpenExplorer={(p) => window.cleanerApi?.openPathInExplorer(p)}
+                onRefreshDriveStats={refreshDriveStats}
+              />
+            )}
 
-          {activeModule === 'large_files' && (
-            <LargeFilesView
-              currentDriveLetter={selectedDriveLetter}
-              onOpenExplorer={(p) => window.cleanerApi?.openPathInExplorer(p)}
-              onRefreshDriveStats={refreshDriveStats}
-              initialCustomPath={cliTargetFolder}
-            />
-          )}
+            {activeModule === 'large_files' && (
+              <LargeFilesView
+                currentDriveLetter={selectedDriveLetter}
+                onOpenExplorer={(p) => window.cleanerApi?.openPathInExplorer(p)}
+                onRefreshDriveStats={refreshDriveStats}
+                initialCustomPath={cliTargetFolder}
+              />
+            )}
 
-          {activeModule === 'duplicates' && (
-            <DuplicateHunterView
-              currentDriveLetter={selectedDriveLetter}
-              onOpenExplorer={(p) => window.cleanerApi?.openPathInExplorer(p)}
-              onRefreshDriveStats={refreshDriveStats}
-            />
-          )}
+            {activeModule === 'duplicates' && (
+              <DuplicateHunterView
+                currentDriveLetter={selectedDriveLetter}
+                onOpenExplorer={(p) => window.cleanerApi?.openPathInExplorer(p)}
+                onRefreshDriveStats={refreshDriveStats}
+              />
+            )}
 
-          {activeModule === 'dev_projects' && (
-            <DevProjectsView
-              currentDriveLetter={selectedDriveLetter}
-              onOpenExplorer={(p) => window.cleanerApi?.openPathInExplorer(p)}
-              onRefreshDriveStats={refreshDriveStats}
-            />
-          )}
+            {activeModule === 'dev_projects' && (
+              <DevProjectsView
+                currentDriveLetter={selectedDriveLetter}
+                onOpenExplorer={(p) => window.cleanerApi?.openPathInExplorer(p)}
+                onRefreshDriveStats={refreshDriveStats}
+              />
+            )}
 
-          {activeModule === 'tools' && (
-            <PowerToolsView
-              currentDriveLetter={selectedDriveLetter}
-              onOpenExplorer={(p) => window.cleanerApi?.openPathInExplorer(p)}
-              onRefreshDriveStats={refreshDriveStats}
-            />
-          )}
+            {activeModule === 'tools' && (
+              <PowerToolsView
+                currentDriveLetter={selectedDriveLetter}
+                onOpenExplorer={(p) => window.cleanerApi?.openPathInExplorer(p)}
+                onRefreshDriveStats={refreshDriveStats}
+              />
+            )}
 
-          {activeModule === 'recovery' && (
-            <RecoveryView
-              currentDriveLetter={selectedDriveLetter}
-              onOpenExplorer={(p) => window.cleanerApi?.openPathInExplorer(p)}
-              onRefreshDriveStats={refreshDriveStats}
-            />
-          )}
+            {activeModule === 'recovery' && (
+              <RecoveryView
+                currentDriveLetter={selectedDriveLetter}
+                onOpenExplorer={(p) => window.cleanerApi?.openPathInExplorer(p)}
+                onRefreshDriveStats={refreshDriveStats}
+              />
+            )}
 
-          {activeModule === 'history' && (
-            <HistoryView />
-          )}
+            {activeModule === 'history' && (
+              <HistoryView />
+            )}
+          </Suspense>
         </main>
       </div>
     </div>

@@ -11,8 +11,8 @@ DiskSweepr is a modern, lightweight system storage optimizer built with Electron
 | Package | Size | Description |
 |---|---|---|
 | [**DiskSweepr-Web-Setup.exe**](https://github.com/bimbap/disksweepr/releases/latest/download/DiskSweepr-Web-Setup.exe) | **~717 KB** | **Recommended**. Ultra-lightweight bootstrap installer. Launches in 0.01s, features a modern Raycast dark UI, and downloads the latest release automatically. |
-| [**DiskSweepr-Setup-1.0.0.exe**](https://github.com/bimbap/disksweepr/releases/latest/download/DiskSweepr-Setup-1.0.0.exe) | ~91.7 MB | **Offline Installer**. Full standalone setup wizard with custom directory selector, start menu/desktop shortcuts, and official Windows uninstaller. |
-| [**DiskSweepr-Portable-1.0.0.exe**](https://github.com/bimbap/disksweepr/releases/latest/download/DiskSweepr-Portable-1.0.0.exe) | ~83.0 MB | **Portable**. Zero installation required. Runs directly from any folder or USB drive. |
+| [**DiskSweepr-Setup-1.1.0.exe**](https://github.com/bimbap/disksweepr/releases/latest/download/DiskSweepr-Setup-1.1.0.exe) | ~91.7 MB | **Offline Installer**. Full standalone setup wizard with custom directory selector, start menu/desktop shortcuts, and official Windows uninstaller. |
+| [**DiskSweepr-Portable-1.1.0.exe**](https://github.com/bimbap/disksweepr/releases/latest/download/DiskSweepr-Portable-1.1.0.exe) | ~83.0 MB | **Portable**. Zero installation required. Runs directly from any folder or USB drive with cached runtime for instant launch. |
 
 ---
 

@@ -324,7 +324,7 @@ namespace DiskSweeprWebSetup
         private Image appIcon = null;
 
         private string installDir;
-        private string defaultDownloadUrl = "https://github.com/bimbap/disksweepr/releases/latest/download/DiskSweepr-Setup-1.0.0.exe";
+        private string defaultDownloadUrl = "https://github.com/bimbap/disksweepr/releases/latest/download/DiskSweepr-Setup-1.1.0.exe";
         private string tempInstallerPath;
         private bool isInstalled = false;
         private string existingUninstallerPath = null;
@@ -643,8 +643,8 @@ namespace DiskSweeprWebSetup
             chkStart.Enabled = false;
             prgBar.Visible = true;
 
-            string localBeside = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DiskSweepr-Setup-1.0.0.exe");
-            string localRelease = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "release", "DiskSweepr-Setup-1.0.0.exe");
+            string localBeside = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DiskSweepr-Setup-1.1.0.exe");
+            string localRelease = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "release", "DiskSweepr-Setup-1.1.0.exe");
 
             if (File.Exists(localBeside))
             {
@@ -657,7 +657,7 @@ namespace DiskSweeprWebSetup
                 return;
             }
 
-            tempInstallerPath = Path.Combine(Path.GetTempPath(), "DiskSweepr-Setup-1.0.0.exe");
+            tempInstallerPath = Path.Combine(Path.GetTempPath(), "DiskSweepr-Setup-1.1.0.exe");
             lblStatus.Text = "Connecting to GitHub Releases...";
 
             webClient = new WebClient();
@@ -794,7 +794,7 @@ namespace DiskSweeprWebSetup
                 g.DrawString("DiskSweepr", titleF, titleB, 122, 46);
             }
 
-            // Version Pill: "v1.0.0"
+            // Version Pill: "v1.1.0"
             Rectangle verRect = new Rectangle(296, 56, 50, 20);
             using (SolidBrush verBg = new SolidBrush(Color.FromArgb(12, 74, 110)))
             using (Pen verP = new Pen(Color.FromArgb(2, 132, 199), 1))
@@ -803,7 +803,7 @@ namespace DiskSweeprWebSetup
             {
                 GraphicsUtils.FillRoundedRectangle(g, verBg, verRect, 6);
                 GraphicsUtils.DrawRoundedRectangle(g, verP, verRect, 6);
-                g.DrawString("v1.0.0", verF, verB, verRect.X + 6, verRect.Y + 2);
+                g.DrawString("v1.1.0", verF, verB, verRect.X + 6, verRect.Y + 2);
             }
 
             // Subtitle

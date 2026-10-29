@@ -11,7 +11,7 @@
     "build/**/*",
     "package.json"
   ],
-  "compression": "maximum",
+  "compression": "normal",
   "win": {
     "icon": "build/icon.ico",
     "target": [
@@ -41,6 +41,7 @@
     "artifactName": "DiskSweepr-Setup-${version}.exe"
   },
   "portable": {
-    "artifactName": "DiskSweepr-Portable-${version}.exe"
+    "artifactName": "DiskSweepr-Portable-${version}.exe",
+    "unpackDirName": "DiskSweepr-Runtime"
   }
 }

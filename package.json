@@ -1,6 +1,6 @@
 {
   "name": "disksweepr",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "High-performance, safety-first desktop disk cleaning utility for Windows",
   "main": "dist-electron/main/index.js",
   "scripts": {

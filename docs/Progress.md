@@ -9,10 +9,10 @@
 * **Target Workspace**: `M:\testProject\cleaner\` (Drive M: ~18.1 GB free)
 * **Design Pattern**: EaseUS CleanGenius Style (72px Slim Left Nav Rail + Spacious Step-by-Step Hero Canvas + Lucide Icons)
 * **Release Artifacts**:
-  - Web Bootstrap Installer: `release/DiskSweepr-Web-Setup.exe` (~717 KB) (Modern Linear/Raycast dark UI, Windows 11 rounded corners, native drop shadow, embedded high-res AppIcon, smooth rounded pill buttons & progress bar, fast 0.01s launch, smart installed-detection with Reinstall & 1-click Uninstall, auto-downloads latest package from GitHub Releases with silent install)
-  - Full Offline NSIS Modern Wizard: `release/DiskSweepr-Setup-1.0.0.exe` (~91.7 MB) (Complete offline installer, instant <0.05s launch, full multi-page Modern UI 2 wizard, custom dark sidebar/header branding, directory selector, shortcuts toggle)
-  - Portable Executable: `release/DiskSweepr-Portable-1.0.0.exe` (~83 MB) (Zero installation, direct executable)
-* **Last Updated**: 2026-10-28
+  - Web Bootstrap Installer: `release/DiskSweepr-Web-Setup.exe` (~540 KB) (Modern Linear/Raycast dark UI, Windows 11 rounded corners, native drop shadow, embedded high-res AppIcon, smooth rounded pill buttons & progress bar, fast 0.01s launch, smart installed-detection with Reinstall & 1-click Uninstall, auto-downloads latest `v1.1.0` package from GitHub Releases with silent install)
+  - Full Offline NSIS Modern Wizard: `release/DiskSweepr-Setup-1.1.0.exe` (~91.8 MB) (Complete offline installer, instant <0.05s launch, full multi-page Modern UI 2 wizard, custom dark sidebar/header branding, directory selector, shortcuts toggle)
+  - Portable Executable: `release/DiskSweepr-Portable-1.1.0.exe` (~82.9 MB) (Zero installation, direct executable with persistent `unpackDirName: "DiskSweepr-Runtime"` and code-split lazy loading for instant warm launch)
+* **Last Updated**: 2026-10-29
 
 ---
 
@@ -831,6 +831,19 @@
   - Set default application language to English (`'en'`) in [`SettingsContext.tsx`](file:///m:/testProject/disksweepr/src/renderer/context/SettingsContext.tsx) and grouped `License (MIT)` with `About DiskSweepr` in [`TitleBar.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/TitleBar.tsx).
   - Removed `scrollbar-width: thin` from `.nav-rail-items` in [`index.css`](file:///m:/testProject/disksweepr/src/renderer/index.css) so Chromium applies the custom dark `::-webkit-scrollbar` instead of a light native OS scrollbar.
   - Hardened [`contextMenuService.ts`](file:///m:/testProject/disksweepr/src/main/services/contextMenuService.ts) and [`LargeFilesView.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/LargeFilesView.tsx) so Windows Explorer right-click integration works in both dev and packaged builds and properly maps drive roots (`M:\`).
+
+### Phase 55: Version Bump to v1.1.0, Portable Launch Optimization, & Production Packaging
+- [x] **Version Bump (`v1.1.0`)**:
+  - Updated version across [`package.json`](file:///m:/testProject/disksweepr/package.json), [`SettingsContext.tsx`](file:///m:/testProject/disksweepr/src/renderer/context/SettingsContext.tsx), [`README.md`](file:///m:/testProject/disksweepr/README.md), and [`web-installer/Program.cs`](file:///m:/testProject/disksweepr/web-installer/Program.cs).
+- [x] **Portable Startup & Bundle Optimization**:
+  - Configured `"unpackDirName": "DiskSweepr-Runtime"` and `"compression": "normal"` in [`electron-builder.json`](file:///m:/testProject/disksweepr/electron-builder.json) so the Portable `.exe` reuses its unpacked runtime cache on subsequent launches instead of re-extracting ~180 MB to a random `%TEMP%` folder every time.
+  - Added route-level `React.lazy` code-splitting in [`src/renderer/App.tsx`](file:///m:/testProject/disksweepr/src/renderer/App.tsx) for secondary views (`FastSearchView`, `LargeFilesView`, `DuplicateHunterView`, `DevProjectsView`, `PowerToolsView`, `RecoveryView`, `HistoryView`), cutting initial renderer JS payload from `519.75 kB` down to `369.56 kB`.
+- [x] **Production Release Artifacts (`release/`)**:
+  - [`release/DiskSweepr-Setup-1.1.0.exe`](file:///m:/testProject/disksweepr/release/DiskSweepr-Setup-1.1.0.exe) (91.8 MB) — Full Offline NSIS Modern Wizard.
+  - [`release/DiskSweepr-Portable-1.1.0.exe`](file:///m:/testProject/disksweepr/release/DiskSweepr-Portable-1.1.0.exe) (82.9 MB) — Fast-launch Standalone Portable.
+  - [`release/DiskSweepr-Web-Setup.exe`](file:///m:/testProject/disksweepr/release/DiskSweepr-Web-Setup.exe) (540 KB) — Online Bootstrap Installer targeting `v1.1.0`.
+  - Cleaned obsolete `1.0.0` binaries and temporary build folders (`win-unpacked`, `.blockmap`, `builder-debug.yml`).
+
 
 
 
