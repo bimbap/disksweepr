@@ -1,66 +1,47 @@
 # DiskSweepr
 
-> High-performance, safety-first desktop disk cleaning utility for Windows.
+> High-performance, safety-first desktop disk cleaning and storage optimization suite for Windows.
 
-DiskSweepr is a modern, lightweight system storage optimizer built with Electron, React 19, TypeScript, and Vite. Designed with an obsidian Linear/Raycast-inspired interface, it helps you audit drive capacity, identify junk files across partitions, hunt gigantic dormant files, and reclaim gigabytes of storage safely.
+DiskSweepr helps you audit drive capacity, purge disposable system and browser caches, hunt down massive or duplicate files, clean dormant developer build artifacts, and recover deleted files — all wrapped in a fast, distraction-free dark interface.
 
 ---
 
-## Downloads
+## Downloads (v1.1.0)
 
 | Package | Size | Description |
 |---|---|---|
-| [**DiskSweepr-Web-Setup.exe**](https://github.com/bimbap/disksweepr/releases/latest/download/DiskSweepr-Web-Setup.exe) | **~717 KB** | **Recommended**. Ultra-lightweight bootstrap installer. Launches in 0.01s, features a modern Raycast dark UI, and downloads the latest release automatically. |
-| [**DiskSweepr-Setup-1.1.0.exe**](https://github.com/bimbap/disksweepr/releases/latest/download/DiskSweepr-Setup-1.1.0.exe) | ~91.7 MB | **Offline Installer**. Full standalone setup wizard with custom directory selector, start menu/desktop shortcuts, and official Windows uninstaller. |
-| [**DiskSweepr-Portable-1.1.0.exe**](https://github.com/bimbap/disksweepr/releases/latest/download/DiskSweepr-Portable-1.1.0.exe) | ~83.0 MB | **Portable**. Zero installation required. Runs directly from any folder or USB drive with cached runtime for instant launch. |
+| [**DiskSweepr-Web-Setup.exe**](https://github.com/bimbap/disksweepr/releases/latest/download/DiskSweepr-Web-Setup.exe) | **~540 KB** | **Recommended**. Ultra-lightweight online bootstrap installer. Opens instantly (`0.01s`) and automatically downloads and installs the latest release. |
+| [**DiskSweepr-Setup-1.1.0.exe**](https://github.com/bimbap/disksweepr/releases/latest/download/DiskSweepr-Setup-1.1.0.exe) | ~91.8 MB | **Offline Installer**. Full standalone setup wizard with custom directory selection, desktop/start menu shortcuts, and official Windows uninstaller. |
+| [**DiskSweepr-Portable-1.1.0.exe**](https://github.com/bimbap/disksweepr/releases/latest/download/DiskSweepr-Portable-1.1.0.exe) | ~82.9 MB | **Portable**. Zero installation required. Runs directly from any folder or USB drive with cached runtime for fast launch. |
 
 ---
 
 ## Key Features
 
-- **System Junk Cleaner**: Granular risk-rated purging across 14 categories including Windows Update cache, temp directories, delivery optimization remnants, crash dumps, and browser caches (Chrome, Edge, Brave).
-- **Multi-Drive Telemetry**: Dynamic drive partition selector (C:, D:, M:) with live capacity meters and partition-aware rules.
-- **Large Files Hunter**: Deep drive scan detecting space hogs exceeding 100MB, 300MB, 500MB, or 1GB with interactive size gauges and one-click "Reveal in Explorer".
-- **Developer Workspace Cleaner**: Scans local Git workspaces for dormant `node_modules`, `.next`, `dist`, and `build` folders untouched for over 30 days.
-- **Running Apps Guard**: Non-intrusive process inspection detecting open browsers or tools (Chrome, Discord, VS Code) to prevent file-lock conflicts, with options to purge safely or close targets.
-- **Persistent Audit Ledger**: Local history tracker logging lifetime reclaimed disk space, purge timestamps, and exportable JSON/TXT reports.
-- **Windows Integration**: Native Windows uninstaller registered in Windows Settings, Windows 11 rounded corners, and single-instance process locking.
+- **System Junk & Cache Cleaner**: Risk-rated cleanup across 14 categories including Windows Update cache, temporary directories, crash dumps, thumbnail databases, and web browser caches (Chrome, Edge, Brave, Firefox) with granular per-file selection.
+- **Fast Search**: Instant file and folder search across individual partitions or your entire PC with size, category, and entity filters.
+- **Large Files Hunter**: Deep scan for space-hogging files (`>100 MB` up to `>5 GB` or custom thresholds) with visual size bars, batch deletion, and Windows Explorer right-click integration (*"Scan with DiskSweepr"*).
+- **Duplicate Files Hunter**: Multi-drive, hash-verified duplicate detection with one-click *"Keep Newest"* or *"Keep Oldest"* selection helpers and accidental deletion safeguards.
+- **Developer Workspace Cleaner**: Scans project directories for dormant build artifacts and dependencies (`node_modules`, `.next`, `dist`, `build`, `target`, `.turbo`) with inactivity indicators.
+- **System Power Tools**:
+  - **WSL2 & Docker VHDX Shrinker**: Compacts bloated virtual disk images (`.vhdx`) to reclaim unused host storage.
+  - **Empty Folders Sweeper**: Detects and prunes empty directory trees while protecting system and user root folders.
+  - **DISM Component Store Analyzer**: Audits and cleans superseded Windows Update packages (`WinSxS`).
+- **File Recovery & Undelete**:
+  - **Recycle Bin Manager**: Inspect, filter, restore, or permanently purge items across all mounted drives with original path and deletion date tracking.
+  - **Deep Recovery**: Scans drives for orphaned or unlinked file remnants across documents, images, media, and archives.
+- **Audit History & Telemetry**: Tracks lifetime reclaimed storage and cleaned file counts with detailed session logs exportable to `.TXT` or `.JSON`.
+- **Bilingual & Customizable**: Supports English (`EN`) and Bahasa Indonesia (`ID`), dark/light themes, Running Apps lock detection, and Windows Explorer context menu integration.
 
 ---
 
-## Architecture & Tech Stack
+## System Requirements
 
-- **Runtime**: Electron 34 + Node.js 22
-- **Frontend**: React 19, TypeScript 5.7, Vite 6, Tailwind-inspired CSS
-- **Icons**: Lucide React
-- **Installer Tooling**: NSIS Modern UI 2 + Native C# Bootstrap Launcher (.NET 4.0/4.8 compatible)
-
----
-
-## Development
-
-```bash
-# Clone the repository
-git clone https://github.com/bimbap/disksweepr.git
-cd disksweepr
-
-# Install dependencies
-npm install
-
-# Run in development mode
-npm run dev
-
-# Run unit tests
-npm test
-
-# Build production binaries
-npm run build
-npm run dist
-```
+- **OS**: Windows 10 or Windows 11 (64-bit)
+- **Privileges**: Standard user (Administrator elevation recommended for Windows Update cache, DISM cleanup, and VHDX compaction)
 
 ---
 
 ## License
 
 MIT License. Designed and built by **Ibrahim Muliatama**.
-

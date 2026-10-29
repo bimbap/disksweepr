@@ -1,12 +1,12 @@
 # Product Requirements Document (PRD)
-## Project: Windows System Cleaner (Codename: Cleaner)
+## Project: DiskSweepr (Official Name: DiskSweepr, Codename: Cleaner)
 
 ---
 
 ## 1. Executive Summary
-**Cleaner** is a sleek, modern, and safety-first Windows disk utility designed to reclaim significant storage space by scanning and purging accumulated junk files, obsolete caches, crash dumps, and temporary installation data. 
+**DiskSweepr** is a sleek, modern, and safety-first Windows disk utility designed to reclaim significant storage space by scanning and purging accumulated junk files, obsolete caches, crash dumps, and temporary installation data. 
 
-Unlike bloated legacy utilities, Cleaner operates transparently: it provides instant visual feedback, granular risk-rated categorization, detailed file previews, and a zero-nonsense dark minimalist UI inspired by modern developer tools (Linear, Raycast).
+Unlike bloated legacy utilities, DiskSweepr operates transparently: it provides instant visual feedback, granular risk-rated categorization, per-file exclusion controls, detailed file previews, and a zero-nonsense dark minimalist UI inspired by modern developer tools (Linear, Raycast).
 
 ---
 
@@ -63,11 +63,12 @@ When targeting non-system drives, Cleaner dynamically shifts its rule registry t
    * Clear tree/card view grouped by domain (System, Browsers, Applications, Developer).
    * Live size counters formatted in human-readable units (MB, GB) and total file counts.
    * Safety badge indicator (`Safe`, `Recommended`, `Caution`).
-4. **Inspectable Item Previews**:
-   * Drill-down modal showing actual file paths, individual sizes, and last modified dates before committing to deletion.
-   * "Open in Explorer" button to inspect file location natively.
+4. **Inspectable Item Previews & Per-File Selection**:
+   * Expandable category drawer showing actual file paths, individual sizes, and pagination (`20` items/page) without nested scrollbars.
+   * Per-file checkboxes allowing users to include or exclude specific files inside any category before committing to deletion.
+   * "Reveal in Explorer" button to inspect file location natively.
 5. **Resilient & Safe Purge Engine**:
-   * Graceful skipping of locked files (`EBUSY`, `EPERM`) with clear post-clean summary.
+   * Graceful skipping of locked files (`EBUSY`, `EPERM`) and user-excluded files (`excludedFilePaths`) with clear post-clean summary.
    * Whitelist / exclusion rules for user-specified paths or file extensions.
    * Native Windows Recycle Bin emptying API integration (`Clear-RecycleBin -DriveLetter`).
    * Safe empty directory pruning that strictly preserves root drive boundaries.
@@ -75,35 +76,34 @@ When targeting non-system drives, Cleaner dynamically shifts its rule registry t
    * Visual gauge showing selected drive capacity, current used space, and projected free space post-cleanup.
    * Post-cleanup completion screen showing total space recovered and elapsed processing time.
 7. **Modular Suite Navigation & 8 Core Modules**:
-   * Ultra-slim EaseUS CleanGenius inspired navigation rail (72px) with obsidian frosted styling.
-   * **Module 1: System Junk & Cache Cleaner**: Step-by-step setup hero -> live scan -> bento audit cards -> clean with tactile switches.
-   * **Module 2: Hefty Large Files Hunter**: Deep scan detecting files exceeding thresholds (`>100MB`, `>300MB`, `>500MB`, `>1GB`) with scale meters and batch delete.
-   * **Module 3: Fast Search (Pencarian Kilat)**: Blazing-fast whole-drive directory crawler with entity filters (`all`, `files`, `folders`) and instant name matching.
+   * Ultra-slim EaseUS CleanGenius inspired navigation rail (72px) with obsidian frosted styling and dynamic window titles (`DiskSweepr - <Feature Name>`).
+   * **Module 1: System Junk & Cache Cleaner**: Step-by-step setup hero -> live scan -> expandable audit tree with per-item checkboxes & pagination -> clean confirmation.
+   * **Module 2: Hefty Large Files Hunter**: Deep scan detecting files exceeding thresholds (`>100MB`, `>300MB`, `>500MB`, `>1GB`) with scale meters, batch delete, and Windows Explorer right-click integration (`Scan with DiskSweepr`).
+   * **Module 3: Fast Search**: Blazing-fast whole-drive directory crawler with entity filters (`all`, `files`, `folders`) and instant name matching.
    * **Module 4: Duplicate Hunter**: Multi-drive hash-verified file comparison with quick action retention ("Keep Oldest", "Keep Newest").
    * **Module 5: Dormant Dev Workspaces Cleaner**: Audits local git projects for dormant build artifacts (`node_modules`, `.next`, `dist`, `target`).
-   * **Module 6: Power Tools**: Prunes truly empty directory trees and runs DISM Windows Component Store cleanup.
-   * **Module 7: Audit History Ledger**: Lifetime space reclaimed statistics, file purge tallies, and JSON/TXT log export.
-   * **Module 8: File Recovery & Undelete (Pemulihan File)**:
-     * *Tab 1: Windows Recycle Bin Manager*: Native COM `Shell.Application` integration displaying deleted items, original paths, and dates, with single/batch restoration and permanent purge.
-     * *Tab 2: Deep Recovery Engine*: Audits unlinked/orphaned file remnants on target partitions across categories (`images`, `documents`, `media`, `archives`) with destination folder extraction.
-8. **Enterprise-Grade Installer & Uninstaller**:
-   * NSIS Installer Wizard (`Cleaner Setup 1.0.0.exe`) with custom installation directory choice.
-   * Registered Windows Uninstaller (`Uninstall Cleaner.exe`) accessible via Windows Settings -> Installed Apps.
-   * Full AppData & temporary cache purge upon uninstallation (`deleteAppDataOnUninstall: true`).
-   * Standalone Portable Binary (`Cleaner-Portable-1.0.0.exe`) with zero registry footprint.
+   * **Module 6: Power Tools**: Prunes truly empty directory trees, compacts WSL2/Docker `.vhdx` virtual disks, and runs DISM Windows Component Store cleanup.
+   * **Module 7: Audit History Ledger**: Lifetime space reclaimed statistics, file purge tallies, category filter pills, and JSON/TXT log export.
+   * **Module 8: File Recovery & Undelete**:
+     * *Tab 1: Windows Recycle Bin Manager*: Native COM `Shell.Application` integration displaying deleted items, original paths, and deletion timestamps, with single/batch restoration and permanent purge.
+     * *Tab 2: Deep Recovery Engine*: Audits unlinked/orphaned file remnants on target partitions across categories (`images`, `documents`, `media`, `archives`) with sortable Last Modified timestamps and destination folder extraction.
+8. **Enterprise-Grade Installer, Portable & Web Bootstrap**:
+   * Web Bootstrap Installer (`DiskSweepr-Web-Setup.exe`) with instant launch (`0.01s`), Raycast dark UI, and automated download/silent install from GitHub Releases.
+   * NSIS Installer Wizard (`DiskSweepr-Setup-1.1.0.exe`) with custom installation directory choice and official Windows Uninstaller.
+   * Standalone Portable Binary (`DiskSweepr-Portable-1.1.0.exe`) with persistent runtime cache (`unpackDirName: "DiskSweepr-Runtime"`) and route-level code-splitting for instant warm startup.
 
 ---
 
 ## 5. Non-Functional Requirements
-* **Startup Time**: App launch in under 1.5 seconds.
+* **Startup Time**: App launch in under 1.5 seconds (and <0.5s warm launch on Portable).
 * **Scan Latency**: Quick scan completes within 3–8 seconds on standard NVMe SSDs.
 * **Memory Footprint**: Strict memory ceiling < 120MB during peak scan.
-* **Safety & Data Integrity**: Zero deletion of user personal files (`Documents`, `Desktop`, `Downloads`, `Pictures`). Strict boundary sanitization.
-* **UX/Aesthetic**: EaseUS CleanGenius layout with Linear/Raycast dark minimalism. Lucide vector icons, tactile toggle switches, responsive bento grid.
+* **Safety & Data Integrity**: Zero automatic deletion of user personal folders (`Documents`, `Desktop`, `Downloads`, `Pictures`). Strict boundary sanitization.
+* **UX/Aesthetic**: EaseUS CleanGenius layout with Linear/Raycast dark minimalism, English default language (`EN` / `ID` toggle), Lucide vector icons, and responsive tables.
 
 ---
 
 ## 6. Release Milestones & Artifacts
-* **Portable Release**: `release/Cleaner-Portable-1.0.0.exe` (Single-file zero-install executable).
-* **Setup Installer**: `release/Cleaner Setup 1.0.0.exe` (NSIS Wizard with registered uninstaller and AppData cleaner).
-* **Unpacked Build**: `release/win-unpacked/Cleaner.exe` for instant local execution and testing.
+* **Web Bootstrap Release**: `release/DiskSweepr-Web-Setup.exe` (~540 KB online installer).
+* **Setup Installer**: `release/DiskSweepr-Setup-1.1.0.exe` (~91.8 MB NSIS Wizard with registered uninstaller).
+* **Portable Release**: `release/DiskSweepr-Portable-1.1.0.exe` (~82.9 MB single-file zero-install executable).

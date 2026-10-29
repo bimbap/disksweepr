@@ -1,5 +1,5 @@
 # Architecture Document
-## Project: Windows System Cleaner (Codename: Cleaner)
+## Project: DiskSweepr (Official Name: DiskSweepr, Codename: Cleaner)
 
 ---
 
@@ -70,7 +70,10 @@ The Main Process executes privileged operating system operations across modular 
 9. **Recovery & Undelete Service (`recoveryService.ts`)**:
    * **Recycle Bin Manager**: Communicates with native Windows COM via `Shell.Application` Namespace 10. Reads original paths and deletion timestamps, restores items using native verb `"Restore"`, and purges permanently via `"Delete"` verb or `Clear-RecycleBin -Force`.
    * **Deep File Recovery**: Scrapes orphaned / unlinked file remnants and slack remnants on target volumes, categorizing into `images`, `documents`, `media`, and `archives`. Recovers selected items into a user-specified destination folder.
-10. **Drive Telemetry (`systemService.ts`)**:
+10. **Windows Explorer Context Menu (`contextMenuService.ts`)**:
+    * Registers/unregisters `"Scan with DiskSweepr"` in `HKCU\Software\Classes\Directory\shell\DiskSweepr`, `Directory\Background\shell\DiskSweepr`, and `Drive\shell\DiskSweepr`.
+    * Passes target directory path via CLI arguments (`parsePathArg` in `src/main/index.ts`) and focuses existing instance via `second-instance` event.
+11. **Drive Telemetry (`telemetryService.ts`)**:
     * Queries mounted drive capacities, volume labels, and current free space via Windows WMI/CIM `Win32_LogicalDisk` and PowerShell.
 
 ### 2.2 Preload Script (`src/preload/`)
@@ -82,10 +85,10 @@ export interface CleanerApi {
   openPathInExplorer(targetPath: string): Promise<void>;
   
   // Module 1: System Junk Cleaner
-  startScan(categoryIds?: string[]): Promise<ScanResult>;
+  startScan(options?: ScanOptions): Promise<ScanResult>;
   cancelScan(): Promise<void>;
   onScanProgress(callback: (progress: ScanProgress) => void): () => void;
-  startClean(categoryIds: string[]): Promise<CleanReport>;
+  startClean(categoryIds: string[], excludedFilePaths?: string[]): Promise<CleanReport>;
   onCleanProgress(callback: (progress: CleanProgress) => void): () => void;
   
   // Module 2: Large Files Hunter
@@ -126,11 +129,13 @@ export interface CleanerApi {
 
 ### 2.3 Renderer Process (`src/renderer/`)
 * Completely isolated from direct Node.js APIs.
+* Uses route-level `React.lazy` code-splitting (`Suspense` in `App.tsx`) so only `TitleBar`, `NavRail`, and `SystemCleanupView` are parsed on initial launch, while the 7 secondary modules load on demand.
+* Dynamically synchronizes `document.title` (`DiskSweepr - <Feature Name>`) per active module and language for clear Windows `Alt+Tab` identification.
 * Manages UI state:
-  * Current step: `IDLE` -> `SCANNING` -> `AUDIT_READY` -> `CLEANING` -> `COMPLETED`.
-  * Category toggle selections.
+  * Current step: `IDLE` -> `SCANNING` -> `SCANNED` -> `CLEANING` -> `COMPLETED`.
+  * Category & granular per-file toggle selections (`excludedPaths`).
   * Real-time scan / purge progress animation.
-  * Drill-down modal for inspecting file lists.
+  * Paginated expandable drawer (`20` files/page) for inspecting and excluding individual files.
 
 ---
 

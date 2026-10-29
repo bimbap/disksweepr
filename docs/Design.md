@@ -1,5 +1,5 @@
 # Visual Design System
-## Project: Windows System Cleaner (Codename: Cleaner)
+## Project: DiskSweepr (Official Name: DiskSweepr, Codename: Cleaner)
 
 ---
 
@@ -80,17 +80,17 @@ font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 * App logo and title.
 
 ### 4.2 Ultra-Slim Left Nav Rail (`NavRail`) — EaseUS CleanGenius Inspired
-* Fixed width of `72px` positioned on the left edge.
+* Fixed width of `72px` positioned on the left edge, vertically scrollable (`overflow-y: auto; min-height: 0;`) on compact windows (`minWidth: 680, minHeight: 400`) using the global dark custom `::-webkit-scrollbar` (never `scrollbar-width: thin`).
 * Module items stacked vertically:
-  * 🧹 **Pembersih (Cleanup)**: System junk and cache cleaner.
-  * 🔍 **Pencarian Kilat (Fast Search)**: Instant filesystem search across drives.
-  * 🐋 **File Besar (Large Files)**: Deep drive scan for hefty files (>100MB to >1GB).
-  * 📑 **File Duplikat (Duplicate Hunter)**: Hash-based duplicate file scanner across drives.
-  * ⚡ **Workspace Dev (Dev Repos)**: Node modules & build artifact hunter.
-  * 🛠️ **Power Tools**: Windows system tools (Prune Empty Folders, DISM Component Store, etc.).
-  * 🔄 **Pemulihan File (Recovery & Undelete)**: Recycle Bin manager & Deep file undelete scraper.
-  * 📜 **Riwayat (History)**: Historical audit log of reclaimed storage.
-* Interactive active indicator with left accent bar and emerald icon glow.
+  * 🧹 **Cleanup (`system`)**: System junk and cache cleaner (default landing module).
+  * 🔍 **Fast Search (`fast_search`)**: Instant filesystem search across drives.
+  * 🐋 **Large Files (`large_files`)**: Deep drive scan for hefty files (>100MB to >5GB).
+  * 📑 **Duplicates (`duplicates`)**: Hash-based duplicate file scanner across drives.
+  * ⚡ **Dev Repos (`dev_projects`)**: Node modules & build artifact hunter.
+  * 🛠️ **Power Tools (`tools`)**: Windows system tools (WSL2/Docker VHDX Shrinker, Empty Folders Sweeper, DISM Component Store).
+  * 🔄 **File Recovery (`recovery`)**: Recycle Bin manager & Deep file undelete scraper.
+  * 📜 **History (`history`)**: Historical audit log of reclaimed storage.
+* Interactive active indicator with left accent bar and cyan/emerald icon glow.
 
 ### 4.3 Progressive Step-by-Step Cleanup Canvas (`SystemCleanupView`)
 * **Stage 1 (Hero Setup)**:
@@ -102,11 +102,11 @@ font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   * Right-hand clean graphic illustration with monitor & cleaner motif.
 * **Stage 2 (Scanning)**:
   * Animated progress bar and path tracker showing current files being scanned.
-* **Stage 3 (Audit Review & Bento Grid)**:
-  * Top summary banner displaying total reclaimable space.
-  * Responsive bento cards with domain-specific Lucide icons (`Globe`, `Code2`, `Flame`, etc.), risk pills, and tactile toggle switches.
-  * "Inspect" button to preview individual queued files.
-  * "Clean Selected" CTA button.
+* **Stage 3 (Audit Review & Expandable Tree)**:
+  * Top summary banner displaying total reclaimable space and selected file count.
+  * Grouped category cards (`ScannedResultTree`) with domain-specific Lucide icons (`Globe`, `Code2`, `Flame`, `Film`, etc.), risk pills, and checkboxes (with indeterminate `<Minus />` state when partially selected).
+  * Expandable drawer showing individual files with per-file checkboxes (`onToggleFile`), Explorer reveal buttons, bidirectional sorting (`name`, `size`), and standard pagination (`20` files per page, zero nested scrollbars).
+  * "Clean" CTA button opening `ConfirmCleanModal`.
 * **Stage 4 (Purging)**:
   * Real-time file deletion tracker with smooth completion percentage.
 * **Stage 5 (Summary Celebration)**:

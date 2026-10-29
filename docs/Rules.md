@@ -1,5 +1,5 @@
 # Engineering Rules & Safety Guardrails
-## Project: Windows System Cleaner (Codename: Cleaner)
+## Project: DiskSweepr (Official Name: DiskSweepr, Codename: Cleaner)
 
 ---
 
@@ -102,3 +102,6 @@ To avoid UI anomalies and stop re-implementing visual components from scratch, e
 7. **Zero Fake Clean States**:
    * If an item list is empty because an active search/filter yielded 0 matches, display a dedicated search-empty card with a 1-click `"Reset Filter"` button.
    * Never display `"System is clean"` or `"Recycle bin is clean"` when items actually exist but are filtered out by a search query.
+
+8. **Custom Dark Scrollbar Compatibility**:
+   * Never apply CSS standard `scrollbar-width: thin` or `scrollbar-color` on scrollable containers, as Chromium disables `::-webkit-scrollbar` pseudo-elements when standard properties are present and falls back to native light OS scrollbars. Always rely on `::-webkit-scrollbar` rules.
