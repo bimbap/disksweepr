@@ -508,6 +508,22 @@ foreach ($item in $items) {
       return allowedExts.has(ext.toLowerCase());
     };
 
+    // Exclude any items that are currently sitting in the active Recycle Bin (Tab 1)
+    // so Deep Recovery (Tab 2) strictly lists permanently deleted / unindexed remnants
+    const activeRecyclePaths = new Set<string>();
+    const activeRecycleOrigPaths = new Set<string>();
+    try {
+      const activeBinItems = await this.getRecycleBinItems();
+      for (const rbItem of activeBinItems) {
+        if (rbItem.path) activeRecyclePaths.add(path.resolve(rbItem.path).toLowerCase());
+        if (rbItem.originalFullPath) {
+          activeRecycleOrigPaths.add(path.resolve(rbItem.originalFullPath).toLowerCase());
+        }
+      }
+    } catch {
+      // Ignore error fetching active bin items
+    }
+
     // =========================================================================
     // STAGE 1: Raw NTFS $MFT Deleted File Record Scanner (`\\.\X:`)
     // =========================================================================
@@ -520,6 +536,7 @@ foreach ($item in $items) {
         signal,
         results,
         seenKeys,
+        activeRecycleOrigPaths,
         (curPath, count) => {
           scannedFilesCount += count;
           emitProgress(curPath);
@@ -528,7 +545,7 @@ foreach ($item in $items) {
     }
 
     // =========================================================================
-    // STAGE 2: Deep $Recycle.Bin SID Container & Orphaned $R/$I Remnant Scanner
+    // STAGE 2: Orphaned $Recycle.Bin $R Remnants (ONLY items NOT in active Recycle Bin)
     // =========================================================================
     if (!signal.aborted && results.length < maxResults) {
       const recycleRoot = path.join(driveRoot, '$Recycle.Bin');
@@ -540,6 +557,7 @@ foreach ($item in $items) {
         signal,
         results,
         seenKeys,
+        activeRecyclePaths,
         (curPath) => {
           scannedFilesCount++;
           emitProgress(curPath);
@@ -572,6 +590,9 @@ foreach ($item in $items) {
   /**
    * Opens raw NTFS volume `\\.\X:` (requires Administrator privileges) and reads the Master File Table ($MFT)
    * to find deleted file records (Flags == 0x0000) whose clusters are still recoverable on disk.
+   * Uses a two-pass strategy:
+   * - Pass 1: Scans MFT runs to build the directory tree map (recordNumber -> {name, parent}) AND collect deleted file records.
+   * - Pass 2: Resolves full folder paths for all collected deleted records using the complete directory map!
    */
   private async scanNtfsMftDeletedRecords(
     driveLetter: string,
@@ -581,6 +602,7 @@ foreach ($item in $items) {
     signal: AbortSignal,
     results: DeepRecoveryItem[],
     seenKeys: Set<string>,
+    activeRecycleOrigPaths: Set<string>,
     onTick: (curPath: string, recordsScanned: number) => void
   ): Promise<void> {
     const cleanDrive = driveLetter.replace(/[:\\/]+$/, '').toUpperCase() + ':';
@@ -595,9 +617,9 @@ foreach ($item in $items) {
         });
       });
 
-      // Read NTFS Boot Sector (first 512 bytes)
-      const bootSector = Buffer.alloc(512);
-      const { bytesRead: bootRead } = await this.readRawBytes(fd, bootSector, 0, 512, 0);
+      // Read NTFS Boot Sector (4096-byte aligned buffer for raw volume compatibility)
+      const bootSector = Buffer.alloc(4096);
+      const { bytesRead: bootRead } = await this.readRawBytes(fd, bootSector, 0, 4096, 0);
       if (bootRead < 512) return;
 
       const oemId = bootSector.toString('ascii', 3, 7);
@@ -612,34 +634,35 @@ foreach ($item in $items) {
 
       const mftByteOffset = mftStartCluster * bytesPerCluster;
 
-      // Read Record 0 ($MFT itself) to get the runlist of the entire $MFT across the drive
-      const mftRecord0 = Buffer.alloc(1024);
+      // Read Record 0 ($MFT itself) using 4096-byte aligned buffer
+      const mftRecord0Buf = Buffer.alloc(4096);
       const { bytesRead: rec0Read } = await this.readRawBytes(
         fd,
-        mftRecord0,
+        mftRecord0Buf,
         0,
-        1024,
+        4096,
         mftByteOffset
       );
-      if (rec0Read < 1024 || mftRecord0.toString('ascii', 0, 4) !== 'FILE') return;
+      if (rec0Read < 1024 || mftRecord0Buf.toString('ascii', 0, 4) !== 'FILE') return;
 
+      const mftRecord0 = mftRecord0Buf.subarray(0, 1024);
       const mftRuns = this.extractMftDataRuns(mftRecord0);
       const runsToScan =
         mftRuns.length > 0
           ? mftRuns
-          : [{ clusterOffset: mftStartCluster, clusterCount: 16384 }];
+          : [{ clusterOffset: mftStartCluster, clusterCount: 32768 }];
 
-      // First pass: map directory record numbers -> directory names (up to 40,000 records) so we can reconstruct full original paths
       const dirMap = new Map<number, { name: string; parent: number }>();
       dirMap.set(5, { name: cleanDrive, parent: 5 });
 
-      const RECORDS_PER_BATCH = 256; // 256 KB per batch read
+      const rawDeletedCandidates: DeepRecoveryItem[] = [];
+      const RECORDS_PER_BATCH = 512; // 512 KB (4096-byte aligned) per batch read
       const batchBuf = Buffer.alloc(RECORDS_PER_BATCH * 1024);
       let globalRecordIndex = 0;
-      const MAX_RECORDS_TO_SCAN = 120000;
+      const MAX_RECORDS_TO_SCAN = 250000;
 
       for (const run of runsToScan) {
-        if (signal.aborted || results.length >= maxResults || globalRecordIndex >= MAX_RECORDS_TO_SCAN) {
+        if (signal.aborted || globalRecordIndex >= MAX_RECORDS_TO_SCAN) {
           break;
         }
 
@@ -648,22 +671,26 @@ foreach ($item in $items) {
         const totalRecordsInRun = Math.floor(runTotalBytes / 1024);
 
         for (let recInRun = 0; recInRun < totalRecordsInRun; recInRun += RECORDS_PER_BATCH) {
-          if (
-            signal.aborted ||
-            results.length >= maxResults ||
-            globalRecordIndex >= MAX_RECORDS_TO_SCAN
-          ) {
+          if (signal.aborted || globalRecordIndex >= MAX_RECORDS_TO_SCAN) {
             break;
           }
 
           const recordsToRead = Math.min(RECORDS_PER_BATCH, totalRecordsInRun - recInRun);
-          const bytesToRead = recordsToRead * 1024;
+          // Align read length to 4096 bytes
+          const bytesToRead = Math.ceil((recordsToRead * 1024) / 4096) * 4096;
+          if (bytesToRead > batchBuf.length) break;
           const readPos = runStartByte + recInRun * 1024;
 
-          const { bytesRead } = await this.readRawBytes(fd, batchBuf, 0, bytesToRead, readPos);
+          let bytesRead = 0;
+          try {
+            const res = await this.readRawBytes(fd, batchBuf, 0, bytesToRead, readPos);
+            bytesRead = res.bytesRead;
+          } catch {
+            break;
+          }
           if (bytesRead < 1024) break;
 
-          const actualRecords = Math.floor(bytesRead / 1024);
+          const actualRecords = Math.min(recordsToRead, Math.floor(bytesRead / 1024));
           onTick(
             `${cleanDrive}\\$MFT (Scanning sector record #${globalRecordIndex.toLocaleString()})`,
             actualRecords
@@ -678,8 +705,8 @@ foreach ($item in $items) {
 
             const flags = slice.readUInt16LE(22);
 
-            // Cache directory names (0x03 = Active Directory, 0x02 = Deleted Directory) for path resolution
-            if ((flags === 0x0003 || flags === 0x0002) && dirMap.size < 50000) {
+            // Always cache directory names (0x03 = Active Dir, 0x02 = Deleted Dir) so Pass 2 can resolve any parent folder!
+            if ((flags === 0x0003 || flags === 0x0002) && dirMap.size < 100000) {
               const dirInfo = this.extractQuickFileNameAndParent(slice);
               if (dirInfo && !dirInfo.name.startsWith('$')) {
                 dirMap.set(currentRecNum, dirInfo);
@@ -687,8 +714,8 @@ foreach ($item in $items) {
               continue;
             }
 
-            // 0x0000 = Deleted File Record!
-            if (flags === 0x0000) {
+            // 0x0000 = Permanently Deleted File Record!
+            if (flags === 0x0000 && rawDeletedCandidates.length < maxResults * 4) {
               const parsedItem = parseDeletedNtfsMftRecord(
                 slice,
                 currentRecNum,
@@ -696,38 +723,59 @@ foreach ($item in $items) {
                 bytesPerCluster
               );
               if (!parsedItem) continue;
-
               if (!matchesCategory(parsedItem.extension)) continue;
 
-              // Resolve parent directory chain if available in dirMap
-              const resolvedParent = this.resolveParentPathFromMft(
-                parsedItem.originalPath,
-                dirMap,
-                cleanDrive
-              );
-              parsedItem.originalPath = path.join(resolvedParent, parsedItem.name);
+              // Skip Recycle Bin metadata headers ($Ixxxxxx)
+              if (parsedItem.name.startsWith('$I') && parsedItem.name.length === 8) continue;
 
-              // If user selected a specific subfolder scope, filter by that prefix
-              if (scopePrefix) {
-                const normOrig = parsedItem.originalPath.toLowerCase();
-                const normScope = scopePrefix.toLowerCase();
-                if (!normOrig.startsWith(normScope)) continue;
-              }
-
-              // Crucial Check: If a live file with the exact same path still exists on disk, skip it!
-              if (fs.existsSync(parsedItem.originalPath)) continue;
-
-              const dedupKey = `${parsedItem.originalPath.toLowerCase()}_${parsedItem.sizeBytes}`;
-              if (seenKeys.has(dedupKey)) continue;
-              seenKeys.add(dedupKey);
-
-              results.push(parsedItem);
-              if (results.length >= maxResults) break;
+              rawDeletedCandidates.push(parsedItem);
             }
           }
 
           globalRecordIndex += actualRecords;
         }
+      }
+
+      // Pass 2: Resolve complete parent folder paths now that dirMap has all directories across the MFT
+      // Sort most recently modified/deleted first so recently deleted files appear at the top
+      rawDeletedCandidates.sort((a, b) => (b.modifiedTime || 0) - (a.modifiedTime || 0));
+
+      for (const candidate of rawDeletedCandidates) {
+        if (results.length >= maxResults) break;
+
+        const resolvedParent = this.resolveParentPathFromMft(
+          candidate.originalPath,
+          dirMap,
+          cleanDrive
+        );
+        candidate.originalPath = path.join(resolvedParent, candidate.name);
+
+        // Skip internal browser/system temp cache noise unless user specifically scanned that folder
+        const lowerOrig = candidate.originalPath.toLowerCase();
+        if (
+          !scopePrefix &&
+          (lowerOrig.includes('\\appdata\\local\\temp\\') ||
+            lowerOrig.includes('\\cache\\cache_data\\') ||
+            lowerOrig.includes('\\code cache\\') ||
+            lowerOrig.includes('\\gpucache\\') ||
+            lowerOrig.includes('\\$recycle.bin\\'))
+        ) {
+          continue;
+        }
+
+        if (scopePrefix && !lowerOrig.startsWith(scopePrefix.toLowerCase())) {
+          continue;
+        }
+
+        // Skip if a live file or active Recycle Bin item already exists for this path
+        if (fs.existsSync(candidate.originalPath)) continue;
+        if (activeRecycleOrigPaths.has(lowerOrig)) continue;
+
+        const dedupKey = `${lowerOrig}_${candidate.sizeBytes}`;
+        if (seenKeys.has(dedupKey)) continue;
+        seenKeys.add(dedupKey);
+
+        results.push(candidate);
       }
     } catch {
       // Raw volume access requires Administrator privileges or NTFS filesystem; silently continue to fallback scanners
@@ -867,8 +915,8 @@ foreach ($item in $items) {
   }
 
   /**
-   * Scans all SID subdirectories inside `<Drive>:\$Recycle.Bin` for deleted `$R*` payloads
-   * and parses their paired `$I*` metadata binary headers to recover original filenames and paths.
+   * Scans all SID subdirectories inside `<Drive>:\$Recycle.Bin` ONLY for orphaned `$R*` payloads
+   * that are NOT present in the active Windows Recycle Bin (Tab 1).
    */
   private async scanDeepRecycleBinRemnants(
     recycleRoot: string,
@@ -878,6 +926,7 @@ foreach ($item in $items) {
     signal: AbortSignal,
     results: DeepRecoveryItem[],
     seenKeys: Set<string>,
+    activeRecyclePaths: Set<string>,
     onTick: (curPath: string) => void
   ): Promise<void> {
     if (!fs.existsSync(recycleRoot)) return;
@@ -904,6 +953,12 @@ foreach ($item in $items) {
         }
 
         if (!entry.isFile() || !entry.name.startsWith('$R')) continue;
+
+        // Skip if this item is already displayed in Tab 1 (Active Recycle Bin Manager)
+        if (activeRecyclePaths.has(path.resolve(fullPath).toLowerCase())) {
+          continue;
+        }
+
         onTick(fullPath);
 
         try {

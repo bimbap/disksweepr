@@ -316,6 +316,7 @@ namespace DiskSweeprWebSetup
         private ModernButton btnChangePath;
         private ModernCheckBox chkDesktop;
         private ModernCheckBox chkStart;
+        private ModernCheckBox chkContextMenu;
         private ModernButton btnInstall;
         private Label lblStatus;
         private Label lblPercent;
@@ -332,7 +333,7 @@ namespace DiskSweeprWebSetup
 
         public ModernWebInstaller()
         {
-            this.Size = new Size(520, 420);
+            this.Size = new Size(520, 444);
             this.FormBorderStyle = FormBorderStyle.None;
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = bg;
@@ -346,7 +347,7 @@ namespace DiskSweeprWebSetup
             }
             catch { }
 
-            installDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "DiskSweepr");
+            installDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "DiskSweepr");
             existingUninstallerPath = DetectExistingInstallation();
 
             LoadEmbeddedIcon();
@@ -355,27 +356,39 @@ namespace DiskSweeprWebSetup
 
         private string DetectExistingInstallation()
         {
-            try
+            string[] uninstallRoots = new string[]
             {
-                using (var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\com.disksweepr.app"))
+                @"Software\Microsoft\Windows\CurrentVersion\Uninstall\com.disksweepr.app",
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\com.disksweepr.app"
+            };
+
+            foreach (var root in new Microsoft.Win32.RegistryKey[] { Microsoft.Win32.Registry.LocalMachine, Microsoft.Win32.Registry.CurrentUser })
+            {
+                foreach (var subPath in uninstallRoots)
                 {
-                    if (key != null)
+                    try
                     {
-                        object loc = key.GetValue("InstallLocation");
-                        if (loc != null && Directory.Exists(loc.ToString()))
+                        using (var key = root.OpenSubKey(subPath))
                         {
-                            installDir = loc.ToString();
-                        }
-                        object uninst = key.GetValue("UninstallString");
-                        if (uninst != null)
-                        {
-                            string p = uninst.ToString().Replace("\"", "").Trim();
-                            if (File.Exists(p)) return p;
+                            if (key != null)
+                            {
+                                object loc = key.GetValue("InstallLocation");
+                                if (loc != null && Directory.Exists(loc.ToString()))
+                                {
+                                    installDir = loc.ToString();
+                                }
+                                object uninst = key.GetValue("UninstallString");
+                                if (uninst != null)
+                                {
+                                    string p = uninst.ToString().Replace("\"", "").Trim();
+                                    if (File.Exists(p)) return p;
+                                }
+                            }
                         }
                     }
+                    catch { }
                 }
             }
-            catch { }
 
             string localUninst = Path.Combine(installDir, "Uninstall DiskSweepr.exe");
             if (File.Exists(localUninst)) return localUninst;
@@ -494,19 +507,27 @@ namespace DiskSweeprWebSetup
             chkDesktop = new ModernCheckBox
             {
                 Text = "Create Desktop Shortcut",
-                Location = new Point(48, 246),
+                Location = new Point(48, 244),
                 Size = new Size(200, 24),
                 Checked = true
             };
             chkStart = new ModernCheckBox
             {
                 Text = "Add to Start Menu",
-                Location = new Point(270, 246),
+                Location = new Point(270, 244),
                 Size = new Size(200, 24),
+                Checked = true
+            };
+            chkContextMenu = new ModernCheckBox
+            {
+                Text = "Add \"Scan with DiskSweepr\" to Explorer right-click menu",
+                Location = new Point(48, 272),
+                Size = new Size(424, 24),
                 Checked = true
             };
             this.Controls.Add(chkDesktop);
             this.Controls.Add(chkStart);
+            this.Controls.Add(chkContextMenu);
 
             // Status label & Percent label
             lblStatus = new Label
@@ -514,7 +535,7 @@ namespace DiskSweeprWebSetup
                 Text = !string.IsNullOrEmpty(existingUninstallerPath)
                     ? "DiskSweepr is currently installed on this PC."
                     : "Ready to install DiskSweepr to your PC.",
-                Location = new Point(48, 286),
+                Location = new Point(48, 308),
                 Size = new Size(350, 18),
                 ForeColor = !string.IsNullOrEmpty(existingUninstallerPath) ? Color.FromArgb(56, 189, 248) : textMuted,
                 Font = new Font("Segoe UI", 8.75f)
@@ -522,7 +543,7 @@ namespace DiskSweeprWebSetup
             lblPercent = new Label
             {
                 Text = "",
-                Location = new Point(400, 286),
+                Location = new Point(400, 308),
                 Size = new Size(72, 18),
                 ForeColor = Color.FromArgb(56, 189, 248),
                 Font = new Font("Segoe UI", 8.75f, FontStyle.Bold),
@@ -534,7 +555,7 @@ namespace DiskSweeprWebSetup
             // Progress bar
             prgBar = new ModernProgressBar
             {
-                Location = new Point(48, 310),
+                Location = new Point(48, 332),
                 Size = new Size(424, 8),
                 Visible = false
             };
@@ -545,7 +566,7 @@ namespace DiskSweeprWebSetup
                 btnInstall = new ModernButton
                 {
                     Text = "Reinstall / Update",
-                    Location = new Point(48, 336),
+                    Location = new Point(48, 358),
                     Size = new Size(244, 46),
                     BorderRadius = 10,
                     NormalColor = Color.FromArgb(37, 99, 235),
@@ -559,7 +580,7 @@ namespace DiskSweeprWebSetup
                 btnUninstall = new ModernButton
                 {
                     Text = "Uninstall",
-                    Location = new Point(302, 336),
+                    Location = new Point(302, 358),
                     Size = new Size(170, 46),
                     BorderRadius = 10,
                     NormalColor = Color.FromArgb(35, 20, 25),
@@ -599,7 +620,7 @@ namespace DiskSweeprWebSetup
                 btnInstall = new ModernButton
                 {
                     Text = "Install DiskSweepr",
-                    Location = new Point(48, 336),
+                    Location = new Point(48, 358),
                     Size = new Size(424, 46),
                     BorderRadius = 10,
                     NormalColor = Color.FromArgb(37, 99, 235),
@@ -641,6 +662,7 @@ namespace DiskSweeprWebSetup
             btnChangePath.Enabled = false;
             chkDesktop.Enabled = false;
             chkStart.Enabled = false;
+            chkContextMenu.Enabled = false;
             prgBar.Visible = true;
 
             string localBeside = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DiskSweepr-Setup-1.1.0.exe");
@@ -716,6 +738,10 @@ namespace DiskSweeprWebSetup
                 prgBar.Value = 95;
             });
 
+            bool wantDesktop = chkDesktop.Checked;
+            bool wantStart = chkStart.Checked;
+            bool wantContext = chkContextMenu.Checked;
+
             BackgroundWorker bw = new BackgroundWorker();
             bw.DoWork += (s, e) =>
             {
@@ -730,6 +756,74 @@ namespace DiskSweeprWebSetup
                     };
                     Process p = Process.Start(psi);
                     p.WaitForExit();
+
+                    // Honor user checkbox choices for Desktop shortcut, Start Menu shortcut, and Explorer Context Menu
+                    if (!wantDesktop)
+                    {
+                        try
+                        {
+                            string userDesk = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "DiskSweepr.lnk");
+                            string pubDesk = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory), "DiskSweepr.lnk");
+                            if (File.Exists(userDesk)) File.Delete(userDesk);
+                            if (File.Exists(pubDesk)) File.Delete(pubDesk);
+                        }
+                        catch { }
+                    }
+
+                    if (!wantStart)
+                    {
+                        try
+                        {
+                            string userStart = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "DiskSweepr.lnk");
+                            string pubStart = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms), "DiskSweepr.lnk");
+                            if (File.Exists(userStart)) File.Delete(userStart);
+                            if (File.Exists(pubStart)) File.Delete(pubStart);
+                        }
+                        catch { }
+                    }
+
+                    string exeTarget = Path.Combine(installDir, "DiskSweepr.exe");
+                    if (wantContext && File.Exists(exeTarget))
+                    {
+                        string[] regTargets = new string[]
+                        {
+                            @"Software\Classes\Directory\shell\DiskSweepr",
+                            @"Software\Classes\Directory\Background\shell\DiskSweepr",
+                            @"Software\Classes\Drive\shell\DiskSweepr"
+                        };
+                        foreach (var rt in regTargets)
+                        {
+                            try
+                            {
+                                using (var k = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(rt))
+                                {
+                                    if (k != null)
+                                    {
+                                        k.SetValue("", "Scan with DiskSweepr");
+                                        k.SetValue("Icon", exeTarget);
+                                    }
+                                }
+                                using (var cmdKey = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(rt + @"\command"))
+                                {
+                                    if (cmdKey != null)
+                                    {
+                                        cmdKey.SetValue("", "\"" + exeTarget + "\" \"%V\"");
+                                    }
+                                }
+                            }
+                            catch { }
+                        }
+                    }
+                    else if (!wantContext)
+                    {
+                        try
+                        {
+                            Microsoft.Win32.Registry.CurrentUser.DeleteSubKeyTree(@"Software\Classes\Directory\shell\DiskSweepr", false);
+                            Microsoft.Win32.Registry.CurrentUser.DeleteSubKeyTree(@"Software\Classes\Directory\Background\shell\DiskSweepr", false);
+                            Microsoft.Win32.Registry.CurrentUser.DeleteSubKeyTree(@"Software\Classes\Drive\shell\DiskSweepr", false);
+                        }
+                        catch { }
+                    }
                 }
                 catch { }
             };
