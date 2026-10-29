@@ -105,3 +105,11 @@ To avoid UI anomalies and stop re-implementing visual components from scratch, e
 
 8. **Custom Dark Scrollbar Compatibility**:
    * Never apply CSS standard `scrollbar-width: thin` or `scrollbar-color` on scrollable containers, as Chromium disables `::-webkit-scrollbar` pseudo-elements when standard properties are present and falls back to native light OS scrollbars. Always rely on `::-webkit-scrollbar` rules.
+
+9. **Installer UI & Wizard Invariants (CRITICAL)**:
+   * **Web Installer (`web-installer/Program.cs`)**:
+     * NEVER add marketing feature badges (`Instant Scan`, `Risk Rated`, `Privacy First`) or Unicode emojis (`⚡`, `🛡️`, `🔒`) to the WinForms GDI+ canvas.
+     * ALWAYS assign `this.Text = "DiskSweepr Setup"` and `this.Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath)` on `ModernWebInstaller` so Windows Taskbar and `Alt+Tab` render the official app icon and window title.
+   * **Offline NSIS Setup (`electron-builder.json` & `build/installer.nsh`)**:
+     * NEVER set `"perMachine": true` in `electron-builder.json` (which suppresses the NSIS user-mode page). Always keep `"perMachine": false`, `"selectPerMachineByDefault": true`, and `"allowElevation": true` so the user can choose between All Users and Current User.
+     * ALWAYS preserve the `customPageAfterChangeDir` `nsDialogs` page in `build/installer.nsh` so the user can explicitly check/uncheck Desktop shortcut, Start Menu shortcut, and Windows Explorer context menu integration during setup.

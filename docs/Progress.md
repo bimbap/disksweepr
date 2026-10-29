@@ -857,6 +857,20 @@
   - Upgraded the raw volume reader in [`recoveryService.ts`](file:///m:/testProject/disksweepr/src/main/services/recoveryService.ts) to a native C# Win32 P/Invoke engine (`NtfsMftEngine`: `CreateFileW` + `SetFilePointerEx` + `ReadFile` on `\\.\X:`) to bypass Node.js/libuv `GetFileInformationByHandle` raw device limits, added deleted `$Ixxxxxx` to `$Rxxxxxx` `$MFT` record correlation (recovering original filenames and paths for files deleted after emptying the Recycle Bin), added `$FILE_NAME` (`0x30`) and cluster-run size fallbacks for deleted archives/media whose `$DATA` (`0x80`) `RealSize` was zeroed by Windows, and expanded archive extension coverage (`.zip`, `.rar`, `.7z`, `.tar`, `.gz`, `.tgz`, `.bz2`, `.xz`, `.zst`, `.iso`, `.cab`, `.wim`, `.apk`, `.jar`, `.nupkg`, `.vsix`, `.dmg`, `.img`, `.vhd`, `.vhdx`).
   - Rebuilt all three `v1.1.0` release packages (`DiskSweepr-Setup-1.1.0.exe`, `DiskSweepr-Portable-1.1.0.exe`, `DiskSweepr-Web-Setup.exe`) and verified `33/33` unit tests passing.
 
+### Phase 57: NSIS Setup Multi-User & Shortcut Options Wizard + Clean Web Installer Polish
+- [x] **Restored Multi-User Selection & Added Interactive Shortcut/Tasks Page in `DiskSweepr-Setup-1.1.0.exe`** ([`electron-builder.json`](file:///m:/testProject/disksweepr/electron-builder.json), [`build/installer.nsh`](file:///m:/testProject/disksweepr/build/installer.nsh)):
+  - Changed `"perMachine": true` to `"perMachine": false` + `"selectPerMachineByDefault": true` in `electron-builder.json` so the NSIS wizard displays the `Choose Installation Options` page (`Anyone who uses this computer` vs `Only for me`) instead of skipping straight to directory selection.
+  - Added a custom `nsDialogs` wizard step (`customPageAfterChangeDir` -> `Additional Tasks & Shortcuts`) in [`build/installer.nsh`](file:///m:/testProject/disksweepr/build/installer.nsh) allowing users to toggle:
+    1. `Create a Desktop shortcut`
+    2. `Create a Start Menu shortcut`
+    3. `Add "Scan with DiskSweepr" to Windows Explorer right-click menu`
+- [x] **Web Installer (`DiskSweepr-Web-Setup.exe`) Badge Removal & Alt+Tab Icon/Title Fix** ([`web-installer/Program.cs`](file:///m:/testProject/disksweepr/web-installer/Program.cs)):
+  - Removed the 3 feature pill badges (`Instant Scan`, `Risk Rated`, `Privacy First`) and `DrawFeatureTag` method completely, and tightened vertical spacing (`Size(520, 412)`).
+  - Set `this.Text = "DiskSweepr Setup"` and `this.Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath)` on `ModernWebInstaller` so Windows Taskbar and `Alt+Tab` display the official DiskSweepr icon and title instead of a generic nameless executable icon.
+- [x] **Documentation Guardrails Updated** ([`docs/Design.md`](file:///m:/testProject/disksweepr/docs/Design.md), [`docs/Rules.md`](file:///m:/testProject/disksweepr/docs/Rules.md), [`docs/PRD.md`](file:///m:/testProject/disksweepr/docs/PRD.md)):
+  - Documented strict installer invariants prohibiting GDI+ emoji feature badges, enforcing `Form.Icon` + `Form.Text`, and requiring NSIS multi-user + custom shortcut wizard pages.
+
+
 
 
 

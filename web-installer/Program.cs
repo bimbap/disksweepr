@@ -333,11 +333,18 @@ namespace DiskSweeprWebSetup
 
         public ModernWebInstaller()
         {
-            this.Size = new Size(520, 444);
+            this.Text = "DiskSweepr Setup";
+            this.Size = new Size(520, 412);
             this.FormBorderStyle = FormBorderStyle.None;
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = bg;
             this.DoubleBuffered = true;
+
+            try
+            {
+                this.Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+            }
+            catch { }
 
             // Enable Windows 11 rounded corners if supported
             try
@@ -467,7 +474,7 @@ namespace DiskSweeprWebSetup
             lblPathDisplay = new Label
             {
                 Text = ShortenPath(installDir, 42),
-                Location = new Point(48, 206),
+                Location = new Point(48, 174),
                 Size = new Size(330, 26),
                 ForeColor = textMuted,
                 Font = new Font("Consolas", 9f),
@@ -479,7 +486,7 @@ namespace DiskSweeprWebSetup
             btnChangePath = new ModernButton
             {
                 Text = "Change...",
-                Location = new Point(390, 204),
+                Location = new Point(390, 172),
                 Size = new Size(82, 28),
                 BorderRadius = 6,
                 NormalColor = Color.FromArgb(30, 41, 59),
@@ -507,21 +514,21 @@ namespace DiskSweeprWebSetup
             chkDesktop = new ModernCheckBox
             {
                 Text = "Create Desktop Shortcut",
-                Location = new Point(48, 244),
+                Location = new Point(48, 212),
                 Size = new Size(200, 24),
                 Checked = true
             };
             chkStart = new ModernCheckBox
             {
                 Text = "Add to Start Menu",
-                Location = new Point(270, 244),
+                Location = new Point(270, 212),
                 Size = new Size(200, 24),
                 Checked = true
             };
             chkContextMenu = new ModernCheckBox
             {
                 Text = "Add \"Scan with DiskSweepr\" to Explorer right-click menu",
-                Location = new Point(48, 272),
+                Location = new Point(48, 240),
                 Size = new Size(424, 24),
                 Checked = true
             };
@@ -535,7 +542,7 @@ namespace DiskSweeprWebSetup
                 Text = !string.IsNullOrEmpty(existingUninstallerPath)
                     ? "DiskSweepr is currently installed on this PC."
                     : "Ready to install DiskSweepr to your PC.",
-                Location = new Point(48, 308),
+                Location = new Point(48, 276),
                 Size = new Size(350, 18),
                 ForeColor = !string.IsNullOrEmpty(existingUninstallerPath) ? Color.FromArgb(56, 189, 248) : textMuted,
                 Font = new Font("Segoe UI", 8.75f)
@@ -543,7 +550,7 @@ namespace DiskSweeprWebSetup
             lblPercent = new Label
             {
                 Text = "",
-                Location = new Point(400, 308),
+                Location = new Point(400, 276),
                 Size = new Size(72, 18),
                 ForeColor = Color.FromArgb(56, 189, 248),
                 Font = new Font("Segoe UI", 8.75f, FontStyle.Bold),
@@ -555,7 +562,7 @@ namespace DiskSweeprWebSetup
             // Progress bar
             prgBar = new ModernProgressBar
             {
-                Location = new Point(48, 332),
+                Location = new Point(48, 300),
                 Size = new Size(424, 8),
                 Visible = false
             };
@@ -566,7 +573,7 @@ namespace DiskSweeprWebSetup
                 btnInstall = new ModernButton
                 {
                     Text = "Reinstall / Update",
-                    Location = new Point(48, 358),
+                    Location = new Point(48, 326),
                     Size = new Size(244, 46),
                     BorderRadius = 10,
                     NormalColor = Color.FromArgb(37, 99, 235),
@@ -580,7 +587,7 @@ namespace DiskSweeprWebSetup
                 btnUninstall = new ModernButton
                 {
                     Text = "Uninstall",
-                    Location = new Point(302, 358),
+                    Location = new Point(302, 326),
                     Size = new Size(170, 46),
                     BorderRadius = 10,
                     NormalColor = Color.FromArgb(35, 20, 25),
@@ -620,7 +627,7 @@ namespace DiskSweeprWebSetup
                 btnInstall = new ModernButton
                 {
                     Text = "Install DiskSweepr",
-                    Location = new Point(48, 358),
+                    Location = new Point(48, 326),
                     Size = new Size(424, 46),
                     BorderRadius = 10,
                     NormalColor = Color.FromArgb(37, 99, 235),
@@ -901,19 +908,14 @@ namespace DiskSweeprWebSetup
             }
 
             // Subtitle
-            using (Font tagF = new Font("Segoe UI", 9.25f))
+            using (Font tagF = new Font("Segoe UI", 9.5f))
             using (SolidBrush tagB = new SolidBrush(textMuted))
             {
-                g.DrawString("High-Performance System Storage Optimizer", tagF, tagB, 124, 86);
+                g.DrawString("High-Performance System Storage Optimizer", tagF, tagB, 124, 88);
             }
 
-            // 3 Modern Tags: [Fast] [Safe] [Open Source]
-            DrawFeatureTag(g, "⚡ Instant Scan", 124, 110);
-            DrawFeatureTag(g, "🛡️ Risk Rated", 232, 110);
-            DrawFeatureTag(g, "🔒 Privacy First", 330, 110);
-
-            // Installation Path Card Container (424 x 40 rounded)
-            Rectangle pathCard = new Rectangle(48, 198, 424, 38);
+            // Installation Path Card Container (424 x 38 rounded)
+            Rectangle pathCard = new Rectangle(48, 166, 424, 38);
             using (SolidBrush cardB = new SolidBrush(Color.FromArgb(15, 23, 42)))
             using (Pen cardP = new Pen(Color.FromArgb(30, 41, 59), 1))
             {
@@ -925,22 +927,7 @@ namespace DiskSweeprWebSetup
             using (Font f = new Font("Segoe UI", 8.25f, FontStyle.Bold))
             using (SolidBrush b = new SolidBrush(Color.FromArgb(100, 116, 139)))
             {
-                g.DrawString("INSTALLATION DIRECTORY", f, b, 48, 178);
-            }
-        }
-
-        private void DrawFeatureTag(Graphics g, string text, int x, int y)
-        {
-            using (Font f = new Font("Segoe UI", 8f, FontStyle.Bold))
-            using (SolidBrush bgB = new SolidBrush(Color.FromArgb(19, 27, 46)))
-            using (Pen p = new Pen(Color.FromArgb(30, 41, 59), 1))
-            using (SolidBrush textB = new SolidBrush(Color.FromArgb(148, 163, 184)))
-            {
-                SizeF size = g.MeasureString(text, f);
-                Rectangle rect = new Rectangle(x, y, (int)size.Width + 12, 22);
-                GraphicsUtils.FillRoundedRectangle(g, bgB, rect, 6);
-                GraphicsUtils.DrawRoundedRectangle(g, p, rect, 6);
-                g.DrawString(text, f, textB, x + 6, y + 3);
+                g.DrawString("INSTALLATION DIRECTORY", f, b, 48, 146);
             }
         }
     }

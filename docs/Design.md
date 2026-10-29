@@ -180,3 +180,12 @@ All confirmation modals (System Clean, Empty Recycle Bin, Permanent Purge, Resto
   * Left (`.bar-info`): `.badge-count` with number of items + `{count} items selected • {formatBytes(totalBytes)}`.
   * Right (`.bar-actions`): Primary action button (`btn-primary`), secondary/danger button (`btn-danger-outline`).
   * Spacing: Minimum `gap: 12px` between action buttons to prevent cramped touch/click targets.
+
+### 4.10 Native Windows Installers (`DiskSweepr-Setup` & `DiskSweepr-Web-Setup`)
+* **Web Bootstrap Installer (`web-installer/Program.cs`)**:
+  * **No Gimmick Feature Badges / No Emoji Glyphs**: Never draw marketing pill badges (such as `"Instant Scan"`, `"Risk Rated"`, `"Privacy First"`) or Unicode emoji characters (`⚡`, `🛡️`, `🔒`) inside the WinForms GDI+ installer window, as Windows GDI+ renders surrogate-pair emojis as broken tofu rectangles (`▯▯`). Keep the hero header clean with only the App Icon squircle, `"DiskSweepr"` title, `"v1.1.0"` version badge, and concise subtitle.
+  * **Window Title & Taskbar / Alt+Tab Icon**: `this.Text = "DiskSweepr Setup"` and `this.Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath)` MUST always be set on the `Form` constructor so Windows Taskbar and `Alt+Tab` display the official DiskSweepr icon and window title instead of a generic nameless executable icon.
+  * **Task Checkboxes**: Provide explicit checkboxes for `Create Desktop Shortcut`, `Add to Start Menu`, and `Add "Scan with DiskSweepr" to Explorer right-click menu`.
+* **Offline NSIS Setup Wizard (`electron-builder.json` & `build/installer.nsh`)**:
+  * **`perMachine: false` + `selectPerMachineByDefault: true`**: Never hardcode `perMachine: true` in `electron-builder.json`, as that sets `RequestExecutionLevel admin` and `INSTALL_MODE_PER_ALL_USERS`, which skips the multi-user selection page (`Anyone who uses this computer` vs `Only for me`).
+  * **Custom Additional Tasks Page (`customPageAfterChangeDir` in `build/installer.nsh`)**: Always present a dedicated `nsDialogs` checkbox page after the Directory Selection page so users can toggle `Create a Desktop shortcut`, `Create a Start Menu shortcut`, and `Add "Scan with DiskSweepr" to Windows Explorer right-click menu` before installation begins.

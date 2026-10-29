@@ -24,7 +24,8 @@
   },
   "nsis": {
     "oneClick": false,
-    "perMachine": true,
+    "perMachine": false,
+    "selectPerMachineByDefault": true,
     "allowElevation": true,
     "allowToChangeInstallationDirectory": true,
     "include": "build/installer.nsh",

@@ -88,9 +88,9 @@ When targeting non-system drives, Cleaner dynamically shifts its rule registry t
      * *Tab 1: Windows Recycle Bin Manager*: Native COM `Shell.Application` integration displaying deleted items, original paths, and deletion timestamps, with single/batch restoration and permanent purge.
      * *Tab 2: Deep Recovery Engine*: Audits unlinked/orphaned file remnants on target partitions across categories (`images`, `documents`, `media`, `archives`) with sortable Last Modified timestamps and destination folder extraction.
 8. **Enterprise-Grade Installer, Portable & Web Bootstrap**:
-   * Web Bootstrap Installer (`DiskSweepr-Web-Setup.exe`) with instant launch (`0.01s`), Raycast dark UI, and automated download/silent install from GitHub Releases.
-   * NSIS Installer Wizard (`DiskSweepr-Setup-1.1.0.exe`) with custom installation directory choice and official Windows Uninstaller.
-   * Standalone Portable Binary (`DiskSweepr-Portable-1.1.0.exe`) with persistent runtime cache (`unpackDirName: "DiskSweepr-Runtime"`) and route-level code-splitting for instant warm startup.
+   * Web Bootstrap Installer (`DiskSweepr-Web-Setup.exe`) with instant launch (`0.01s`), clean Raycast dark UI (no clutter badges or broken emoji glyphs), official taskbar/Alt+Tab icon & `"DiskSweepr Setup"` window title, interactive shortcut/Explorer context menu checkboxes, and automated download/silent install from GitHub Releases.
+   * NSIS Installer Wizard (`DiskSweepr-Setup-1.1.0.exe`) with multi-user installation mode selector (`Anyone who uses this computer` vs `Only for me`), custom installation directory choice, interactive `Additional Tasks & Shortcuts` page (`Desktop shortcut`, `Start Menu shortcut`, `Explorer right-click menu`), and official Windows Uninstaller.
+   * Standalone Portable Binary (`DiskSweepr-Portable-1.1.0.exe`) with Administrator manifest, persistent runtime cache (`unpackDirName: "DiskSweepr-Runtime"`), and route-level code-splitting for instant warm startup.
 
 ---
 
