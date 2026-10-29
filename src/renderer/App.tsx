@@ -186,7 +186,7 @@ export const App: React.FC = () => {
   };
 
   // Cleaning sequence
-  const handleConfirmClean = async (selectedIds: string[]) => {
+  const handleConfirmClean = async (selectedIds: string[], excludedFilePaths?: string[]) => {
     if (selectedIds.length === 0) return;
 
     setStage('cleaning');
@@ -201,7 +201,7 @@ export const App: React.FC = () => {
     });
 
     try {
-      const report = await window.cleanerApi?.startClean(selectedIds);
+      const report = await window.cleanerApi?.startClean(selectedIds, excludedFilePaths);
       if (report) {
         setCleanReport(report);
       }

@@ -26,7 +26,8 @@ export class CleanerService {
   public async clean(
     scannedCategories: ScannedCategory[],
     selectedCategoryIds: string[],
-    onProgress?: (progress: CleanProgress) => void
+    onProgress?: (progress: CleanProgress) => void,
+    excludedFilePaths?: string[]
   ): Promise<CleanReport> {
     this.abortController = new AbortController();
     const signal = this.abortController.signal;
@@ -38,10 +39,31 @@ export class CleanerService {
     const errors: Array<{ path: string; reason: string }> = [];
     const items: HistoryDetailItem[] = [];
 
-    // Filter categories selected for cleaning
-    const targetsToClean = scannedCategories.filter(
-      (cat) => selectedCategoryIds.includes(cat.id) && (cat.fileCount > 0 || cat.isRecycleBin)
+    const excludedExact = new Set(excludedFilePaths || []);
+    const excludedResolved = new Set(
+      (excludedFilePaths || []).map((p) => path.resolve(p).toLowerCase())
     );
+    const isFileExcluded = (filePath: string) =>
+      excludedExact.has(filePath) || excludedResolved.has(path.resolve(filePath).toLowerCase());
+
+    // Filter categories selected for cleaning and exclude unchecked individual files
+    const targetsToClean = scannedCategories
+      .filter((cat) => selectedCategoryIds.includes(cat.id))
+      .map((cat) => {
+        if (excludedExact.size === 0) return cat;
+        const includedFiles = cat.files.filter((f) => !isFileExcluded(f.path));
+        const hasExcludedInCategory = includedFiles.length < cat.files.length;
+        const includedBytes = includedFiles.reduce((acc, f) => acc + f.sizeBytes, 0);
+        return {
+          ...cat,
+          files: includedFiles,
+          fileCount: includedFiles.length,
+          totalBytes: includedBytes,
+          // If user unchecked specific items in Recycle Bin, delete only the selected files instead of Clear-RecycleBin
+          isRecycleBin: hasExcludedInCategory ? false : cat.isRecycleBin,
+        };
+      })
+      .filter((cat) => cat.fileCount > 0 || (cat.isRecycleBin && excludedExact.size === 0));
 
     const totalFiles = targetsToClean.reduce((acc, cat) => acc + cat.fileCount, 0);
     const totalBytes = targetsToClean.reduce((acc, cat) => acc + cat.totalBytes, 0);

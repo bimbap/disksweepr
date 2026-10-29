@@ -44,7 +44,7 @@ interface SystemCleanupViewProps {
   cleanReport: CleanReport | null;
   onStartScan: (options: ScanOptions) => void;
   onCancelScan: () => void;
-  onConfirmClean: (categoryIds: string[]) => void;
+  onConfirmClean: (categoryIds: string[], excludedFilePaths?: string[]) => void;
   onCancelClean: () => void;
   onReset: () => void;
 }
@@ -114,9 +114,61 @@ export const SystemCleanupView: React.FC<SystemCleanupViewProps> = ({
       setScanMode('custom');
     } else if (stage === 'scanned') {
       setCategories((prev) =>
-        prev.map((c) => (c.id === id ? { ...c, selected: !c.selected } : c))
+        prev.map((c) => {
+          if (c.id !== id) return c;
+          const nextSelected = !c.selected;
+          return {
+            ...c,
+            selected: nextSelected,
+            excludedPaths: [],
+          };
+        })
       );
     }
+  };
+
+  const handleToggleFile = (categoryId: string, filePath: string) => {
+    if (stage !== 'scanned') return;
+    setCategories((prev) =>
+      prev.map((c) => {
+        if (c.id !== categoryId) return c;
+        const currentExcluded = new Set(c.excludedPaths || []);
+
+        if (!c.selected) {
+          // Category was unchecked: turn category ON and include only this single clicked file
+          const allOtherPaths = c.files
+            .filter((f) => f.path !== filePath)
+            .map((f) => f.path);
+          return {
+            ...c,
+            selected: true,
+            excludedPaths: allOtherPaths,
+          };
+        }
+
+        if (currentExcluded.has(filePath)) {
+          currentExcluded.delete(filePath);
+        } else {
+          currentExcluded.add(filePath);
+        }
+
+        const nextExcluded = Array.from(currentExcluded);
+        // If all files in the category are now excluded, uncheck the category
+        if (nextExcluded.length >= c.files.length && c.files.length > 0) {
+          return {
+            ...c,
+            selected: false,
+            excludedPaths: [],
+          };
+        }
+
+        return {
+          ...c,
+          selected: true,
+          excludedPaths: nextExcluded,
+        };
+      })
+    );
   };
 
   const handleSelectAll = () => {
@@ -124,7 +176,7 @@ export const SystemCleanupView: React.FC<SystemCleanupViewProps> = ({
       setSelectedCategoryIds(definitions.map((d) => d.id));
       setScanMode('full');
     } else if (stage === 'scanned') {
-      setCategories((prev) => prev.map((c) => ({ ...c, selected: true })));
+      setCategories((prev) => prev.map((c) => ({ ...c, selected: true, excludedPaths: [] })));
     }
   };
 
@@ -136,7 +188,7 @@ export const SystemCleanupView: React.FC<SystemCleanupViewProps> = ({
       setCategories((prev) =>
         prev.map((c) => {
           const def = definitions.find((d) => d.id === c.id);
-          return { ...c, selected: def ? def.defaultSelected : false };
+          return { ...c, selected: def ? def.defaultSelected : false, excludedPaths: [] };
         })
       );
     }
@@ -147,7 +199,7 @@ export const SystemCleanupView: React.FC<SystemCleanupViewProps> = ({
       setSelectedCategoryIds([]);
       setScanMode('custom');
     } else if (stage === 'scanned') {
-      setCategories((prev) => prev.map((c) => ({ ...c, selected: false })));
+      setCategories((prev) => prev.map((c) => ({ ...c, selected: false, excludedPaths: [] })));
     }
   };
 
@@ -244,10 +296,23 @@ export const SystemCleanupView: React.FC<SystemCleanupViewProps> = ({
     });
   };
 
+  const getCategoryEffectiveStats = (c: ScannedCategory) => {
+    if (!c.selected) return { bytes: 0, count: 0 };
+    if (!c.excludedPaths || c.excludedPaths.length === 0) {
+      return { bytes: c.totalBytes, count: c.fileCount };
+    }
+    const excludedSet = new Set(c.excludedPaths);
+    const activeFiles = c.files.filter((f) => !excludedSet.has(f.path));
+    return {
+      bytes: activeFiles.reduce((acc, f) => acc + f.sizeBytes, 0),
+      count: activeFiles.length,
+    };
+  };
+
   const activeCategories = categories.filter((c) => c.fileCount > 0);
-  const selectedAudited = activeCategories.filter((c) => c.selected);
-  const totalReclaimableBytes = selectedAudited.reduce((acc, c) => acc + c.totalBytes, 0);
-  const totalSelectedFiles = selectedAudited.reduce((acc, c) => acc + c.fileCount, 0);
+  const selectedAudited = activeCategories.filter((c) => c.selected && getCategoryEffectiveStats(c).count > 0);
+  const totalReclaimableBytes = selectedAudited.reduce((acc, c) => acc + getCategoryEffectiveStats(c).bytes, 0);
+  const totalSelectedFiles = selectedAudited.reduce((acc, c) => acc + getCategoryEffectiveStats(c).count, 0);
 
   const displayItems = definitions.filter(
     (d) =>
@@ -657,6 +722,7 @@ export const SystemCleanupView: React.FC<SystemCleanupViewProps> = ({
           <ScannedResultTree
             categories={categories}
             onToggleCategory={handleToggleCategory}
+            onToggleFile={handleToggleFile}
             onOpenExplorer={(p) => window.cleanerApi?.openPathInExplorer(p)}
             formatSize={formatSize}
           />
@@ -721,6 +787,7 @@ export const SystemCleanupView: React.FC<SystemCleanupViewProps> = ({
           <ScannedResultTree
             categories={categories}
             onToggleCategory={handleToggleCategory}
+            onToggleFile={handleToggleFile}
             onOpenExplorer={(p) => window.cleanerApi?.openPathInExplorer(p)}
             formatSize={formatSize}
           />
@@ -757,8 +824,13 @@ export const SystemCleanupView: React.FC<SystemCleanupViewProps> = ({
           totalFiles={totalSelectedFiles}
           onConfirm={() => {
             setShowConfirmModal(false);
-            const ids = categories.filter((c) => c.selected).map((c) => c.id);
-            onConfirmClean(ids);
+            const ids = categories
+              .filter((c) => c.selected && getCategoryEffectiveStats(c).count > 0)
+              .map((c) => c.id);
+            const excludedFilePaths = categories
+              .filter((c) => c.selected && c.excludedPaths && c.excludedPaths.length > 0)
+              .flatMap((c) => c.excludedPaths || []);
+            onConfirmClean(ids, excludedFilePaths.length > 0 ? excludedFilePaths : undefined);
           }}
           onCancel={() => setShowConfirmModal(false)}
         />

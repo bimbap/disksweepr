@@ -3275,6 +3275,18 @@ body.theme-light .hero-scan-btn:hover:not(:disabled) {
   border-color: var(--accent-primary);
 }
 
+.custom-checkbox-btn.indeterminate {
+  background: rgba(56, 189, 248, 0.25);
+  border-color: var(--accent-primary);
+  color: #38bdf8;
+}
+
+.custom-checkbox-btn.sm {
+  width: 15px;
+  height: 15px;
+  border-radius: 3px;
+}
+
 .category-info-clickable {
   display: flex;
   align-items: center;
@@ -3401,7 +3413,8 @@ body.theme-light .hero-scan-btn:hover:not(:disabled) {
 
 .files-table-header {
   display: grid;
-  grid-template-columns: minmax(200px, 1fr) 110px 48px;
+  grid-template-columns: 28px minmax(180px, 1fr) 110px 48px;
+  gap: 8px;
   align-items: center;
   padding: 6px 12px;
   font-size: 10px;
@@ -3410,6 +3423,13 @@ body.theme-light .hero-scan-btn:hover:not(:disabled) {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.col-check-file,
+.file-check-col {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .col-file {
@@ -3428,14 +3448,12 @@ body.theme-light .hero-scan-btn:hover:not(:disabled) {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  max-height: 380px;
-  overflow-y: auto;
-  padding-right: 4px;
 }
 
 .file-row-item {
   display: grid;
-  grid-template-columns: minmax(200px, 1fr) 110px 48px;
+  grid-template-columns: 28px minmax(180px, 1fr) 110px 48px;
+  gap: 8px;
   align-items: center;
   padding: 8px 12px;
   border-radius: var(--radius-xs);
@@ -3444,9 +3462,19 @@ body.theme-light .hero-scan-btn:hover:not(:disabled) {
   border: 1px solid transparent;
 }
 
+.file-row-item.is-excluded {
+  opacity: 0.45;
+}
+
+.file-row-item.is-excluded .file-main-name {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
 .file-row-item:hover {
   background: rgba(255, 255, 255, 0.05);
   border-color: rgba(255, 255, 255, 0.08);
+  opacity: 1;
 }
 
 .file-path-col {
@@ -3487,16 +3515,20 @@ body.theme-light .hero-scan-btn:hover:not(:disabled) {
 }
 
 .file-size-col {
-  width: 90px;
   font-size: 11px;
   color: var(--text-secondary);
   text-align: right;
 }
 
 .file-action-col {
-  width: 50px;
   display: flex;
   justify-content: flex-end;
+}
+
+.tree-files-pagination {
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .file-inspect-icon-btn {
@@ -4137,6 +4169,18 @@ body.theme-light .scope-pill.active {
 .dev-card-check .custom-checkbox-btn.checked {
   background: var(--accent-primary);
   border-color: var(--accent-primary);
+}
+
+.custom-checkbox-btn.indeterminate {
+  background: rgba(56, 189, 248, 0.25);
+  border-color: var(--accent-primary);
+  color: #38bdf8;
+}
+
+.custom-checkbox-btn.sm {
+  width: 15px;
+  height: 15px;
+  border-radius: 3px;
 }
 
 /* History Header Controls */

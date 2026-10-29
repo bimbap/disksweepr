@@ -29,7 +29,23 @@ export const ConfirmCleanModal: React.FC<ConfirmCleanModalProps> = ({
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const selectedCategories = categories.filter((c) => c.selected && c.fileCount > 0);
+  const getEffectiveStats = (cat: ScannedCategory) => {
+    if (!cat.selected) return { bytes: 0, count: 0 };
+    if (!cat.excludedPaths || cat.excludedPaths.length === 0) {
+      return { bytes: cat.totalBytes, count: cat.fileCount };
+    }
+    const excludedSet = new Set(cat.excludedPaths);
+    const activeFiles = cat.files.filter((f) => !excludedSet.has(f.path));
+    return {
+      bytes: activeFiles.reduce((acc, f) => acc + f.sizeBytes, 0),
+      count: activeFiles.length,
+    };
+  };
+
+  const selectedCategories = categories.filter((c) => {
+    const stats = getEffectiveStats(c);
+    return c.selected && stats.count > 0;
+  });
 
   useEffect(() => {
     const ids = selectedCategories.map((c) => c.id);
@@ -165,42 +181,45 @@ export const ConfirmCleanModal: React.FC<ConfirmCleanModalProps> = ({
                 paddingRight: '4px',
               }}
             >
-              {selectedCategories.map((c) => (
-                <div
-                  key={c.id}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    fontSize: '12px',
-                    padding: '6px 10px',
-                    background: 'var(--bg-app)',
-                    borderRadius: '4px',
-                    border: '1px solid var(--border-subtle)',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ color: 'var(--text-primary)' }}>{c.name}</span>
-                    {c.useTrash && (
-                      <span
-                        style={{
-                          fontSize: '9.5px',
-                          color: '#38bdf8',
-                          background: 'rgba(56, 189, 248, 0.1)',
-                          border: '1px solid rgba(56, 189, 248, 0.3)',
-                          padding: '1px 5px',
-                          borderRadius: '3px',
-                        }}
-                      >
-                        Recycle Bin
-                      </span>
-                    )}
+              {selectedCategories.map((c) => {
+                const stats = getEffectiveStats(c);
+                return (
+                  <div
+                    key={c.id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      fontSize: '12px',
+                      padding: '6px 10px',
+                      background: 'var(--bg-app)',
+                      borderRadius: '4px',
+                      border: '1px solid var(--border-subtle)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ color: 'var(--text-primary)' }}>{c.name}</span>
+                      {c.useTrash && (
+                        <span
+                          style={{
+                            fontSize: '9.5px',
+                            color: '#38bdf8',
+                            background: 'rgba(56, 189, 248, 0.1)',
+                            border: '1px solid rgba(56, 189, 248, 0.3)',
+                            padding: '1px 5px',
+                            borderRadius: '3px',
+                          }}
+                        >
+                          Recycle Bin
+                        </span>
+                      )}
+                    </div>
+                    <span className="num-tabular font-mono" style={{ color: 'var(--text-secondary)' }}>
+                      {formatSize(stats.bytes)} ({stats.count.toLocaleString()} {t('large_files.files')})
+                    </span>
                   </div>
-                  <span className="num-tabular font-mono" style={{ color: 'var(--text-secondary)' }}>
-                    {formatSize(c.totalBytes)} ({c.fileCount} {t('large_files.files')})
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 

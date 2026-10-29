@@ -820,6 +820,19 @@
   - Replaced native browser `window.confirm()` in [`HistoryView.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/HistoryView.tsx) with the custom frosted-glass confirmation modal, and added filter pills/badges for `Duplicates` and `Power Tools` history records.
   - Standardized `.modal-close-btn`, localized `NavRail` tooltips, and added `Escape` key dismissal across all confirmation modals (`ConfirmCleanModal`, `FastSearchView`, `LargeFilesView`, `DuplicateHunterView`, `DevProjectsView`, `PowerToolsView`, `HistoryView`).
 
+### Phase 54: Granular Per-File Selection & Pagination in Scanned Results Tree
+- [x] **Per-File Selection in Cleanup Results** ([`ScannedResultTree.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/ScannedResultTree.tsx), [`SystemCleanupView.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/SystemCleanupView.tsx), [`ConfirmCleanModal.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/ConfirmCleanModal.tsx), [`cleanerService.ts`](file:///m:/testProject/disksweepr/src/main/services/cleanerService.ts)):
+  - Added individual file checkboxes inside each expanded category drawer (`ScannedResultTree`) so users can check/uncheck specific files to purge or keep.
+  - Added indeterminate (`<Minus />`) checkbox state and live `selectedBytes / totalBytes` & `selectedFiles / totalFiles` counters on category headers when a subset of files is selected.
+  - Wired `excludedFilePaths` end-to-end (`SystemCleanupView` -> `App` -> `preload` -> `main` -> `CleanerService.clean`) so unchecked files are strictly skipped during cleaning.
+- [x] **Standardized Pagination (`20` files/page) in Scanned Results Drawer** ([`ScannedResultTree.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/ScannedResultTree.tsx), [`index.css`](file:///m:/testProject/disksweepr/src/renderer/index.css)):
+  - Replaced `Load 50 More` and the nested `.files-rows-container` vertical scrollbar (`max-height: 380px; overflow-y: auto`) with standard pagination controls (`Showing X - Y of Z files` and `< Prev | Page X / Y | Next >`), preventing nested scroll conflicts and DOM lag on categories with thousands of files.
+- [x] **Default Language, Dark Sidebar Scrollbar, & Context Menu Hardening**:
+  - Set default application language to English (`'en'`) in [`SettingsContext.tsx`](file:///m:/testProject/disksweepr/src/renderer/context/SettingsContext.tsx) and grouped `License (MIT)` with `About DiskSweepr` in [`TitleBar.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/TitleBar.tsx).
+  - Removed `scrollbar-width: thin` from `.nav-rail-items` in [`index.css`](file:///m:/testProject/disksweepr/src/renderer/index.css) so Chromium applies the custom dark `::-webkit-scrollbar` instead of a light native OS scrollbar.
+  - Hardened [`contextMenuService.ts`](file:///m:/testProject/disksweepr/src/main/services/contextMenuService.ts) and [`LargeFilesView.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/LargeFilesView.tsx) so Windows Explorer right-click integration works in both dev and packaged builds and properly maps drive roots (`M:\`).
+
+
 
 
 

@@ -13,7 +13,8 @@ contextBridge.exposeInMainWorld('cleanerApi', {
     return () => ipcRenderer.removeListener('cleaner:scan-progress', handler);
   },
 
-  startClean: (categoryIds: string[]) => ipcRenderer.invoke('cleaner:start-clean', categoryIds),
+  startClean: (categoryIds: string[], excludedFilePaths?: string[]) =>
+    ipcRenderer.invoke('cleaner:start-clean', categoryIds, excludedFilePaths),
   cancelClean: () => ipcRenderer.invoke('cleaner:cancel-clean'),
   getRunningApps: (categoryIds: string[]) => ipcRenderer.invoke('cleaner:get-running-apps', categoryIds),
   closeApps: (processNames: string[]) => ipcRenderer.invoke('cleaner:close-apps', processNames),

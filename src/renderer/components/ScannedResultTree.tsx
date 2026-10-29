@@ -3,9 +3,11 @@ import {
   ChevronDown,
   ChevronUp,
   ChevronRight,
+  ChevronLeft,
   FolderOpen,
   FileText,
   Check,
+  Minus,
   Search,
   Globe,
   Code2,
@@ -28,19 +30,23 @@ import { useSettings } from '../context/SettingsContext';
 interface ScannedResultTreeProps {
   categories: ScannedCategory[];
   onToggleCategory: (id: string) => void;
+  onToggleFile?: (categoryId: string, filePath: string) => void;
   onOpenExplorer: (path: string) => void;
   formatSize: (bytes: number) => string;
 }
 
+const FILES_PER_PAGE = 20;
+
 export const ScannedResultTree: React.FC<ScannedResultTreeProps> = ({
   categories,
   onToggleCategory,
+  onToggleFile,
   onOpenExplorer,
   formatSize,
 }) => {
   const { t } = useSettings();
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
-  const [expandedFilesLimit, setExpandedFilesLimit] = useState<Record<string, number>>({});
+  const [categoryPages, setCategoryPages] = useState<Record<string, number>>({});
   const [filterQuery, setFilterQuery] = useState('');
   const [showCleanTray, setShowCleanTray] = useState(false);
 
@@ -55,6 +61,7 @@ export const ScannedResultTree: React.FC<ScannedResultTreeProps> = ({
       setFileSortCol(col);
       setFileSortDir(col === 'size' ? 'desc' : 'asc');
     }
+    setCategoryPages({});
   };
 
   const toggleExpand = (id: string) => {
@@ -63,10 +70,10 @@ export const ScannedResultTree: React.FC<ScannedResultTreeProps> = ({
     );
   };
 
-  const handleShowMoreFiles = (id: string, currentLimit: number, total: number) => {
-    setExpandedFilesLimit((prev) => ({
+  const handlePageChange = (categoryId: string, nextPage: number) => {
+    setCategoryPages((prev) => ({
       ...prev,
-      [id]: Math.min(total, currentLimit + 50),
+      [categoryId]: nextPage,
     }));
   };
 
@@ -200,6 +207,25 @@ export const ScannedResultTree: React.FC<ScannedResultTreeProps> = ({
               <div className="tree-categories-wrapper">
                 {groupItems.map((category) => {
                   const isExpanded = expandedIds.includes(category.id);
+                  const excludedSet = new Set(category.excludedPaths || []);
+                  const hasPartialSelection =
+                    category.selected &&
+                    excludedSet.size > 0 &&
+                    excludedSet.size < category.files.length;
+                  const selectedFilesCount = !category.selected
+                    ? 0
+                    : excludedSet.size === 0
+                    ? category.fileCount
+                    : Math.max(0, category.files.length - excludedSet.size);
+                  const selectedBytesCount = !category.selected
+                    ? 0
+                    : excludedSet.size === 0
+                    ? category.totalBytes
+                    : category.files.reduce(
+                        (acc, f) => (excludedSet.has(f.path) ? acc : acc + f.sizeBytes),
+                        0
+                      );
+
                   const sortedCategoryFiles = [...category.files].sort((a, b) => {
                     let diff = 0;
                     if (fileSortCol === 'name') {
@@ -209,9 +235,19 @@ export const ScannedResultTree: React.FC<ScannedResultTreeProps> = ({
                     }
                     return fileSortDir === 'asc' ? diff : -diff;
                   });
-                  const limit = expandedFilesLimit[category.id] || 30;
-                  const visibleFiles = sortedCategoryFiles.slice(0, limit);
-                  const hasMore = category.files.length > limit;
+                  const totalPages = Math.max(
+                    1,
+                    Math.ceil(sortedCategoryFiles.length / FILES_PER_PAGE)
+                  );
+                  const currentPage = Math.min(
+                    categoryPages[category.id] || 1,
+                    totalPages
+                  );
+                  const startIndex = (currentPage - 1) * FILES_PER_PAGE;
+                  const visibleFiles = sortedCategoryFiles.slice(
+                    startIndex,
+                    startIndex + FILES_PER_PAGE
+                  );
 
                   return (
                     <div
@@ -225,14 +261,17 @@ export const ScannedResultTree: React.FC<ScannedResultTreeProps> = ({
                         {/* Custom Checkbox */}
                         <button
                           type="button"
-                          className={`custom-checkbox-btn ${category.selected ? 'checked' : ''}`}
+                          className={`custom-checkbox-btn ${category.selected ? 'checked' : ''} ${
+                            hasPartialSelection ? 'indeterminate' : ''
+                          }`}
                           onClick={(e) => {
                             e.stopPropagation();
                             onToggleCategory(category.id);
                           }}
                           aria-label={`Toggle ${category.name}`}
                         >
-                          {category.selected && <Check size={12} />}
+                          {category.selected &&
+                            (hasPartialSelection ? <Minus size={12} /> : <Check size={12} />)}
                         </button>
 
                         {/* Category Info */}
@@ -268,10 +307,14 @@ export const ScannedResultTree: React.FC<ScannedResultTreeProps> = ({
                         >
                           <div className="category-size-tally">
                             <span className="cat-bytes font-mono">
-                              {formatSize(category.totalBytes)}
+                              {hasPartialSelection
+                                ? `${formatSize(selectedBytesCount)} / ${formatSize(category.totalBytes)}`
+                                : formatSize(category.totalBytes)}
                             </span>
                             <span className="cat-files font-mono">
-                              {category.fileCount.toLocaleString()} {t('large_files.files')}
+                              {hasPartialSelection
+                                ? `${selectedFilesCount.toLocaleString()} / ${category.fileCount.toLocaleString()} ${t('large_files.files')}`
+                                : `${category.fileCount.toLocaleString()} ${t('large_files.files')}`}
                             </span>
                           </div>
 
@@ -295,6 +338,26 @@ export const ScannedResultTree: React.FC<ScannedResultTreeProps> = ({
                           ) : (
                             <div className="files-list-table">
                               <div className="files-table-header">
+                                <span className="col-check-file">
+                                  <button
+                                    type="button"
+                                    className={`custom-checkbox-btn sm ${
+                                      category.selected ? 'checked' : ''
+                                    } ${hasPartialSelection ? 'indeterminate' : ''}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onToggleCategory(category.id);
+                                    }}
+                                    title={t('cleanup.select_all')}
+                                  >
+                                    {category.selected &&
+                                      (hasPartialSelection ? (
+                                        <Minus size={10} />
+                                      ) : (
+                                        <Check size={10} />
+                                      ))}
+                                  </button>
+                                </span>
                                 <span
                                   className="col-file sortable-col"
                                   onClick={() => handleToggleFileSort('name')}
@@ -331,14 +394,40 @@ export const ScannedResultTree: React.FC<ScannedResultTreeProps> = ({
                                   const parts = file.path.split(/[\\/]/);
                                   const fileName = parts.pop() || file.name;
                                   const folderPath = parts.join('\\');
+                                  const isFileSelected =
+                                    category.selected && !excludedSet.has(file.path);
 
                                   return (
                                     <div
                                       key={`${file.path}-${idx}`}
-                                      className="file-row-item"
-                                      onClick={() => onOpenExplorer(file.path)}
-                                      title={`Click to reveal in Windows File Explorer: ${file.path}`}
+                                      className={`file-row-item ${
+                                        !isFileSelected ? 'is-excluded' : ''
+                                      }`}
+                                      onClick={() => {
+                                        if (onToggleFile) {
+                                          onToggleFile(category.id, file.path);
+                                        } else {
+                                          onOpenExplorer(file.path);
+                                        }
+                                      }}
+                                      title={file.path}
                                     >
+                                      <div className="file-check-col">
+                                        <button
+                                          type="button"
+                                          className={`custom-checkbox-btn sm ${
+                                            isFileSelected ? 'checked' : ''
+                                          }`}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            onToggleFile?.(category.id, file.path);
+                                          }}
+                                          aria-label={`Select ${fileName}`}
+                                        >
+                                          {isFileSelected && <Check size={10} />}
+                                        </button>
+                                      </div>
+
                                       <div className="file-path-col">
                                         <FileText size={13} className="file-row-icon" />
                                         <div className="file-name-meta">
@@ -361,7 +450,7 @@ export const ScannedResultTree: React.FC<ScannedResultTreeProps> = ({
                                             e.stopPropagation();
                                             onOpenExplorer(file.path);
                                           }}
-                                          title="Reveal in Windows Explorer"
+                                          title={t('common.reveal_explorer')}
                                         >
                                           <FolderOpen size={14} />
                                         </button>
@@ -371,26 +460,56 @@ export const ScannedResultTree: React.FC<ScannedResultTreeProps> = ({
                                 })}
                               </div>
 
-                              {hasMore && (
-                                <div className="files-load-more">
-                                  <span>
-                                    {t('cleanup.showing_files')
-                                      .replace('{visible}', String(visibleFiles.length))
-                                      .replace('{total}', String(category.files.length))}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    className="btn-link-sm"
-                                    onClick={() =>
-                                      handleShowMoreFiles(
-                                        category.id,
-                                        limit,
-                                        category.files.length
-                                      )
-                                    }
-                                  >
-                                    {t('cleanup.load_more_50')}
-                                  </button>
+                              {sortedCategoryFiles.length > FILES_PER_PAGE && (
+                                <div className="table-pagination-bar tree-files-pagination">
+                                  <div className="pagination-info">
+                                    {t('large_files.showing')}{' '}
+                                    <strong>
+                                      {startIndex + 1} -{' '}
+                                      {Math.min(
+                                        startIndex + FILES_PER_PAGE,
+                                        sortedCategoryFiles.length
+                                      )}
+                                    </strong>{' '}
+                                    {t('large_files.of')}{' '}
+                                    <strong>
+                                      {sortedCategoryFiles.length.toLocaleString()}
+                                    </strong>{' '}
+                                    {t('large_files.files')}
+                                  </div>
+                                  <div className="pagination-controls">
+                                    <button
+                                      type="button"
+                                      className="pagination-btn"
+                                      disabled={currentPage === 1}
+                                      onClick={() =>
+                                        handlePageChange(
+                                          category.id,
+                                          Math.max(1, currentPage - 1)
+                                        )
+                                      }
+                                      title={t('fast_search.prev')}
+                                    >
+                                      <ChevronLeft size={14} />
+                                    </button>
+                                    <span className="pagination-page-tag font-mono">
+                                      {t('large_files.page')} {currentPage} / {totalPages}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      className="pagination-btn"
+                                      disabled={currentPage === totalPages}
+                                      onClick={() =>
+                                        handlePageChange(
+                                          category.id,
+                                          Math.min(totalPages, currentPage + 1)
+                                        )
+                                      }
+                                      title={t('fast_search.next')}
+                                    >
+                                      <ChevronRight size={14} />
+                                    </button>
+                                  </div>
                                 </div>
                               )}
                             </div>

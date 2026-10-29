@@ -33,6 +33,7 @@ export interface ScannedCategory {
   totalBytes: number;
   fileCount: number;
   files: ScannedFile[];
+  excludedPaths?: string[];
   requiresAdmin?: boolean;
   isRecycleBin?: boolean;
   useTrash?: boolean;
@@ -334,7 +335,7 @@ export interface CleanerApi {
   onScanProgress(callback: (progress: ScanProgress) => void): () => void;
 
   // Clean (System Junk)
-  startClean(categoryIds: string[]): Promise<CleanReport>;
+  startClean(categoryIds: string[], excludedFilePaths?: string[]): Promise<CleanReport>;
   cancelClean(): Promise<void>;
   getRunningApps(categoryIds: string[]): Promise<RunningAppInfo[]>;
   closeApps(processNames: string[]): Promise<void>;

@@ -165,11 +165,11 @@ ipcMain.handle('cleaner:cancel-scan', async () => {
   scannerService.cancelScan();
 });
 
-ipcMain.handle('cleaner:start-clean', async (_, categoryIds: string[]) => {
+ipcMain.handle('cleaner:start-clean', async (_, categoryIds: string[], excludedFilePaths?: string[]) => {
   const categoriesToClean = latestScanResult ? latestScanResult.categories : [];
   const report = await cleanerService.clean(categoriesToClean, categoryIds, (progress) => {
     mainWindow?.webContents.send('cleaner:clean-progress', progress);
-  });
+  }, excludedFilePaths);
   if (report && report.reclaimedBytes > 0) {
     const firstCat = categoriesToClean[0];
     const driveLetter = firstCat?.name.match(/\(([A-Z]:)\)/i)?.[1] || 'C:';
