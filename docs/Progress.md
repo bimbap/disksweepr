@@ -4,14 +4,14 @@
 ---
 
 ## 1. Project Health & Storage Status
-* **Status**: 🟢 Rebranded to DiskSweepr, Cleaned & Packaged
+* **Status**: 🟢 `v1.1.0` Public Release Published on GitHub & Workspace Cleaned (Project Completed)
 * **Host C: Drive Storage**: ~4.58 GB free
-* **Target Workspace**: `M:\testProject\cleaner\` (Drive M: ~18.1 GB free)
-* **Design Pattern**: EaseUS CleanGenius Style (72px Slim Left Nav Rail + Spacious Step-by-Step Hero Canvas + Lucide Icons)
-* **Release Artifacts**:
-  - Web Bootstrap Installer: `release/DiskSweepr-Web-Setup.exe` (~540 KB) (Modern Linear/Raycast dark UI, Windows 11 rounded corners, native drop shadow, embedded high-res AppIcon, smooth rounded pill buttons & progress bar, fast 0.01s launch, smart installed-detection with Reinstall & 1-click Uninstall, auto-downloads latest `v1.1.0` package from GitHub Releases with silent install)
-  - Full Offline NSIS Modern Wizard: `release/DiskSweepr-Setup-1.1.0.exe` (~91.8 MB) (Complete offline installer, instant <0.05s launch, full multi-page Modern UI 2 wizard, custom dark sidebar/header branding, directory selector, shortcuts toggle)
-  - Portable Executable: `release/DiskSweepr-Portable-1.1.0.exe` (~82.9 MB) (Zero installation, direct executable with persistent `unpackDirName: "DiskSweepr-Runtime"` and code-split lazy loading for instant warm launch)
+* **Target Workspace**: `M:\testProject\disksweepr\` (Drive M: ~50.50 GB free after ~7 GB developer cache & artifact cleanup)
+* **Design Pattern**: EaseUS CleanGenius & Linear Style (72px Slim Left Nav Rail + Spacious Step-by-Step Hero Canvas + Docker Pro Cobalt/Cyan Palette + Lucide Icons)
+* **Release Artifacts (Published to GitHub Releases `v1.1.0`)**:
+  - Web Bootstrap Installer: `DiskSweepr-Web-Setup.exe` (~542 KB) (Modern Linear/Raycast dark UI, Windows 11 rounded corners, native drop shadow, embedded high-res AppIcon, Taskbar/Alt+Tab icon & title `DiskSweepr Setup`, configurable Desktop/Start Menu/Explorer context-menu checkboxes, smart installed-detection with Reinstall & 1-click Uninstall, auto-downloads latest `v1.1.0` package from GitHub Releases)
+  - Full Offline NSIS Modern Wizard: `DiskSweepr-Setup-1.1.0.exe` (~87.6 MB) (Complete offline installer, multi-user `Anyone` vs `Only for me` selection, directory selector, custom `nsDialogs` Additional Tasks & Shortcuts page for Desktop, Start Menu, and Explorer right-click menu)
+  - Portable Executable: `DiskSweepr-Portable-1.1.0.exe` (~79.1 MB) (Zero installation, standalone executable with persistent `unpackDirName: "DiskSweepr-Runtime"` and code-split lazy loading)
 * **Last Updated**: 2026-10-29
 
 ---
@@ -879,19 +879,12 @@
 - [x] **Recycle Bin & Deep Recovery Action Loading States** ([`RecoveryView.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/RecoveryView.tsx), [`SettingsContext.tsx`](file:///m:/testProject/disksweepr/src/renderer/context/SettingsContext.tsx)):
   - Added dedicated `WaveEqualizerLoader` state cards in Tab 1 when emptying the Recycle Bin (`Emptying Windows Recycle Bin...`), permanently purging selected items (`Permanently Deleting Selected Items...`), or restoring files (`Restoring Selected Files...`), and in Tab 2 when reconstructing files to a folder (`Recovering Selected Files...`).
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+### Phase 59: 1,000,000 `$MFT` Record Depth, 64-Bit Size Parsing, & Final `v1.1.0` Public Release Closure
+- [x] **Expanded `$MFT` Scan Depth (`1,000,000` Records / `2,500` Max Results) & 64-Bit Size Support** ([`recoveryService.ts`](file:///m:/testProject/disksweepr/src/main/services/recoveryService.ts), [`RecoveryView.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/RecoveryView.tsx)):
+  - Increased `NtfsMftEngine.ScanVolume` limit from `350,000` to `1,000,000` `$MFT` records so large NTFS volumes (e.g., `M:` with `625,664` `$MFT` records) are scanned end-to-end without premature cutoff.
+  - Increased `maxResults` to `2,500` and switched TSV size/timestamp parsing from `parseInt(..., 10)` to `Number(...)` to accurately represent multi-gigabyte 64-bit files (`> 4 GB`).
+  - Verified raw `$MFT` forensic inspection on `M:\` (locating record `#418844` `$RUUSLPR.gz` at `7,109,327,315` bytes and confirming NVMe TRIM / `$DATA` `LastVCN=-1` truncation behavior vs. recoverable non-resident LCN runs).
+- [x] **Final `v1.1.0` Public Release & Workspace Cleanup**:
+  - Built and published `DiskSweepr-Web-Setup.exe`, `DiskSweepr-Setup-1.1.0.exe`, and `DiskSweepr-Portable-1.1.0.exe` for the official GitHub Release `v1.1.0`.
+  - Cleaned ~7 GB of dormant developer caches across `M:\` (`M:\.gradle\caches`, `M:\.gradle\daemon`, `.dart_tool`, legacy `.apk` duplicates, stale `out`/`dist`/`node_modules` folders) and purged local `disksweepr/node_modules`, `dist`, and `dist-electron` to leave a clean, minimal repository footprint.
 
