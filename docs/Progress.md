@@ -844,6 +844,17 @@
   - [`release/DiskSweepr-Web-Setup.exe`](file:///m:/testProject/disksweepr/release/DiskSweepr-Web-Setup.exe) (540 KB) — Online Bootstrap Installer targeting `v1.1.0`.
   - Cleaned obsolete `1.0.0` binaries and temporary build folders (`win-unpacked`, `.blockmap`, `builder-debug.yml`).
 
+### Phase 56: True NTFS `$MFT` Raw Disk Deep Recovery & UAC Administrator Manifest
+- [x] **True NTFS `$MFT` Undelete & Deep Remnant Scanner** ([`recoveryService.ts`](file:///m:/testProject/disksweepr/src/main/services/recoveryService.ts), [`tests/recovery.test.ts`](file:///m:/testProject/disksweepr/tests/recovery.test.ts)):
+  - Removed the flawed `readdir` traversal that previously listed active live files in Deep Recovery.
+  - Implemented **Stage 1: Raw NTFS `$MFT` Deleted Record Scanner & Sector Reconstructor**: opens raw volume handle `\\.\X:`, reads the NTFS boot sector & `$MFT` runlist, parses 1024-byte `FILE` records with `Flags == 0x0000` (deleted files), applies Update Sequence Array (USA) sector fixups, decodes `$STANDARD_INFORMATION` (`0x10`), `$FILE_NAME` (`0x30`), and `$DATA` (`0x80` resident bytes and non-resident LCN/VCN cluster data runs), resolves parent directory record chains, and reconstructs deleted files directly from raw disk clusters on recovery.
+  - Implemented **Stage 2: Deep `$Recycle.Bin` SID & `$I` Metadata Binary Parser**: traverses all SID subdirectories inside `<Drive>:\$Recycle.Bin`, parses Windows Vista/7 (`v1`) and Windows 10/11 (`v2`) `$Ixxxxxx` binary headers to recover original filenames, paths, and deletion timestamps for `$Rxxxxxx` payloads.
+  - Implemented **Stage 3: Lost Cluster & Orphaned Recovery Remnants**: scans `found.000\*.chk` fragments and orphaned recovery backups (`~$*`, `.asd`, `.wbk`, `.xlk`, `.bak`, `.old`, `.crdownload`, `.part`) while strictly excluding all normal active files.
+- [x] **UAC Administrator Execution Level (`requireAdministrator`)** ([`electron-builder.json`](file:///m:/testProject/disksweepr/electron-builder.json)):
+  - Added `"requestedExecutionLevel": "requireAdministrator"` under `"win"` and `"requestExecutionLevel": "admin"` under `"portable"` so both Installed and Portable executables automatically request Administrator elevation on launch (required for raw volume `\\.\X:` NTFS `$MFT` access, DISM cleanup, and VHDX compaction).
+  - Rebuilt all three `v1.1.0` release packages (`DiskSweepr-Setup-1.1.0.exe`, `DiskSweepr-Portable-1.1.0.exe`, `DiskSweepr-Web-Setup.exe`) and verified `32/32` unit tests passing.
+
+
 
 
 

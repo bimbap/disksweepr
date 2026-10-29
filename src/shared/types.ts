@@ -308,6 +308,12 @@ export interface DeepRecoveryItem {
   status: 'recoverable' | 'corrupted' | 'partially_overwritten';
   modifiedTime?: number;
   extension: string;
+  recoverySource?: 'ntfs_mft' | 'shadow_copy' | 'recycle_remnant' | 'orphan_fragment';
+  sourcePath?: string; // Physical path for shadow copy / remnant, or volume device path for NTFS MFT
+  mftRecordNumber?: number;
+  bytesPerCluster?: number;
+  dataRuns?: Array<{ clusterOffset: number; clusterCount: number }>;
+  residentDataBase64?: string;
 }
 
 export interface DeepRecoveryScanOptions {

@@ -3,48 +3,136 @@ import assert from 'node:assert/strict';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { RecoveryService } from '../src/main/services/recoveryService.ts';
+import {
+  RecoveryService,
+  parseRecycleBinMetadataBuffer,
+  parseDeletedNtfsMftRecord,
+} from '../src/main/services/recoveryService.ts';
 
-test('RecoveryService scans deep recovery directory with category filter', async () => {
+test('RecoveryService ignores normal active files and only detects orphaned/deleted remnants', async () => {
   const service = new RecoveryService();
   const tempDir = path.join(os.tmpdir(), `disksweepr_recovery_test_${Date.now()}`);
   fs.mkdirSync(tempDir, { recursive: true });
 
-  const imgFile = path.join(tempDir, 'photo.jpg');
-  const docFile = path.join(tempDir, 'invoice.pdf');
-  const textFile = path.join(tempDir, 'notes.txt');
+  // Normal live files MUST NOT be returned by Deep Recovery
+  const activeImg = path.join(tempDir, 'active_photo.jpg');
+  const activeVideo = path.join(tempDir, 'active_movie.mkv');
+  fs.writeFileSync(activeImg, Buffer.from('LIVE_JPEG_FILE'));
+  fs.writeFileSync(activeVideo, Buffer.from('LIVE_MKV_FILE'));
 
-  fs.writeFileSync(imgFile, Buffer.from('JPEG_HEADER_DUMMY_DATA'));
-  fs.writeFileSync(docFile, Buffer.from('PDF_HEADER_DUMMY_DATA'));
-  fs.writeFileSync(textFile, Buffer.from('TEXT_DATA'));
+  // Orphaned / backup / lost-cluster files SHOULD be detected
+  const orphanImgBak = path.join(tempDir, 'deleted_photo.jpg.bak');
+  const orphanDocAsd = path.join(tempDir, 'unsaved_report.docx.asd');
+  const foundDir = path.join(tempDir, 'found.000');
+  fs.mkdirSync(foundDir, { recursive: true });
+  const chkFragment = path.join(foundDir, 'file0001.chk');
 
-  // Test images filter
+  fs.writeFileSync(orphanImgBak, Buffer.from('RECOVERABLE_JPEG_BACKUP'));
+  fs.writeFileSync(orphanDocAsd, Buffer.from('RECOVERABLE_WORD_AUTORECOVER'));
+  fs.writeFileSync(chkFragment, Buffer.from('CHKDSK_CLUSTER_DATA'));
+
+  // 1. Test images category filter: only deleted_photo.jpg.bak should match, NOT active_photo.jpg!
   const imgResults = await service.scanDeepRecovery({
     targetPath: tempDir,
     category: 'images',
   });
 
-  assert.equal(imgResults.length, 1, 'Should find only photo.jpg for images category');
-  assert.equal(imgResults[0].name, 'photo.jpg');
+  assert.equal(imgResults.length, 1, 'Should find only orphaned image backup and ignore active photo.jpg');
+  assert.equal(imgResults[0].name, 'deleted_photo.jpg.bak');
   assert.equal(imgResults[0].status, 'recoverable');
 
-  // Test documents filter
-  const docResults = await service.scanDeepRecovery({
+  // 2. Test all category filter: should find the 3 orphaned items and 0 active files
+  const allResults = await service.scanDeepRecovery({
     targetPath: tempDir,
-    category: 'documents',
+    category: 'all',
   });
+  const foundNames = allResults.map((r) => r.name);
+  assert.ok(!foundNames.includes('active_photo.jpg'), 'Must never include normal active photo.jpg');
+  assert.ok(!foundNames.includes('active_movie.mkv'), 'Must never include normal active movie.mkv');
+  assert.equal(allResults.length, 3);
 
-  assert.equal(docResults.length, 2, 'Should find invoice.pdf and notes.txt for documents category');
-
-  // Test recovering files to another directory
+  // 3. Test recovering files to destination directory
   const destDir = path.join(os.tmpdir(), `disksweepr_recovered_dest_${Date.now()}`);
   const recoverRes = await service.recoverDeepFiles(imgResults, destDir);
 
   assert.equal(recoverRes.recoveredCount, 1);
-  assert.ok(fs.existsSync(path.join(destDir, 'photo.jpg')));
+  assert.ok(fs.existsSync(path.join(destDir, 'deleted_photo.jpg.bak')));
 
   // Clean up
   fs.rmSync(tempDir, { recursive: true, force: true });
+  fs.rmSync(destDir, { recursive: true, force: true });
+});
+
+test('parseRecycleBinMetadataBuffer parses Windows 10/11 v2 $I header', () => {
+  const origPath = 'M:\\Videos\\episode_01.mkv';
+  const pathBuf = Buffer.from(origPath + '\0', 'utf16le');
+  const header = Buffer.alloc(28 + pathBuf.length);
+  header.writeBigUInt64LE(2n, 0); // Version 2
+  header.writeBigUInt64LE(248512000n, 8); // Size in bytes
+  header.writeBigUInt64LE(133430000000000000n, 16); // Windows FILETIME
+  header.writeUInt32LE(origPath.length + 1, 24); // Char count
+  pathBuf.copy(header, 28);
+
+  const parsed = parseRecycleBinMetadataBuffer(header);
+  assert.ok(parsed);
+  assert.equal(parsed.originalPath, origPath);
+  assert.equal(parsed.sizeBytes, 248512000);
+  assert.ok(parsed.deletedTimeMs > 0);
+});
+
+test('parseDeletedNtfsMftRecord parses a synthetic deleted NTFS $MFT record and reconstructs resident data', async () => {
+  const record = Buffer.alloc(1024, 0);
+  record.write('FILE', 0, 'ascii');
+  record.writeUInt16LE(48, 20); // First attribute offset
+  record.writeUInt16LE(0x0000, 22); // Flags = 0x0000 (Deleted File!)
+
+  // Attribute 1 at offset 48: 0x30 ($FILE_NAME)
+  const fileName = 'secret_contract.pdf';
+  const nameUtf16 = Buffer.from(fileName, 'utf16le');
+  const fnValueLen = 66 + nameUtf16.length;
+  const fnAttrLen = Math.ceil((24 + fnValueLen) / 8) * 8;
+  record.writeUInt32LE(0x30, 48); // Type $FILE_NAME
+  record.writeUInt32LE(fnAttrLen, 52); // Attr length
+  record.writeUInt8(0, 56); // Resident
+  record.writeUInt32LE(fnValueLen, 64); // Value length
+  record.writeUInt16LE(24, 68); // Value offset
+
+  const fnValStart = 48 + 24;
+  record.writeUInt32LE(5, fnValStart); // Parent MFT record = 5 (root directory)
+  record.writeBigUInt64LE(133450000000000000n, fnValStart + 16); // Modified FILETIME
+  record.writeUInt8(fileName.length, fnValStart + 64); // Filename length in chars
+  record.writeUInt8(1, fnValStart + 65); // Win32 namespace
+  nameUtf16.copy(record, fnValStart + 66);
+
+  // Attribute 2: 0x80 ($DATA - Resident)
+  const dataAttrOffset = 48 + fnAttrLen;
+  const payload = Buffer.from('%PDF-1.7 RECOVERED_FROM_MFT_SECTOR');
+  const dataAttrLen = Math.ceil((24 + payload.length) / 8) * 8;
+  record.writeUInt32LE(0x80, dataAttrOffset); // Type $DATA
+  record.writeUInt32LE(dataAttrLen, dataAttrOffset + 4);
+  record.writeUInt8(0, dataAttrOffset + 8); // Resident
+  record.writeUInt32LE(payload.length, dataAttrOffset + 16);
+  record.writeUInt16LE(24, dataAttrOffset + 20);
+  payload.copy(record, dataAttrOffset + 24);
+
+  // End marker 0xFFFFFFFF
+  record.writeUInt32LE(0xffffffff, dataAttrOffset + dataAttrLen);
+
+  const item = parseDeletedNtfsMftRecord(record, 142, 'M:', 4096);
+  assert.ok(item, 'Should parse deleted NTFS MFT record');
+  assert.equal(item.name, 'secret_contract.pdf');
+  assert.equal(item.originalPath, 'M:\\secret_contract.pdf');
+  assert.equal(item.sizeBytes, payload.length);
+  assert.equal(item.status, 'recoverable');
+  assert.equal(item.recoverySource, 'ntfs_mft');
+
+  // Verify recovering this MFT item writes the exact resident bytes to disk
+  const service = new RecoveryService();
+  const destDir = path.join(os.tmpdir(), `disksweepr_mft_recover_${Date.now()}`);
+  const res = await service.recoverDeepFiles([item], destDir);
+  assert.equal(res.recoveredCount, 1);
+  const recoveredContent = fs.readFileSync(path.join(destDir, 'secret_contract.pdf'), 'utf8');
+  assert.equal(recoveredContent, '%PDF-1.7 RECOVERED_FROM_MFT_SECTOR');
   fs.rmSync(destDir, { recursive: true, force: true });
 });
 
@@ -53,7 +141,7 @@ test('RecoveryService handles empty or cancelled deep recovery cleanly', async (
   const tempDir = path.join(os.tmpdir(), `disksweepr_recovery_cancel_${Date.now()}`);
   fs.mkdirSync(tempDir, { recursive: true });
 
-  fs.writeFileSync(path.join(tempDir, 'file1.dat'), Buffer.alloc(100));
+  fs.writeFileSync(path.join(tempDir, 'file1.bak'), Buffer.alloc(100));
 
   const scanPromise = service.scanDeepRecovery(
     { targetPath: tempDir, category: 'all' },
@@ -65,7 +153,6 @@ test('RecoveryService handles empty or cancelled deep recovery cleanly', async (
   const results = await scanPromise;
   assert.ok(Array.isArray(results));
 
-  // Clean up
   fs.rmSync(tempDir, { recursive: true, force: true });
 });
 
@@ -78,4 +165,3 @@ test('RecoveryService reads Recycle Bin items without throwing', async () => {
     assert.ok(typeof items[0].originalLocation === 'string');
   }
 });
-
