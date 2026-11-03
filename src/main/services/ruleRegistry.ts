@@ -346,6 +346,18 @@ export const CATEGORY_DEFINITIONS: CategoryDefinition[] = [
 
   // --- USER MEDIA & DOWNLOADS ---
   {
+    id: 'old_downloads',
+    name: 'Old Downloaded Installers & Archives (>30 Days)',
+    description: 'Downloaded installers (.exe, .msi, .iso, .img) and compressed packages (.zip, .rar, .7z) in Downloads older than 30 days. Sent to Recycle Bin.',
+    group: 'media',
+    risk: 'caution',
+    defaultSelected: false,
+    useTrash: true,
+    paths: ['%USERPROFILE%\\Downloads'],
+    fileExtensions: ['.exe', '.msi', '.iso', '.img', '.zip', '.rar', '.7z', '.tar', '.gz'],
+    minAgeDays: 30,
+  },
+  {
     id: 'user_media_hunter',
     name: 'User Media & Downloads Audit',
     description: 'Audits personal video, audio, and archive assets (.mp4, .mkv, .mp3, .zip). Safely recycled.',
@@ -532,6 +544,18 @@ export function getCategoryDefinitionsForDrive(driveLetter: string = 'C:'): Cate
         `${normDrive}\\SteamLibrary\\steamapps\\shadercache`,
         `${normDrive}\\SteamLibrary\\steamapps\\downloading`,
       ],
+    },
+    {
+      id: `${normDrive}_old_downloads`,
+      name: `Old Downloads & Installers (${normDrive})`,
+      description: `Setup installers and archives in Downloads on drive ${normDrive} older than 30 days. Sent to Recycle Bin.`,
+      group: 'media',
+      risk: 'caution',
+      defaultSelected: false,
+      useTrash: true,
+      paths: [`${normDrive}\\Downloads`],
+      fileExtensions: ['.exe', '.msi', '.iso', '.img', '.zip', '.rar', '.7z', '.tar', '.gz'],
+      minAgeDays: 30,
     },
     {
       id: `${normDrive}_media_hunter`,

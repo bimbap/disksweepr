@@ -1,5 +1,6 @@
 {
   "name": "disksweepr",
+  "productName": "DiskSweepr",
   "version": "1.1.0",
   "description": "High-performance, safety-first desktop disk cleaning utility for Windows",
   "main": "dist-electron/main/index.js",
@@ -7,10 +8,13 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "start": "electron .",
-    "dist": "npm run build && electron-builder --config electron-builder.json",
+    "dist": "npm run build && electron-builder --config electron-builder.json --win nsis",
+    "dist:all": "npm run build && electron-builder --config electron-builder.json --win nsis nsis-web portable",
+    "dist:setup": "electron-builder --config electron-builder.json --win nsis",
+    "dist:web": "electron-builder --config electron-builder.json --win nsis-web",
     "dist:portable": "electron-builder --config electron-builder.json --win portable",
     "preview": "vite preview",
-    "test": "node --test tests/filters.test.ts tests/emptyFolder.test.ts tests/rules.test.ts tests/largeFiles.test.ts tests/fastSearch.test.ts tests/duplicates.test.ts tests/recovery.test.ts tests/recoveryUtils.test.ts"
+    "test": "node --test tests/filters.test.ts tests/emptyFolder.test.ts tests/rules.test.ts tests/largeFiles.test.ts tests/fastSearch.test.ts tests/duplicates.test.ts tests/recovery.test.ts tests/recoveryUtils.test.ts tests/devCleaner.test.ts"
   },
   "dependencies": {
     "lucide-react": "^1.61.0",

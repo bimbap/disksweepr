@@ -30,6 +30,7 @@ import { useSettings } from '../context/SettingsContext';
 interface ScannedResultTreeProps {
   categories: ScannedCategory[];
   onToggleCategory: (id: string) => void;
+  onToggleGroup?: (categoryIds: string[], select: boolean) => void;
   onToggleFile?: (categoryId: string, filePath: string) => void;
   onOpenExplorer: (path: string) => void;
   formatSize: (bytes: number) => string;
@@ -40,6 +41,7 @@ const FILES_PER_PAGE = 20;
 export const ScannedResultTree: React.FC<ScannedResultTreeProps> = ({
   categories,
   onToggleCategory,
+  onToggleGroup,
   onToggleFile,
   onOpenExplorer,
   formatSize,
@@ -194,14 +196,56 @@ export const ScannedResultTree: React.FC<ScannedResultTreeProps> = ({
           if (groupItems.length === 0) return null;
           const groupBytes = groupItems.reduce((acc, c) => acc + c.totalBytes, 0);
           const groupFiles = groupItems.reduce((acc, c) => acc + c.fileCount, 0);
+          const groupCategoryIds = groupItems.map((c) => c.id);
+          const selectedInGroup = groupItems.filter(
+            (c) => c.selected && (!c.excludedPaths || c.excludedPaths.length < c.files.length)
+          ).length;
+          const isGroupAllSelected =
+            groupItems.length > 0 &&
+            groupItems.every(
+              (c) => c.selected && (!c.excludedPaths || c.excludedPaths.length === 0)
+            );
+          const isGroupIndeterminate =
+            !isGroupAllSelected && groupItems.some((c) => c.selected);
 
           return (
             <div key={groupKey} className="tree-group-section">
               <div className="tree-group-header">
-                <span className="tree-group-title">{groupLabels[groupKey] || groupKey}</span>
-                <span className="tree-group-meta font-mono">
-                  {formatSize(groupBytes)} • {groupFiles.toLocaleString()} files
-                </span>
+                <div className="tree-group-header-left">
+                  <button
+                    type="button"
+                    className={`custom-checkbox-btn ${
+                      isGroupAllSelected ? 'checked' : ''
+                    } ${isGroupIndeterminate ? 'indeterminate' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleGroup?.(groupCategoryIds, !isGroupAllSelected);
+                    }}
+                    aria-label={`Toggle all ${groupLabels[groupKey] || groupKey}`}
+                  >
+                    {isGroupAllSelected && <Check size={12} />}
+                    {isGroupIndeterminate && <Minus size={12} />}
+                  </button>
+                  <span className="tree-group-title">{groupLabels[groupKey] || groupKey}</span>
+                  <span className="tree-group-count font-mono">
+                    ({selectedInGroup}/{groupItems.length})
+                  </span>
+                </div>
+
+                <div className="tree-group-header-right">
+                  <span className="tree-group-meta font-mono">
+                    {formatSize(groupBytes)} • {groupFiles.toLocaleString()} files
+                  </span>
+                  {onToggleGroup && (
+                    <button
+                      type="button"
+                      className="link-btn tree-group-toggle-btn"
+                      onClick={() => onToggleGroup(groupCategoryIds, !isGroupAllSelected)}
+                    >
+                      {isGroupAllSelected ? t('cleanup.unselect_group') : t('cleanup.select_group')}
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="tree-categories-wrapper">

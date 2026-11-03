@@ -223,6 +223,14 @@ export const DevProjectsView: React.FC<DevProjectsViewProps> = ({
     }
   };
 
+  const availableFilterTypes = React.useMemo(() => {
+    const types = new Set<string>();
+    artifacts.forEach((a) => {
+      if (a.artifactType) types.add(a.artifactType);
+    });
+    return ['all', ...Array.from(types).sort()];
+  }, [artifacts]);
+
   const filteredArtifacts = artifacts.filter((a) => {
     if (typeFilter !== 'all' && a.artifactType !== typeFilter) {
       return false;
@@ -302,7 +310,7 @@ export const DevProjectsView: React.FC<DevProjectsViewProps> = ({
       {artifacts.length > 0 && (
         <div className="module-toolbar">
           <div className="filter-pill-group">
-            {['all', 'node_modules', '.next', 'dist', 'target', 'build'].map((tType) => (
+            {availableFilterTypes.map((tType) => (
               <button
                 key={tType}
                 type="button"

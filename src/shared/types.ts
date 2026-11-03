@@ -11,6 +11,7 @@ export interface CategoryDefinition {
   defaultSelected: boolean;
   paths: string[]; // Environment-variable aware paths (e.g. %TEMP%, %LOCALAPPDATA%\CrashDumps)
   fileExtensions?: string[]; // Optional filter e.g. ['.log', '.dmp', '.tmp']
+  minAgeDays?: number; // Optional age threshold in days (e.g. 30 days for old downloads)
   isRecycleBin?: boolean;
   requiresAdmin?: boolean;
   useTrash?: boolean; // When true, send items to Recycle Bin instead of permanent unlink
@@ -174,7 +175,7 @@ export interface LargeFilesScanOptions {
 export interface DevArtifactItem {
   id: string;
   projectName: string;
-  artifactType: 'node_modules' | '.next' | 'target' | 'dist' | 'build' | '.turbo';
+  artifactType: string;
   path: string;
   sizeBytes: number;
   lastModifiedTime: number;
@@ -328,6 +329,43 @@ export interface DeepRecoveryScanProgress {
   foundItemsCount: number;
 }
 
+// --- App Settings & Tray & Notifications ---
+export interface AppSettings {
+  language: 'id' | 'en';
+  theme: 'dark' | 'light';
+  closeToTray: boolean;
+  enableTray: boolean;
+  notifyOnMinimizeToTray: boolean;
+  hasShownTrayBalloon: boolean;
+  cleanupReminderDays: number; // 0 = disabled, 3, 7, 14, 30
+  defaultScanScope?: 'quick' | 'full' | 'custom';
+  lastCleanTimestamp: number;
+  lastReminderNotifiedTimestamp: number;
+  autoCheckUpdates: boolean;
+  confirmBeforeClean: boolean;
+  warnRunningApps: boolean;
+  autoTrashMedia: boolean;
+  startWithWindows: boolean;
+}
+
+// --- Auto-Updater ---
+export interface UpdateInfo {
+  available: boolean;
+  currentVersion: string;
+  latestVersion: string;
+  releaseName: string;
+  releaseNotes: string;
+  publishedAt: string;
+  downloadUrl?: string;
+  htmlUrl: string;
+}
+
+export interface UpdateDownloadProgress {
+  percent: number;
+  transferredBytes: number;
+  totalBytes: number;
+}
+
 export interface CleanerApi {
   // Drive Stats
   getDriveStats(): Promise<DriveStat[]>;
@@ -416,6 +454,19 @@ export interface CleanerApi {
   minimizeWindow(): void;
   maximizeWindow(): void;
   closeWindow(): void;
+  exitApp(): void;
+
+  // Settings & Reminders & System Tray
+  getAppSettings(): Promise<AppSettings>;
+  updateAppSettings(settings: Partial<AppSettings>): Promise<AppSettings>;
+  sendTestNotification(): Promise<boolean>;
+
+  // Auto Updater
+  checkForUpdates(): Promise<UpdateInfo>;
+  downloadUpdate(downloadUrl: string): Promise<{ success: boolean; installerPath?: string; error?: string }>;
+  installUpdate(installerPath: string): Promise<void>;
+  onUpdateDownloadProgress(callback: (progress: UpdateDownloadProgress) => void): () => void;
+  onUpdateAvailable(callback: (info: UpdateInfo) => void): () => void;
 }
 
 declare global {

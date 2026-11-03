@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, Suspense, lazy } from 'react';
 import { TitleBar } from './components/TitleBar';
 import { NavRail } from './components/NavRail';
 import { SystemCleanupView } from './components/SystemCleanupView';
+import { SettingsModal } from './components/SettingsModal';
 import { useSettings } from './context/SettingsContext';
 
 const FastSearchView = lazy(() =>
@@ -329,6 +330,9 @@ export const App: React.FC = () => {
           </Suspense>
         </main>
       </div>
+
+      {/* Modern High-End Settings Modal */}
+      <SettingsModal />
     </div>
   );
 };

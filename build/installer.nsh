@@ -5,17 +5,40 @@
   Var /GLOBAL ChkDesktopCtrl
   Var /GLOBAL ChkStartMenuCtrl
   Var /GLOBAL ChkContextMenuCtrl
+  Var /GLOBAL IsUpdateDetected
 
   !macro customInit
     StrCpy $OptDesktopShortcut "1"
     StrCpy $OptStartMenuShortcut "1"
     StrCpy $OptContextMenu "1"
+    StrCpy $IsUpdateDetected "0"
+
+    ; Check if DiskSweepr is already installed on the machine
+    ReadRegStr $0 HKCU "${UNINSTALL_REGISTRY_KEY}" "InstallLocation"
+    ${if} $0 == ""
+      ReadRegStr $0 HKLM "${UNINSTALL_REGISTRY_KEY}" "InstallLocation"
+    ${endif}
+
+    ${if} $0 != ""
+      ${if} ${FileExists} "$0\DiskSweepr.exe"
+        StrCpy $IsUpdateDetected "1"
+        StrCpy $INSTDIR $0
+        IfSilent continueUpdate
+        MessageBox MB_YESNO|MB_ICONINFORMATION "DiskSweepr terdeteksi sudah terpasang di:$\n$0$\n$\nInstaller akan memperbarui instalasi aplikasi ke versi terbaru. Lanjutkan update?" IDYES continueUpdate IDNO cancelUpdate
+        cancelUpdate:
+          Quit
+        continueUpdate:
+      ${endif}
+    ${endif}
   !macroend
 
   !macro customPageAfterChangeDir
     Page custom ShortcutOptionsPageCreate ShortcutOptionsPageLeave
 
     Function ShortcutOptionsPageCreate
+      ${if} $IsUpdateDetected == "1"
+        Abort
+      ${endif}
       ${if} ${isUpdated}
         Abort
       ${endif}

@@ -1,14 +1,46 @@
 import fs from 'fs';
 import path from 'path';
-import { DevArtifactItem, DevScanOptions } from '../../shared/types';
+import type { DevArtifactItem, DevScanOptions } from '../../shared/types.ts';
 
-const TARGET_ARTIFACT_NAMES = new Set([
+export const TARGET_ARTIFACT_NAMES = new Set([
+  // Node / Web Frameworks
   'node_modules',
   '.next',
+  '.nuxt',
+  '.svelte-kit',
+  '.astro',
   'dist',
-  'target',
   'build',
+  'out',
   '.turbo',
+  '.parcel-cache',
+
+  // IaC (Infrastructure as Code) & Cloud
+  '.terraform',
+  '.terragrunt-cache',
+  '.serverless',
+  'cdk.out',
+  '.cdk.staging',
+  '.pulumi',
+
+  // Python Virtualenvs & Caches
+  '.venv',
+  'venv',
+  'env',
+  '.env',
+  '__pycache__',
+  '.pytest_cache',
+  '.mypy_cache',
+  '.ruff_cache',
+  '.tox',
+  '.nox',
+
+  // Native / Compiled / Mobile
+  'target',
+  '.gradle',
+  '.dart_tool',
+  'bin',
+  'obj',
 ]);
 
 export class DevCleanerService {
@@ -35,7 +67,7 @@ export class DevCleanerService {
     }
 
     const queue: Array<{ dirPath: string; depth: number }> = [{ dirPath: rootPath, depth: 0 }];
-    const MAX_DEPTH = 4; // Search up to 4 project subdirectories deep
+    const MAX_DEPTH = 5; // Search up to 5 project subdirectories deep for monorepos
 
     while (queue.length > 0) {
       if (signal.aborted) break;
@@ -53,8 +85,31 @@ export class DevCleanerService {
           const fullPath = path.join(current.dirPath, entry.name);
           const dirNameLower = entry.name.toLowerCase();
 
-          // If this directory IS a target build artifact (e.g. node_modules, .next)
+          // If this directory IS a target build artifact (e.g. node_modules, .terraform, .venv)
           if (TARGET_ARTIFACT_NAMES.has(dirNameLower)) {
+            // Guard: For '.env', only match if it contains virtual environment markers
+            if (dirNameLower === '.env') {
+              const isVenv =
+                fs.existsSync(path.join(fullPath, 'pyvenv.cfg')) ||
+                fs.existsSync(path.join(fullPath, 'Scripts')) ||
+                fs.existsSync(path.join(fullPath, 'bin'));
+              if (!isVenv) continue;
+            }
+
+            // Guard: For generic 'bin' or 'obj', only treat as build artifact if inside a .NET project
+            if (dirNameLower === 'bin' || dirNameLower === 'obj') {
+              const siblingFiles = entries.map((e) => e.name.toLowerCase());
+              const isDotNet = siblingFiles.some(
+                (f) => f.endsWith('.csproj') || f.endsWith('.fsproj') || f.endsWith('.sln')
+              );
+              if (!isDotNet) {
+                if (current.depth < MAX_DEPTH && !entry.name.startsWith('.')) {
+                  queue.push({ dirPath: fullPath, depth: current.depth + 1 });
+                }
+                continue;
+              }
+            }
+
             onProgress?.({ currentDirectory: fullPath });
             try {
               const stat = await fs.promises.stat(fullPath);

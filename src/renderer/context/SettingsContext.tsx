@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import type { AppSettings } from '../../shared/types.ts';
 
 export type Theme = 'dark' | 'light';
 export type Language = 'id' | 'en';
@@ -10,6 +11,12 @@ interface SettingsContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
   t: (key: string) => string;
+  appSettings: AppSettings | null;
+  updateAppSettings: (patch: Partial<AppSettings>) => Promise<void>;
+  isSettingsModalOpen: boolean;
+  openSettingsModal: (initialTab?: string) => void;
+  closeSettingsModal: () => void;
+  settingsActiveTab: string;
 }
 
 const translations: Record<Language, Record<string, string>> = {
@@ -23,6 +30,86 @@ const translations: Record<Language, Record<string, string>> = {
     'nav.tools': 'Power Tools',
     'nav.recovery': 'File Recovery',
     'nav.history': 'History',
+
+    // Settings Modal
+    'settings.modal_title': 'Settings',
+    'settings.search_placeholder': 'Search settings (Ctrl+K)...',
+    'settings.breadcrumb_root': 'Settings',
+    'settings.tab_general': 'General',
+    'settings.tab_cleanup': 'Cleanup & Safety',
+    'settings.tab_notifications': 'Notifications & Tray',
+    'settings.tab_updates': 'Updates',
+    'settings.tab_license': 'License (MIT)',
+    'settings.tab_about': 'About',
+
+    // Section 1: General
+    'settings.general_title': 'General Preferences',
+    'settings.general_subtitle': 'Configure user interface, appearance, and explorer integration',
+    'settings.lang_desc': 'Select the active display language across the entire application interface',
+    'settings.theme_desc': 'Choose between high-contrast dark obsidian and Apple Studio Display light theme',
+    'settings.context_menu_desc': 'Add "Scan with DiskSweepr" shortcut to Windows Explorer context menu',
+    'settings.autostart': 'Start with Windows',
+    'settings.autostart_desc': 'Automatically launch DiskSweepr silently in background tray upon system boot',
+
+    // Section 2: Cleanup & Safety
+    'settings.cleanup_title': 'Cleanup & Safety Guard',
+    'settings.cleanup_subtitle': 'Configure default scan boundaries, Recycle Bin safeguards, and running app locks',
+    'settings.default_scope': 'Default Scan Scope',
+    'settings.default_scope_desc': 'Choose initial scan depth preset when opening System Cleanup',
+    'settings.scope_quick': 'Quick Scan (Top Junk, Temp & Cache)',
+    'settings.scope_full': 'Full System (All 14 categories deep crawl)',
+    'settings.scope_custom': 'Custom Pick (Manual folders & extensions)',
+    'settings.recycle_media': 'Recycle Bin Media Safety',
+    'settings.recycle_media_desc': 'Send audited personal media and download files to Recycle Bin instead of permanent deletion',
+    'settings.confirm_clean': 'Deletion Confirmation Modal',
+    'settings.confirm_clean_desc': 'Require interactive confirmation modal with total storage metrics before purging',
+    'settings.warn_apps': 'Warn on Active Running Applications',
+    'settings.warn_apps_desc': 'Alert if browsers or editors are running to prevent locked cache skipping',
+
+    // Section 3: Notifications & Tray
+    'settings.notifications_title': 'Background Tray & Notifications',
+    'settings.notifications_subtitle': 'Keep DiskSweepr active in system tray and receive maintenance reminders',
+    'settings.close_to_tray': 'Minimize to System Tray on Close',
+    'settings.close_to_tray_desc': 'Clicking window close button hides DiskSweepr to the notification area instead of exiting',
+    'settings.tray_notify': 'Show Notification on Minimize',
+    'settings.tray_notify_desc': 'Display a brief balloon alert confirming DiskSweepr is running in the background',
+    'settings.reminder_interval': 'Periodic Cleanup Reminder',
+    'settings.reminder_interval_desc': 'Automated desktop notification interval when drive storage needs hygiene',
+    'settings.reminder_0': 'Disabled (No Reminders)',
+    'settings.reminder_3': 'Every 3 Days',
+    'settings.reminder_7': 'Every 7 Days (Weekly - Recommended)',
+    'settings.reminder_14': 'Every 14 Days (Bi-weekly)',
+    'settings.reminder_30': 'Every 30 Days (Monthly)',
+    'settings.test_notify': 'Test Desktop Notification',
+    'settings.test_notify_desc': 'Dispatch a sample Windows desktop notification to verify operating system delivery',
+    'settings.test_notify_btn': 'Send Test Notification',
+    'settings.test_notify_sent': 'Test Notification Sent!',
+
+    // Section 4: Updates
+    'settings.updates_title': 'Application Updates',
+    'settings.updates_subtitle': 'Automated release checks, changelog reviews, and installer upgrades',
+    'settings.auto_update': 'Check for Updates Automatically',
+    'settings.auto_update_desc': 'Inspect GitHub Releases for new DiskSweepr versions upon application launch',
+    'settings.current_version': 'Current Installed Version',
+    'settings.check_updates_btn': 'Check for Updates Now',
+    'settings.checking_updates': 'Checking GitHub Releases...',
+    'settings.up_to_date': 'DiskSweepr is up to date (Latest Version)',
+    'settings.update_available': 'New Version Available: {version}',
+    'settings.published_on': 'Published on: {date}',
+    'settings.release_notes': 'Release Notes & Changelog',
+    'settings.download_update_btn': 'Download Update',
+    'settings.downloading_update': 'Downloading Update: {percent}%',
+    'settings.installing_update': 'Launching Installer...',
+    'settings.update_ready_title': 'Update Ready to Install',
+    'settings.update_ready_desc': 'Installer has been downloaded to temporary cache. Confirm restart to install now.',
+    'settings.restart_install_btn': 'Restart & Install Now',
+    'settings.install_later_btn': 'Install on Next Launch',
+    'settings.confirm_restart_prompt': 'DiskSweepr will close and launch the updater. Proceed with restart?',
+
+    // System Exit
+    'settings.exit_app': 'Completely Exit Application',
+    'settings.exit_app_desc': 'Terminate all background tasks, timers, and remove the system tray icon',
+    'settings.exit_app_btn': 'Exit DiskSweepr',
 
     // Settings Dropdown
     'settings.language': 'Language',
@@ -106,6 +193,9 @@ const translations: Record<Language, Record<string, string>> = {
     'cleanup.group_apps': 'Desktop Applications',
     'cleanup.group_developer': 'Development & Package Caches',
     'cleanup.group_media': 'User Media & Downloads',
+    'cleanup.select_group': 'Select Group',
+    'cleanup.unselect_group': 'Deselect Group',
+    'cleanup.unselect_all': 'Deselect All',
     'cleanup.scanning_title': 'Scanning Drive {drive} ...',
     'cleanup.all_clean_title': 'Drive {drive} is 100% Clean!',
     'cleanup.all_clean_desc':
@@ -572,6 +662,86 @@ const translations: Record<Language, Record<string, string>> = {
     'nav.recovery': 'Pemulihan File',
     'nav.history': 'Riwayat',
 
+    // Settings Modal
+    'settings.modal_title': 'Pengaturan',
+    'settings.search_placeholder': 'Cari pengaturan (Ctrl+K)...',
+    'settings.breadcrumb_root': 'Pengaturan',
+    'settings.tab_general': 'Umum',
+    'settings.tab_cleanup': 'Pembersihan & Keamanan',
+    'settings.tab_notifications': 'Notifikasi & Baki',
+    'settings.tab_updates': 'Pembaruan',
+    'settings.tab_license': 'Lisensi (MIT)',
+    'settings.tab_about': 'Tentang',
+
+    // Section 1: General
+    'settings.general_title': 'Preferensi Umum',
+    'settings.general_subtitle': 'Konfigurasi antarmuka pengguna, tampilan tema, dan integrasi Windows',
+    'settings.lang_desc': 'Pilih bahasa tampilan aktif untuk seluruh antarmuka aplikasi',
+    'settings.theme_desc': 'Pilih antara tema gelap obsidian kontras tinggi atau tema terang Apple Studio Display',
+    'settings.context_menu_desc': 'Tambahkan pintasan "Scan with DiskSweepr" pada menu klik kanan Windows Explorer',
+    'settings.autostart': 'Mulai Otomatis saat Windows Menyala',
+    'settings.autostart_desc': 'Jalankan DiskSweepr di latar belakang secara otomatis saat sistem operasi dinyalakan',
+
+    // Section 2: Cleanup & Safety
+    'settings.cleanup_title': 'Pembersihan & Perlindungan Sistem',
+    'settings.cleanup_subtitle': 'Konfigurasi batasan pemindaian default, proteksi Recycle Bin, dan proteksi aplikasi aktif',
+    'settings.default_scope': 'Cakupan Pemindaian Default',
+    'settings.default_scope_desc': 'Pilih preset kedalaman pemindaian awal saat membuka modul Pembersih Sistem',
+    'settings.scope_quick': 'Pindai Cepat (File Sampah Utama, Temp & Cache)',
+    'settings.scope_full': 'Sistem Lengkap (Pembersihan mendalam 14 kategori)',
+    'settings.scope_custom': 'Kustom Mandiri (Pilih folder & ekstensi manual)',
+    'settings.recycle_media': 'Keamanan Media Recycle Bin',
+    'settings.recycle_media_desc': 'Kirim file media dan unduhan pribadi ke Recycle Bin daripada penghapusan permanen',
+    'settings.confirm_clean': 'Dialog Konfirmasi Penghapusan',
+    'settings.confirm_clean_desc': 'Tampilkan popup konfirmasi dengan ringkasan total ukuran file sebelum menghapus permanen',
+    'settings.warn_apps': 'Peringatan Aplikasi Terbuka',
+    'settings.warn_apps_desc': 'Beri peringatan jika browser atau editor sedang berjalan untuk mencegah file terkunci dilewati',
+
+    // Section 3: Notifications & Tray
+    'settings.notifications_title': 'Baki Latar Belakang & Notifikasi',
+    'settings.notifications_subtitle': 'Biarkan DiskSweepr aktif di system tray dan terima pengingat pembersihan berkala',
+    'settings.close_to_tray': 'Minimize ke System Tray saat Ditutup',
+    'settings.close_to_tray_desc': 'Menutup jendela aplikasi akan menyembunyikannya ke tray latar belakang tanpa mematikan proses',
+    'settings.tray_notify': 'Tampilkan Notifikasi saat Minimize',
+    'settings.tray_notify_desc': 'Tampilkan balon notifikasi pengingat singkat saat DiskSweepr berjalan di latar belakang',
+    'settings.reminder_interval': 'Pengingat Pembersihan Berkala',
+    'settings.reminder_interval_desc': 'Interval notifikasi desktop otomatis saat penyimpanan hard disk membutuhkan pembersihan',
+    'settings.reminder_0': 'Nonaktif (Tanpa Pengingat)',
+    'settings.reminder_3': 'Setiap 3 Hari',
+    'settings.reminder_7': 'Setiap 7 Hari (Mingguan - Direkomendasikan)',
+    'settings.reminder_14': 'Setiap 14 Hari (2 Minggu)',
+    'settings.reminder_30': 'Setiap 30 Hari (Bulanan)',
+    'settings.test_notify': 'Uji Notifikasi Desktop',
+    'settings.test_notify_desc': 'Kirim contoh notifikasi desktop Windows untuk memverifikasi sistem pemberitahuan berjalan normal',
+    'settings.test_notify_btn': 'Kirim Notifikasi Uji Coba',
+    'settings.test_notify_sent': 'Notifikasi Uji Coba Terkirim!',
+
+    // Section 4: Updates
+    'settings.updates_title': 'Pembaruan Aplikasi',
+    'settings.updates_subtitle': 'Pemeriksaan rilis otomatis, catatan perubahan versi, dan upgrade installer',
+    'settings.auto_update': 'Periksa Pembaruan Otomatis',
+    'settings.auto_update_desc': 'Periksa rilis versi baru di GitHub Releases secara otomatis saat aplikasi dimulai',
+    'settings.current_version': 'Versi Terpasang Saat Ini',
+    'settings.check_updates_btn': 'Periksa Pembaruan Sekarang',
+    'settings.checking_updates': 'Menghubungkan ke GitHub Releases...',
+    'settings.up_to_date': 'DiskSweepr sudah menggunakan versi terbaru',
+    'settings.update_available': 'Versi Baru Tersedia: {version}',
+    'settings.published_on': 'Dirilis pada: {date}',
+    'settings.release_notes': 'Catatan Rilis & Perubahan',
+    'settings.download_update_btn': 'Unduh Pembaruan',
+    'settings.downloading_update': 'Mengunduh Pembaruan: {percent}%',
+    'settings.installing_update': 'Menjalankan Installer...',
+    'settings.update_ready_title': 'Pembaruan Siap Dipasang',
+    'settings.update_ready_desc': 'Installer telah berhasil diunduh ke penyimpanan sementara. Konfirmasi mulai ulang untuk memasang pembaruan sekarang.',
+    'settings.restart_install_btn': 'Mulai Ulang & Pasang Sekarang',
+    'settings.install_later_btn': 'Pasang Saat Keluar Nanti',
+    'settings.confirm_restart_prompt': 'DiskSweepr akan ditutup dan installer pembaruan akan dijalankan. Lanjutkan sekarang?',
+
+    // System Exit
+    'settings.exit_app': 'Keluar Sepenuhnya dari Aplikasi',
+    'settings.exit_app_desc': 'Hentikan seluruh proses latar belakang, timer, dan hapus ikon dari system tray',
+    'settings.exit_app_btn': 'Keluar DiskSweepr',
+
     // Settings Dropdown
     'settings.language': 'Bahasa',
     'settings.mode': 'Mode',
@@ -654,6 +824,9 @@ const translations: Record<Language, Record<string, string>> = {
     'cleanup.group_apps': 'Aplikasi Desktop',
     'cleanup.group_developer': 'Pengembangan & Cache Paket',
     'cleanup.group_media': 'Media & Unduhan Pengguna',
+    'cleanup.select_group': 'Pilih Grup',
+    'cleanup.unselect_group': 'Batal Pilih Grup',
+    'cleanup.unselect_all': 'Batal Pilih Semua',
     'cleanup.scanning_title': 'Memindai Drive {drive} ...',
     'cleanup.all_clean_title': 'Drive {drive} 100% Bersih!',
     'cleanup.all_clean_desc':
@@ -1122,6 +1295,24 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return (localStorage.getItem('disksweepr_lang') as Language) || 'en';
   });
 
+  const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [settingsActiveTab, setSettingsActiveTab] = useState('general');
+
+  useEffect(() => {
+    window.cleanerApi?.getAppSettings?.().then((settings) => {
+      if (settings) {
+        setAppSettings(settings);
+        if (settings.theme && settings.theme !== theme) {
+          setThemeState(settings.theme);
+        }
+        if (settings.language && settings.language !== language) {
+          setLanguageState(settings.language);
+        }
+      }
+    });
+  }, []);
+
   useEffect(() => {
     document.body.classList.toggle('theme-light', theme === 'light');
     document.documentElement.setAttribute('data-theme', theme);
@@ -1133,15 +1324,39 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [language]);
 
   const toggleTheme = () => {
-    setThemeState((prev) => (prev === 'dark' ? 'light' : 'dark'));
+    const nextTheme: Theme = theme === 'dark' ? 'light' : 'dark';
+    setThemeState(nextTheme);
+    window.cleanerApi?.updateAppSettings?.({ theme: nextTheme });
   };
 
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
+    window.cleanerApi?.updateAppSettings?.({ theme: newTheme });
   };
 
   const setLanguage = (newLang: Language) => {
     setLanguageState(newLang);
+    window.cleanerApi?.updateAppSettings?.({ language: newLang });
+  };
+
+  const updateAppSettings = async (patch: Partial<AppSettings>) => {
+    if (patch.theme) setThemeState(patch.theme);
+    if (patch.language) setLanguageState(patch.language);
+    const updated = await window.cleanerApi?.updateAppSettings?.(patch);
+    if (updated) {
+      setAppSettings(updated);
+    } else {
+      setAppSettings((prev) => (prev ? { ...prev, ...patch } : null));
+    }
+  };
+
+  const openSettingsModal = (initialTab = 'general') => {
+    setSettingsActiveTab(initialTab);
+    setIsSettingsModalOpen(true);
+  };
+
+  const closeSettingsModal = () => {
+    setIsSettingsModalOpen(false);
   };
 
   const t = (key: string): string => {
@@ -1157,6 +1372,12 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         language,
         setLanguage,
         t,
+        appSettings,
+        updateAppSettings,
+        isSettingsModalOpen,
+        openSettingsModal,
+        closeSettingsModal,
+        settingsActiveTab,
       }}
     >
       {children}

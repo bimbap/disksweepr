@@ -10,6 +10,8 @@ import {
   Layers,
   X,
   ShieldCheck,
+  Check,
+  Minus,
 } from 'lucide-react';
 import { formatBytes } from '../../shared/formatters';
 import { parseExtensionInput } from '../../shared/filters';
@@ -120,6 +122,30 @@ export const SystemCleanupView: React.FC<SystemCleanupViewProps> = ({
           return {
             ...c,
             selected: nextSelected,
+            excludedPaths: [],
+          };
+        })
+      );
+    }
+  };
+
+  const handleToggleGroup = (categoryIds: string[], select: boolean) => {
+    if (stage === 'idle') {
+      setSelectedCategoryIds((prev) => {
+        if (select) {
+          return Array.from(new Set([...prev, ...categoryIds]));
+        } else {
+          return prev.filter((id) => !categoryIds.includes(id));
+        }
+      });
+      setScanMode('custom');
+    } else if (stage === 'scanned') {
+      setCategories((prev) =>
+        prev.map((c) => {
+          if (!categoryIds.includes(c.id)) return c;
+          return {
+            ...c,
+            selected: select,
             excludedPaths: [],
           };
         })
@@ -627,9 +653,39 @@ export const SystemCleanupView: React.FC<SystemCleanupViewProps> = ({
                       ? t('cleanup.group_media')
                       : t('cleanup.group_developer');
 
+                  const groupItemIds = groupItems.map((i) => i.id);
+                  const selectedInGroup = groupItemIds.filter((id) => selectedCategoryIds.includes(id)).length;
+                  const isGroupAllSelected = groupItemIds.length > 0 && selectedInGroup === groupItemIds.length;
+                  const isGroupIndeterminate = selectedInGroup > 0 && !isGroupAllSelected;
+
                   return (
-                    <section key={groupKey}>
-                      <h4 className="canvas-group-title">{groupTitle}</h4>
+                    <section key={groupKey} className="drawer-group-section">
+                      <div className="drawer-group-header">
+                        <div className="drawer-group-header-left">
+                          <button
+                            type="button"
+                            className={`custom-checkbox-btn ${
+                              isGroupAllSelected ? 'checked' : ''
+                            } ${isGroupIndeterminate ? 'indeterminate' : ''}`}
+                            onClick={() => handleToggleGroup(groupItemIds, !isGroupAllSelected)}
+                            aria-label={`Toggle all ${groupTitle}`}
+                          >
+                            {isGroupAllSelected && <Check size={12} />}
+                            {isGroupIndeterminate && <Minus size={12} />}
+                          </button>
+                          <h4 className="canvas-group-title">{groupTitle}</h4>
+                          <span className="drawer-group-count font-mono">
+                            ({selectedInGroup}/{groupItems.length})
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          className="link-btn drawer-group-toggle-btn"
+                          onClick={() => handleToggleGroup(groupItemIds, !isGroupAllSelected)}
+                        >
+                          {isGroupAllSelected ? t('cleanup.unselect_group') : t('cleanup.select_group')}
+                        </button>
+                      </div>
                       <div className="bento-grid">
                         {groupItems.map((item) => (
                           <CategoryCard
@@ -787,6 +843,7 @@ export const SystemCleanupView: React.FC<SystemCleanupViewProps> = ({
           <ScannedResultTree
             categories={categories}
             onToggleCategory={handleToggleCategory}
+            onToggleGroup={handleToggleGroup}
             onToggleFile={handleToggleFile}
             onOpenExplorer={(p) => window.cleanerApi?.openPathInExplorer(p)}
             formatSize={formatSize}

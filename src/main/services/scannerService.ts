@@ -222,6 +222,17 @@ export class ScannerService {
 
         try {
           const stat = await fs.promises.stat(fullPath);
+
+          // Respect minAgeDays threshold if defined on category (e.g. 30 days for old downloads)
+          if (def.minAgeDays && def.minAgeDays > 0) {
+            // Check both modified time and creation/birth time to avoid false positives on freshly downloaded legacy installers
+            const fileTimestamp = Math.max(stat.mtimeMs, stat.birthtimeMs || 0);
+            const ageMs = Date.now() - fileTimestamp;
+            if (ageMs < def.minAgeDays * 24 * 60 * 60 * 1000) {
+              continue;
+            }
+          }
+
           const scannedFile: ScannedFile = {
             path: fullPath,
             name: entry.name,

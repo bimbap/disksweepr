@@ -20,6 +20,19 @@ test('CATEGORY_DEFINITIONS includes user_media_hunter with defaultSelected true 
   assert.ok(mediaCat.fileExtensions?.includes('.zip'));
 });
 
+test('CATEGORY_DEFINITIONS includes old_downloads with safe Recycle Bin recycling and 30-day minAgeDays', () => {
+  const oldDownloads = CATEGORY_DEFINITIONS.find((d) => d.id === 'old_downloads');
+  assert.ok(oldDownloads, 'old_downloads must exist in definitions');
+  assert.equal(oldDownloads.group, 'media');
+  assert.equal(oldDownloads.useTrash, true);
+  assert.equal(oldDownloads.minAgeDays, 30);
+  assert.equal(oldDownloads.defaultSelected, false);
+  assert.ok(oldDownloads.fileExtensions?.includes('.exe'));
+  assert.ok(oldDownloads.fileExtensions?.includes('.msi'));
+  assert.ok(oldDownloads.fileExtensions?.includes('.iso'));
+  assert.ok(oldDownloads.fileExtensions?.includes('.zip'));
+});
+
 test('getCategoryDefinitionsForDrive handles secondary drive', () => {
   const secondaryDefs = getCategoryDefinitionsForDrive('M:');
   const mediaCat = secondaryDefs.find((d) => d.id === 'M:_media_hunter');

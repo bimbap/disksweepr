@@ -13,6 +13,10 @@ import { EmptyFolderService } from './services/emptyFolderService';
 import { DismService } from './services/dismService';
 import { ContextMenuService } from './services/contextMenuService';
 import { RecoveryService } from './services/recoveryService';
+import { settingsStore } from './services/settingsStore';
+import { trayService } from './services/trayService';
+import { reminderService } from './services/reminderService';
+import { updateService } from './services/updateService';
 import { getDriveTelemetry } from './services/telemetryService';
 import { getCategoryDefinitionsForDrive } from './services/ruleRegistry';
 import { getRunningAppsForCategories, closeRunningApps } from './services/processService';
@@ -25,9 +29,16 @@ import {
   ScanResult,
   DeepRecoveryScanOptions,
   DeepRecoveryItem,
+  AppSettings,
 } from '../shared/types';
 
 let mainWindow: BrowserWindow | null = null;
+let isQuitting = false;
+
+app.setName('DiskSweepr');
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.disksweepr.app');
+}
 const scannerService = new ScannerService();
 const cleanerService = new CleanerService();
 const largeFileService = new LargeFileService();
@@ -72,11 +83,13 @@ function parsePathArg(argv: string[]): string | null {
 const gotTheLock = app.requestSingleInstanceLock();
 
 if (!gotTheLock) {
-  app.quit();
+  // Terminate immediately with zero delay to prevent duplicate background instances or duplicate tray icons
+  app.exit(0);
 } else {
   app.on('second-instance', (_, commandLine) => {
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();
+      if (!mainWindow.isVisible()) mainWindow.show();
       mainWindow.focus();
 
       const targetPath = parsePathArg(commandLine);
@@ -119,6 +132,16 @@ if (!gotTheLock) {
       }
     });
 
+    mainWindow.on('close', (event) => {
+      const settings = settingsStore.get();
+      if (!isQuitting && settings.closeToTray) {
+        event.preventDefault();
+        mainWindow?.hide();
+        trayService.notifyMinimized();
+        return false;
+      }
+    });
+
     if (process.env.VITE_DEV_SERVER_URL) {
       mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
     } else {
@@ -126,17 +149,69 @@ if (!gotTheLock) {
     }
   }
 
+  app.on('before-quit', () => {
+    isQuitting = true;
+    trayService.destroy();
+    reminderService.destroy();
+  });
+
+  app.on('will-quit', () => {
+    trayService.destroy();
+    reminderService.destroy();
+  });
+
   app.whenReady().then(() => {
+    // Ensure Windows AppUserModelId has a matching Start Menu shortcut during development
+    // so toast notifications and taskbar properly display "DiskSweepr" instead of "electron.app.Electron"
+    if (process.platform === 'win32' && !app.isPackaged) {
+      try {
+        const programsDir = path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs');
+        const shortcutPath = path.join(programsDir, 'DiskSweepr.lnk');
+        const iconPath = path.join(app.getAppPath(), 'build', 'icon.ico');
+        shell.writeShortcutLink(shortcutPath, fs.existsSync(shortcutPath) ? 'replace' : 'create', {
+          target: process.execPath,
+          args: `"${path.resolve(app.getAppPath())}"`,
+          appUserModelId: 'com.disksweepr.app',
+          description: 'DiskSweepr Development',
+          icon: fs.existsSync(iconPath) ? iconPath : undefined,
+          iconIndex: 0,
+        });
+      } catch (err) {
+        console.warn('Failed to register dev shortcut for notifications:', err);
+      }
+    }
+
     createWindow();
+
+    if (mainWindow) {
+      trayService.init(mainWindow, () => {
+        isQuitting = true;
+        trayService.destroy();
+        reminderService.destroy();
+        app.quit();
+      });
+      reminderService.init(mainWindow);
+      updateService.init(mainWindow);
+    }
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {
         createWindow();
+      } else {
+        if (mainWindow?.isMinimized()) mainWindow.restore();
+        mainWindow?.show();
+        mainWindow?.focus();
       }
     });
   });
 
   app.on('window-all-closed', () => {
+    const settings = settingsStore.get();
+    if (settings.closeToTray && !isQuitting) {
+      return;
+    }
+    trayService.destroy();
+    reminderService.destroy();
     if (process.platform !== 'darwin') {
       app.quit();
     }
@@ -171,6 +246,7 @@ ipcMain.handle('cleaner:start-clean', async (_, categoryIds: string[], excludedF
     mainWindow?.webContents.send('cleaner:clean-progress', progress);
   }, excludedFilePaths);
   if (report && report.reclaimedBytes > 0) {
+    reminderService.recordCleanAction();
     const firstCat = categoriesToClean[0];
     const driveLetter = firstCat?.name.match(/\(([A-Z]:)\)/i)?.[1] || 'C:';
     await historyService.addRecord({
@@ -479,5 +555,64 @@ ipcMain.on('cleaner:window-maximize', () => {
 });
 
 ipcMain.on('cleaner:window-close', () => {
-  mainWindow?.close();
+  const settings = settingsStore.get();
+  if (settings.closeToTray) {
+    mainWindow?.hide();
+    trayService.notifyMinimized();
+  } else {
+    mainWindow?.close();
+  }
+});
+
+ipcMain.on('cleaner:exit-app', () => {
+  isQuitting = true;
+  trayService.destroy();
+  reminderService.destroy();
+  app.quit();
+});
+
+// --- SETTINGS & NOTIFICATIONS IPC ---
+ipcMain.handle('cleaner:get-app-settings', async () => {
+  const current = settingsStore.get();
+  if (app.isPackaged) {
+    try {
+      const loginItem = app.getLoginItemSettings();
+      current.startWithWindows = loginItem.openAtLogin;
+    } catch {}
+  }
+  return current;
+});
+
+ipcMain.handle('cleaner:update-app-settings', async (_, patch: Partial<AppSettings>) => {
+  const updated = settingsStore.update(patch);
+  if (patch.language) {
+    trayService.updateContextMenu();
+  }
+  if (patch.startWithWindows !== undefined && app.isPackaged) {
+    try {
+      app.setLoginItemSettings({
+        openAtLogin: patch.startWithWindows,
+      });
+    } catch (err) {
+      console.warn('Failed to set login item settings:', err);
+    }
+  }
+  return updated;
+});
+
+ipcMain.handle('cleaner:send-test-notification', async () => {
+  return reminderService.sendTestNotification();
+});
+
+// --- AUTO UPDATER IPC ---
+ipcMain.handle('cleaner:check-for-updates', async () => {
+  return await updateService.checkForUpdates();
+});
+
+ipcMain.handle('cleaner:download-update', async (_, downloadUrl: string) => {
+  return await updateService.downloadUpdate(downloadUrl);
+});
+
+ipcMain.handle('cleaner:install-update', async (_, installerPath: string) => {
+  updateService.installUpdate(installerPath);
 });

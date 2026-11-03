@@ -130,4 +130,25 @@ contextBridge.exposeInMainWorld('cleanerApi', {
   minimizeWindow: () => ipcRenderer.send('cleaner:window-minimize'),
   maximizeWindow: () => ipcRenderer.send('cleaner:window-maximize'),
   closeWindow: () => ipcRenderer.send('cleaner:window-close'),
+  exitApp: () => ipcRenderer.send('cleaner:exit-app'),
+
+  // Settings & Reminders & System Tray
+  getAppSettings: () => ipcRenderer.invoke('cleaner:get-app-settings'),
+  updateAppSettings: (settings: any) => ipcRenderer.invoke('cleaner:update-app-settings', settings),
+  sendTestNotification: () => ipcRenderer.invoke('cleaner:send-test-notification'),
+
+  // Auto Updater
+  checkForUpdates: () => ipcRenderer.invoke('cleaner:check-for-updates'),
+  downloadUpdate: (downloadUrl: string) => ipcRenderer.invoke('cleaner:download-update', downloadUrl),
+  installUpdate: (installerPath: string) => ipcRenderer.invoke('cleaner:install-update', installerPath),
+  onUpdateDownloadProgress: (callback: (progress: any) => void) => {
+    const handler = (_: any, data: any) => callback(data);
+    ipcRenderer.on('cleaner:update-download-progress', handler);
+    return () => ipcRenderer.removeListener('cleaner:update-download-progress', handler);
+  },
+  onUpdateAvailable: (callback: (info: any) => void) => {
+    const handler = (_: any, data: any) => callback(data);
+    ipcRenderer.on('cleaner:update-available', handler);
+    return () => ipcRenderer.removeListener('cleaner:update-available', handler);
+  },
 });

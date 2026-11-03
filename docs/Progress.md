@@ -888,3 +888,83 @@
   - Built and published `DiskSweepr-Web-Setup.exe`, `DiskSweepr-Setup-1.1.0.exe`, and `DiskSweepr-Portable-1.1.0.exe` for the official GitHub Release `v1.1.0`.
   - Cleaned ~7 GB of dormant developer caches across `M:\` (`M:\.gradle\caches`, `M:\.gradle\daemon`, `.dart_tool`, legacy `.apk` duplicates, stale `out`/`dist`/`node_modules` folders) and purged local `disksweepr/node_modules`, `dist`, and `dist-electron` to leave a clean, minimal repository footprint.
 
+
+### Phase 60: IaC & Python Virtualenvs Scanner, System Tray & Reminders, GitHub Auto-Updater, & Modern Settings Modal
+- [x] **IaC & Modern Build Artifacts Scanner** ([`devCleanerService.ts`](file:///m:/testProject/disksweepr/src/main/services/devCleanerService.ts), [`DevProjectsView.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/DevProjectsView.tsx), [`tests/devCleaner.test.ts`](file:///m:/testProject/disksweepr/tests/devCleaner.test.ts)):
+  - Expanded `TARGET_ARTIFACT_NAMES` with IaC frameworks (`.terraform`, `.terragrunt-cache`, `.serverless`, `cdk.out`, `.cdk.staging`, `.pulumi`), Python virtual environments & bytecode (`.venv`, `venv`, `env`, `.env` with venv markers, `__pycache__`, `.pytest_cache`, `.mypy_cache`, `.ruff_cache`, `.tox`, `.nox`), mobile/native (`.gradle`, `.dart_tool`, `bin`, `obj` with `.csproj` guards), and modern web frameworks (`.nuxt`, `.svelte-kit`, `.astro`, `.parcel-cache`, `out`).
+  - Increased traversal `MAX_DEPTH` to 5 for deep monorepo scanning.
+  - Converted filter pills in `DevProjectsView` from hardcoded arrays to dynamic `availableFilterTypes` reactive sets.
+  - Automated unit test suite `tests/devCleaner.test.ts` passing.
+- [x] **Background System Tray, Close-to-Tray & Desktop Hygiene Reminders** ([`trayService.ts`](file:///m:/testProject/disksweepr/src/main/services/trayService.ts), [`reminderService.ts`](file:///m:/testProject/disksweepr/src/main/services/reminderService.ts), [`settingsStore.ts`](file:///m:/testProject/disksweepr/src/main/services/settingsStore.ts), [`src/main/index.ts`](file:///m:/testProject/disksweepr/src/main/index.ts)):
+  - Implemented `TrayService` creating persistent Windows taskbar notification tray icon (`build/icon.ico` / `build/icon.png`) with context menu (`Open DiskSweepr`, `Check for Updates...`, `Visit GitHub`, `Quit DiskSweepr`), click/double-click toggles, and balloon notification on minimize.
+  - Intercepted window close button: when `closeToTray` is active (default `true`), window hides to tray instead of terminating.
+  - Added single-instance refocus: launching the app while running in tray immediately restores and focuses `mainWindow`.
+  - Implemented `ReminderService`: automated background checks for drive hygiene intervals (Disabled, 3 Days, 7 Days, 14 Days, 30 Days) with desktop notifications and instant action test triggers.
+- [x] **GitHub Releases Auto-Updater Engine** ([`updateService.ts`](file:///m:/testProject/disksweepr/src/main/services/updateService.ts)):
+  - Direct semver comparison engine checking `https://api.github.com/repos/bimbap/disksweepr/releases/latest`.
+  - Non-blocking background checks on startup (5s delay) dispatching `cleaner:update-available`.
+  - In-app release notes viewer, download streaming with percentage progress bars to `%TEMP%`, and detached 1-click installer execution.
+- [x] **High-End Desktop Settings Modal UI/UX Overhaul** ([`SettingsModal.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/SettingsModal.tsx), [`TitleBar.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/TitleBar.tsx), [`SettingsContext.tsx`](file:///m:/testProject/disksweepr/src/renderer/context/SettingsContext.tsx), [`index.css`](file:///m:/testProject/disksweepr/src/renderer/index.css)):
+  - Built full 2-column settings dialog matching user reference image:
+    - Left sidebar: `Ctrl+K` search bar, category navigation with Lucide icons (`General`, `Cleanup & Safety`, `Notifications & Tray`, `Updates`, `License`, `About`).
+    - Right content pane: Breadcrumbs navigation (`Settings > [Category]`), smooth close button (`X`), card-style setting rows with tactile toggles, custom selects, and danger zones.
+    - Updated `TitleBar.tsx` gear button to directly open `SettingsModal`.
+    - Added comprehensive bilingual localization (`en` and `id`) for all settings and options.
+- [x] **Quality Gate & Verification**:
+  - `npx tsc --noEmit`: 0 errors.
+  - `npm test`: 35/35 unit tests passed (100% green).
+  - `npm run build`: Bundled cleanly in 8.02s.
+
+### Phase 61: Multi-Target Distribution Packaging, NSIS In-Place Upgrade Engine, & Interactive Updater Confirmation
+- [x] **Multi-Target Release Distribution (`release/`)** ([`package.json`](file:///m:/testProject/disksweepr/package.json), [`electron-builder.json`](file:///m:/testProject/disksweepr/electron-builder.json)):
+  - Built 3 production distributions:
+    - **Full Offline Installer**: `DiskSweepr-Setup-1.1.0.exe` (~91.8 MB) — standalone NSIS wizard bundled with all assets.
+    - **Web Setup Installer**: `DiskSweepr-Web-Setup-1.1.0.exe` (~1.1 MB) inside `release/nsis-web/` with payload `disksweepr-1.1.0-x64.nsis.7z` (~90.9 MB) and GitHub Releases publish config.
+    - **Portable Executable**: `DiskSweepr-Portable-1.1.0.exe` (~82.9 MB) — single-binary portable executable with persistent `unpackDirName: "DiskSweepr-Runtime"`.
+- [x] **Smart In-Place Update Detection in NSIS** ([`build/installer.nsh`](file:///m:/testProject/disksweepr/build/installer.nsh)):
+  - Added `${UNINSTALL_REGISTRY_KEY}` detection during `customInit`: checks `InstallLocation` in both `HKCU` and `HKLM`.
+  - When an existing `DiskSweepr.exe` is detected, installer sets `$IsUpdateDetected = "1"`, locks `$INSTDIR` to the existing directory, prompts user to update in-place, and automatically bypasses the directory picker and duplicate shortcut prompts.
+- [x] **Settings Modal UX & Animation Polish** ([`SettingsModal.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/SettingsModal.tsx), [`index.css`](file:///m:/testProject/disksweepr/src/renderer/index.css)):
+  - Responsive sizing: fluid adaptation from `980x680 px` up to `1160x820 px` on large / maximized screens via media queries.
+  - Exit transition: added `isClosing` lifecycle with `@keyframes modalFadeOut` and `@keyframes modalScaleOut` (190ms) before unmounting.
+  - Custom select dropdown: created `<CustomSelect />` component matching Apple Studio & Linear aesthetics with rotating `ChevronDown`, popover options menu, and active checkmarks for Periodic Reminders and Default Scan Scope.
+  - Dark/Light mode toggle fix: mapped class to `.theme-toggle-switch ${theme}` for smooth sliding switch animation.
+  - Backdrop blur anomaly fix: replaced transparent-window Chromium blur artifact with crisp high-contrast scrim (`rgba(4, 6, 12, 0.78)` in dark mode, `rgba(15, 23, 42, 0.42)` in light mode).
+  - Dev-only Test Notification: wrapped test alert button with `{isDev && ( ... )}` guard using `import.meta.env.DEV`.
+- [x] **Safe Two-Stage In-App Updater** ([`updateService.ts`](file:///m:/testProject/disksweepr/src/main/services/updateService.ts), [`SettingsModal.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/SettingsModal.tsx)):
+  - Prioritizes offline `DiskSweepr-Setup-*.exe` over web stubs for maximum download stability.
+  - Separated download and execution: downloads installer to `%TEMP%` first with percentage progress, then renders an interactive confirmation card (*"Update Ready to Install" / "Mulai Ulang & Pasang Sekarang"* or *"Install on Next Launch"*).
+- [x] **Quality Gate & Verification**:
+  - `npm test`: 35/35 unit tests passed (100% green).
+  - `npm run dist:all`: Successfully compiled and packed all 3 distribution formats with code 0.
+
+### Phase 62: Stale Downloads Sweeper & Category/Group-Level Batch Selection Engine
+- [x] **Old Downloads Sweeper (Option 1)** ([`types.ts`](file:///m:/testProject/disksweepr/src/shared/types.ts), [`ruleRegistry.ts`](file:///m:/testProject/disksweepr/src/main/services/ruleRegistry.ts), [`scannerService.ts`](file:///m:/testProject/disksweepr/src/main/services/scannerService.ts)):
+  - Added `minAgeDays: 30` to `CategoryDefinition` interface and registered `old_downloads` category for both system C: drive and secondary storage volumes.
+  - Safely audits stale installer files (`.exe`, `.msi`, `.iso`, `.img`) and compressed archives (`.zip`, `.rar`, `.7z`, `.tar`, `.gz`) residing in `%USERPROFILE%\Downloads` untouched for over 30 days.
+  - Age threshold checks both file modification time (`stat.mtimeMs`) and creation/birth time (`stat.birthtimeMs`) to prevent false positives on freshly downloaded legacy archives.
+  - Non-destructive recycling: flagged with `useTrash: true` so any purged item is safely moved to the Windows Recycle Bin without risking permanent data loss.
+- [x] **Pre-Scan Setup Group-Level Selection** ([`SystemCleanupView.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/SystemCleanupView.tsx), [`index.css`](file:///m:/testProject/disksweepr/src/renderer/index.css)):
+  - Replaced static text headers with interactive `.drawer-group-header` across all category groups (`System`, `Browsers`, `Applications`, `Developer`, `Media`).
+  - Added tri-state checkbox (`checked`, `indeterminate`, `unchecked`), count badge (`(X/Y)`), and tactile link button (`Pilih Grup` / `Batal Pilih Grup`) to select or deselect an entire group with 1 click.
+- [x] **Post-Scan Audit Tree Batch Toggling & Cascading Sub-items** ([`ScannedResultTree.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/ScannedResultTree.tsx), [`SystemCleanupView.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/SystemCleanupView.tsx), [`index.css`](file:///m:/testProject/disksweepr/src/renderer/index.css)):
+  - Enhanced `.tree-group-header` with `onToggleGroup` callback, tri-state checkbox, and quick toggle action to instantly select/deselect all categories in that group.
+  - Category checkbox toggling immediately updates `selected` state and resets `excludedPaths: []`, cascading ON or OFF to all nested files and sub-items simultaneously without requiring manual 1-by-1 file unchecking.
+- [x] **Quality Gate & Verification**:
+  - `npm test`: 36/36 unit tests passed (100% green).
+  - `npm run build`: Bundled renderer and electron main/preload cleanly with 0 errors.
+
+### Phase 63: Strict Single-Instance Enforcement, Ghost Tray Prevention & Background Update Popup
+- [x] **Zero-Duplicate System Instance Enforcement** ([`src/main/index.ts`](file:///m:/testProject/disksweepr/src/main/index.ts)):
+  - Switched single-instance rejection handler from async `app.quit()` to immediate synchronous `app.exit(0)` to prevent duplicate execution, lingering event loops, or phantom background processes.
+  - Enhanced `second-instance` handler: restores minimized/hidden `mainWindow` from system tray and focuses it cleanly without spawning new windows.
+- [x] **Tray Lifecycle & Ghost Icon Prevention** ([`src/main/services/trayService.ts`](file:///m:/testProject/disksweepr/src/main/services/trayService.ts), [`src/main/index.ts`](file:///m:/testProject/disksweepr/src/main/index.ts)):
+  - Added self-healing guard in `createTray()`: destroys any existing Tray instance before creating a new one, guaranteeing exactly 1 tray icon in the Windows notification area.
+  - Added explicit `destroy()` method hooked into `app.on('before-quit')`, `app.on('will-quit')`, `app.on('window-all-closed')`, and `cleaner:exit-app` to instantly clear the Windows taskbar icon and prevent phantom icons.
+- [x] **Silent Background Check for Updates Popup** ([`src/main/services/trayService.ts`](file:///m:/testProject/disksweepr/src/main/services/trayService.ts)):
+  - Replaced forced window unhiding with non-intrusive background check: main window remains 100% hidden in the background when checking for updates from the tray.
+  - If up-to-date: displays native `dialog.showMessageBox` with app icon confirming the app is on the newest version.
+  - If update available: presents interactive modal dialog asking user if they wish to open DiskSweepr to download/install; app only opens if user explicitly approves.
+- [x] **Quality Gate & Verification**:
+  - `npm test`: 36/36 unit tests passed (100% green).
+  - `npm run dist:all`: Successfully compiled and packed all 3 distribution formats.
