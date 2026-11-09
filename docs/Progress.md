@@ -4,13 +4,14 @@
 ---
 
 ## 1. Project Health & Storage Status
-* **Status**: 🟢 `v1.1.0` Security Hardened & Universal App/Installer Cache Engine Integrated (47/47 Tests Passing)
+* **Status**: 🟢 `v1.2.0` Security Hardened & Universal App/Installer Cache Engine Integrated (47/47 Tests Passing)
 * **Host C: Drive Storage**: ~4.58 GB free
 * **Target Workspace**: `M:\testProject\disksweepr\` (Drive M: ~50.50 GB free)
 * **Design Pattern**: EaseUS CleanGenius & Linear Style (72px Slim Left Nav Rail + Spacious Step-by-Step Hero Canvas + Docker Pro Cobalt/Cyan Palette + Lucide Icons)
-* **Release Artifacts**:
-  - Full Offline NSIS Modern Wizard: `DiskSweepr-Setup-1.1.0.exe` (~91.8 MB) (`release/DiskSweepr-Setup-1.1.0.exe`)
-  - Standalone Unpacked Binary: `release/win-unpacked/DiskSweepr.exe`
+* **Release Artifacts (`v1.2.0`)**:
+  - Full Offline NSIS Modern Wizard: `DiskSweepr-Setup-1.2.0.exe` (~92 MB) (`release/DiskSweepr-Setup-1.2.0.exe`)
+  - Standalone Portable Executable: `DiskSweepr-Portable-1.2.0.exe` (~83 MB) (`release/DiskSweepr-Portable-1.2.0.exe`)
+  - Web Bootstrap Setup: `DiskSweepr-Web-Setup-1.2.0.exe` (~1.1 MB) + `disksweepr-1.2.0-x64.nsis.7z` (~90 MB) (`release/nsis-web/`)
 * **Last Updated**: 2026-11-09
 
 ---
@@ -987,4 +988,4 @@
 - [x] **Quality Gate & Verification**:
   - `npm test`: **47/47 passing tests** (100% green, including new comprehensive `tests/security.test.ts`).
   - `npx tsc --noEmit`: 0 TypeScript compiler errors.
-  - `npm run dist:setup`: NSIS installer packaged at `release/DiskSweepr-Setup-1.1.0.exe` (91.8 MB).
+  - `npm run dist:all`: Multi-target packaging producing `DiskSweepr-Setup-1.2.0.exe`, `DiskSweepr-Portable-1.2.0.exe`, and `DiskSweepr-Web-Setup-1.2.0.exe`.
