@@ -9,6 +9,7 @@ import type {
   FastSearchTargetKind,
 } from '../../shared/types.ts';
 import { getDriveTelemetry } from './telemetryService.ts';
+import { isProtectedSystemPath } from './pathSafety.ts';
 
 const PROTECTED_SYSTEM_DIRS = new Set([
   '$recycle.bin',
@@ -397,7 +398,11 @@ export class FastSearchService {
 
   public async deleteFile(filePath: string): Promise<boolean> {
     try {
-      if (!fs.existsSync(filePath)) return false;
+      if (!filePath || !fs.existsSync(filePath)) return false;
+      if (isProtectedSystemPath(filePath)) {
+        console.warn(`[Security Block] Attempted deletion of protected system path: ${filePath}`);
+        return false;
+      }
       try {
         const electron = await import('electron');
         const shell = electron.shell || (electron as any).default?.shell;

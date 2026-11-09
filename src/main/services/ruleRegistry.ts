@@ -40,26 +40,223 @@ export function expandEnvVars(rawPath: string): string {
   });
 }
 
+/**
+ * Expands wildcard (*) directory paths on Windows filesystem safely.
+ */
+export function expandPathWildcards(pattern: string): string[] {
+  if (!pattern.includes('*')) {
+    return [path.resolve(pattern)];
+  }
+
+  const parts = pattern.split(/[\\/]/);
+  let currentRoots = [parts[0] ? parts[0] + '\\' : ''];
+
+  for (let i = 1; i < parts.length; i++) {
+    const part = parts[i];
+    if (!part) continue;
+
+    if (part === '*') {
+      const nextRoots: string[] = [];
+      for (const root of currentRoots) {
+        try {
+          const entries = fs.readdirSync(root, { withFileTypes: true });
+          for (const entry of entries) {
+            if (entry.isDirectory()) {
+              nextRoots.push(path.join(root, entry.name));
+            }
+          }
+        } catch {
+          // Skip inaccessible or permission denied directories
+        }
+      }
+      currentRoots = nextRoots;
+    } else {
+      currentRoots = currentRoots.map((r) => path.join(r, part));
+    }
+  }
+
+  return currentRoots.filter((p) => {
+    try {
+      return fs.existsSync(p);
+    } catch {
+      return false;
+    }
+  });
+}
+
+/**
+ * Dynamically discovers multi-app cache targets across UWP packages and third-party desktop apps.
+ */
+export function discoverUniversalAppCaches(): string[] {
+  const discovered = new Set<string>();
+  const localAppData = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
+  const roamingAppData = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
+
+  // 1. Windows Store & UWP App Caches
+  const packagesDir = path.join(localAppData, 'Packages');
+  if (fs.existsSync(packagesDir)) {
+    try {
+      const pkgEntries = fs.readdirSync(packagesDir, { withFileTypes: true });
+      for (const entry of pkgEntries) {
+        if (!entry.isDirectory()) continue;
+        const subTargets = ['LocalCache', 'AC\\INetCache', 'AC\\Temp'];
+        for (const sub of subTargets) {
+          const candidate = path.join(packagesDir, entry.name, sub);
+          if (fs.existsSync(candidate)) {
+            discovered.add(path.resolve(candidate));
+          }
+        }
+      }
+    } catch {
+      // Inaccessible Packages root
+    }
+  }
+
+  // 2. WinINet & System Webview Caches
+  const inetCache = path.join(localAppData, 'Microsoft', 'Windows', 'INetCache');
+  if (fs.existsSync(inetCache)) discovered.add(path.resolve(inetCache));
+  const webCache = path.join(localAppData, 'Microsoft', 'Windows', 'WebCache');
+  if (fs.existsSync(webCache)) discovered.add(path.resolve(webCache));
+
+  // 3. Desktop Application Caches across %APPDATA% and %LOCALAPPDATA%
+  // Skip apps that already have dedicated standalone categories to avoid redundant double scanning
+  const dedicatedApps = new Set([
+    'discord',
+    'code',
+    'spotify',
+    'teams',
+    'steam',
+    'epicgameslauncher',
+    'zoom',
+    'google',
+    'microsoft',
+    'brave-browser',
+    'bravesoftware',
+    'mozilla',
+    'opera software',
+  ]);
+
+  const cacheSubDirs = [
+    'Cache',
+    'Code Cache',
+    'GPUCache',
+    'DawnCache',
+    'logs',
+    'Service Worker\\CacheStorage',
+  ];
+
+  for (const baseDir of [roamingAppData, localAppData]) {
+    if (!baseDir || !fs.existsSync(baseDir)) continue;
+    try {
+      const entries = fs.readdirSync(baseDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isDirectory() || entry.name.startsWith('.') || dedicatedApps.has(entry.name.toLowerCase())) {
+          continue;
+        }
+
+        const appDir = path.join(baseDir, entry.name);
+        for (const sub of cacheSubDirs) {
+          const candidate = path.join(appDir, sub);
+          if (fs.existsSync(candidate)) {
+            discovered.add(path.resolve(candidate));
+          }
+        }
+      }
+    } catch {
+      // Base directory read error
+    }
+  }
+
+  return Array.from(discovered);
+}
+
+/**
+ * Resolves all concrete target paths for a category definition, including wildcard expansion
+ * and dynamic multi-app cache discovery.
+ */
+export function resolveCategoryPaths(def: CategoryDefinition): string[] {
+  const resultPaths = new Set<string>();
+
+  // Universal multi-app caches dynamic sweep
+  if (def.id === 'app_universal_cache' || def.id.endsWith('_universal_app_cache')) {
+    const dynamicTargets = discoverUniversalAppCaches();
+    for (const t of dynamicTargets) {
+      resultPaths.add(t);
+    }
+  }
+
+  for (const rawPath of def.paths) {
+    const expanded = expandEnvVars(rawPath);
+    if (!expanded) continue;
+
+    if (expanded.includes('*')) {
+      const wildcardExpanded = expandPathWildcards(expanded);
+      for (const p of wildcardExpanded) {
+        resultPaths.add(path.resolve(p));
+      }
+    } else {
+      resultPaths.add(path.resolve(expanded));
+    }
+  }
+
+  return Array.from(resultPaths);
+}
+
 export const CATEGORY_DEFINITIONS: CategoryDefinition[] = [
   // --- SYSTEM CATEGORIES ---
   {
     id: 'user_temp',
-    name: 'User Temporary Files',
-    description: 'Temporary files generated by running user applications and installers.',
+    name: 'User Temporary Files (AppData\\Local\\Temp)',
+    description: 'Temporary files, application work buffers, and installer remnants in AppData\\Local\\Temp.',
     group: 'system',
     risk: 'safe',
     defaultSelected: true,
-    paths: ['%TEMP%'],
+    paths: [
+      '%TEMP%',
+      '%LOCALAPPDATA%\\Temp',
+      '%USERPROFILE%\\AppData\\Local\\Temp',
+      '%USERPROFILE%\\AppData\\LocalLow\\Temp',
+    ],
   },
   {
     id: 'system_temp',
-    name: 'Windows System Temp',
-    description: 'Operating system temporary installation caches and update residue.',
+    name: 'Windows System Temp (C:\\Windows\\Temp)',
+    description: 'Operating system temporary installation caches and update residue in C:\\Windows\\Temp.',
     group: 'system',
     risk: 'safe',
     defaultSelected: true,
     paths: ['%SYSTEMROOT%\\Temp'],
     requiresAdmin: true,
+  },
+  {
+    id: 'driver_installers',
+    name: 'Hardware Driver Setup Extractors',
+    description: 'Extracted NVIDIA, AMD, and Intel driver setup packages and installer downloaders.',
+    group: 'system',
+    risk: 'safe',
+    defaultSelected: true,
+    paths: [
+      '%PROGRAMDATA%\\NVIDIA Corporation\\Downloader',
+      '%SYSTEMDRIVE%\\NVIDIA',
+      '%SYSTEMDRIVE%\\AMD',
+      '%SYSTEMDRIVE%\\Intel',
+      '%LOCALAPPDATA%\\NVIDIA\\NvNode',
+    ],
+  },
+  {
+    id: 'windows_upgrade_cache',
+    name: 'Windows Upgrade & Setup Residue',
+    description: 'Leftover installation media and staging from previous Windows OS upgrades and Delivery Optimization.',
+    group: 'system',
+    risk: 'caution',
+    defaultSelected: false,
+    requiresAdmin: true,
+    paths: [
+      '%SYSTEMDRIVE%\\$WINDOWS.~BT',
+      '%SYSTEMDRIVE%\\$WINDOWS.~WS',
+      '%SYSTEMDRIVE%\\ESD',
+      '%SYSTEMROOT%\\SoftwareDistribution\\DeliveryOptimization',
+    ],
   },
   {
     id: 'windows_update',
@@ -219,6 +416,33 @@ export const CATEGORY_DEFINITIONS: CategoryDefinition[] = [
   },
 
   // --- APPLICATION CACHES ---
+  {
+    id: 'app_universal_cache',
+    name: 'Universal Desktop & Store App Caches',
+    description: 'Caches, bytecode, GPU shaders, and logs across all desktop apps and Windows Store packages (preserves logins).',
+    group: 'apps',
+    risk: 'safe',
+    defaultSelected: true,
+    paths: [
+      '%LOCALAPPDATA%\\Microsoft\\Windows\\INetCache',
+      '%LOCALAPPDATA%\\Packages\\*\\LocalCache',
+      '%LOCALAPPDATA%\\Packages\\*\\AC\\INetCache',
+      '%LOCALAPPDATA%\\Packages\\*\\AC\\Temp',
+    ],
+  },
+  {
+    id: 'app_installer_temp',
+    name: 'Application Installers & Updaters Temp',
+    description: 'Downloaded setup updates, SquirrelTemp installers, and application installation packages.',
+    group: 'apps',
+    risk: 'safe',
+    defaultSelected: true,
+    paths: [
+      '%LOCALAPPDATA%\\SquirrelTemp',
+      '%LOCALAPPDATA%\\Downloaded Installations',
+      '%SYSTEMROOT%\\Installer\\$PatchCache$',
+    ],
+  },
   {
     id: 'app_discord',
     name: 'Discord Cache',
@@ -556,6 +780,25 @@ export function getCategoryDefinitionsForDrive(driveLetter: string = 'C:'): Cate
       paths: [`${normDrive}\\Downloads`],
       fileExtensions: ['.exe', '.msi', '.iso', '.img', '.zip', '.rar', '.7z', '.tar', '.gz'],
       minAgeDays: 30,
+    },
+    {
+      id: `${normDrive}_driver_extractors`,
+      name: `Driver Extractors (${normDrive})`,
+      description: `NVIDIA, AMD, or Intel driver installation packages extracted to drive ${normDrive}.`,
+      group: 'system',
+      risk: 'safe',
+      defaultSelected: true,
+      paths: [`${normDrive}\\NVIDIA`, `${normDrive}\\AMD`, `${normDrive}\\Intel`],
+    },
+    {
+      id: `${normDrive}_windows_upgrade`,
+      name: `Windows Upgrade Residue (${normDrive})`,
+      description: `Leftover Windows OS upgrade and setup media on drive ${normDrive}.`,
+      group: 'system',
+      risk: 'caution',
+      defaultSelected: false,
+      requiresAdmin: true,
+      paths: [`${normDrive}\\$WINDOWS.~BT`, `${normDrive}\\$WINDOWS.~WS`, `${normDrive}\\ESD`],
     },
     {
       id: `${normDrive}_media_hunter`,

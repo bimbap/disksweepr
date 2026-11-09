@@ -1,6 +1,6 @@
 import { exec } from 'child_process';
 import util from 'util';
-import { RunningAppInfo } from '../../shared/types';
+import type { RunningAppInfo } from '../../shared/types.ts';
 
 const execPromise = util.promisify(exec);
 
@@ -43,12 +43,33 @@ export async function getRunningAppsForCategories(categoryIds: string[]): Promis
   }
 }
 
+const PROTECTED_SYSTEM_PROCESSES = new Set([
+  'explorer.exe',
+  'svchost.exe',
+  'csrss.exe',
+  'winlogon.exe',
+  'services.exe',
+  'lsass.exe',
+  'smss.exe',
+  'system.exe',
+  'dwm.exe',
+  'taskhostw.exe',
+  'sihost.exe',
+  'fontdrvhost.exe',
+  'conhost.exe',
+  'electron.exe',
+  'disksweepr.exe',
+]);
+
 export async function closeRunningApps(processNames: string[]): Promise<void> {
   for (const proc of processNames) {
-    // Sanitize process name (must be a valid .exe filename)
-    if (!/^[a-z0-9_.-]+\.exe$/i.test(proc)) continue;
+    const procLower = proc.toLowerCase().trim();
+    // Sanitize process name (must be a valid .exe filename and not a protected system binary)
+    if (!/^[a-z0-9_.-]+\.exe$/i.test(procLower)) continue;
+    if (PROTECTED_SYSTEM_PROCESSES.has(procLower)) continue;
+
     try {
-      await execPromise(`taskkill /F /IM "${proc}"`, { timeout: 3000 });
+      await execPromise(`taskkill /F /IM "${procLower}"`, { timeout: 3000 });
     } catch {
       // Process might already be closed or access denied
     }

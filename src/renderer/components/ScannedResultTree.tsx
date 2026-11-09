@@ -23,6 +23,8 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
+  Layers,
+  Cpu,
 } from 'lucide-react';
 import { ScannedCategory } from '../../shared/types';
 import { useSettings } from '../context/SettingsContext';
@@ -92,6 +94,13 @@ export const ScannedResultTree: React.FC<ScannedResultTreeProps> = ({
         return <Globe size={size} className="cat-icon-globe" />;
       case 'vscode_cache':
         return <Code2 size={size} className="cat-icon-code" />;
+      case 'app_universal_cache':
+        return <Layers size={size} className="cat-icon-apps text-sky" />;
+      case 'app_installer_temp':
+      case 'driver_installers':
+        return <Cpu size={size} className="cat-icon-system text-accent" />;
+      case 'windows_upgrade_cache':
+        return <RefreshCw size={size} className="cat-icon-update text-orange" />;
       case 'windows_temp':
       case 'user_temp':
         return <Flame size={size} className="cat-icon-temp" />;
@@ -250,6 +259,15 @@ export const ScannedResultTree: React.FC<ScannedResultTreeProps> = ({
 
               <div className="tree-categories-wrapper">
                 {groupItems.map((category) => {
+                  const catName =
+                    t(`cat.${category.id}.name`) !== `cat.${category.id}.name`
+                      ? t(`cat.${category.id}.name`)
+                      : category.name;
+                  const catDesc =
+                    t(`cat.${category.id}.desc`) !== `cat.${category.id}.desc`
+                      ? t(`cat.${category.id}.desc`)
+                      : category.description;
+
                   const isExpanded = expandedIds.includes(category.id);
                   const excludedSet = new Set(category.excludedPaths || []);
                   const hasPartialSelection =
@@ -329,7 +347,7 @@ export const ScannedResultTree: React.FC<ScannedResultTreeProps> = ({
 
                           <div className="category-name-block">
                             <div className="category-name-line">
-                              <span className="category-title">{category.name}</span>
+                              <span className="category-title">{catName}</span>
                               {category.risk === 'caution' ? (
                                 <span className="risk-pill-badge caution">
                                   <ShieldAlert size={10} /> {t('cleanup.caution')}
@@ -340,7 +358,7 @@ export const ScannedResultTree: React.FC<ScannedResultTreeProps> = ({
                                 </span>
                               )}
                             </div>
-                            <span className="category-desc">{category.description}</span>
+                            <span className="category-desc">{catDesc}</span>
                           </div>
                         </div>
 

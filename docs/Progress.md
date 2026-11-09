@@ -4,15 +4,14 @@
 ---
 
 ## 1. Project Health & Storage Status
-* **Status**: 🟢 `v1.1.0` Public Release Published on GitHub & Workspace Cleaned (Project Completed)
+* **Status**: 🟢 `v1.1.0` Security Hardened & Universal App/Installer Cache Engine Integrated (47/47 Tests Passing)
 * **Host C: Drive Storage**: ~4.58 GB free
-* **Target Workspace**: `M:\testProject\disksweepr\` (Drive M: ~50.50 GB free after ~7 GB developer cache & artifact cleanup)
+* **Target Workspace**: `M:\testProject\disksweepr\` (Drive M: ~50.50 GB free)
 * **Design Pattern**: EaseUS CleanGenius & Linear Style (72px Slim Left Nav Rail + Spacious Step-by-Step Hero Canvas + Docker Pro Cobalt/Cyan Palette + Lucide Icons)
-* **Release Artifacts (Published to GitHub Releases `v1.1.0`)**:
-  - Web Bootstrap Installer: `DiskSweepr-Web-Setup.exe` (~542 KB) (Modern Linear/Raycast dark UI, Windows 11 rounded corners, native drop shadow, embedded high-res AppIcon, Taskbar/Alt+Tab icon & title `DiskSweepr Setup`, configurable Desktop/Start Menu/Explorer context-menu checkboxes, smart installed-detection with Reinstall & 1-click Uninstall, auto-downloads latest `v1.1.0` package from GitHub Releases)
-  - Full Offline NSIS Modern Wizard: `DiskSweepr-Setup-1.1.0.exe` (~87.6 MB) (Complete offline installer, multi-user `Anyone` vs `Only for me` selection, directory selector, custom `nsDialogs` Additional Tasks & Shortcuts page for Desktop, Start Menu, and Explorer right-click menu)
-  - Portable Executable: `DiskSweepr-Portable-1.1.0.exe` (~79.1 MB) (Zero installation, standalone executable with persistent `unpackDirName: "DiskSweepr-Runtime"` and code-split lazy loading)
-* **Last Updated**: 2026-10-29
+* **Release Artifacts**:
+  - Full Offline NSIS Modern Wizard: `DiskSweepr-Setup-1.1.0.exe` (~91.8 MB) (`release/DiskSweepr-Setup-1.1.0.exe`)
+  - Standalone Unpacked Binary: `release/win-unpacked/DiskSweepr.exe`
+* **Last Updated**: 2026-11-09
 
 ---
 
@@ -968,3 +967,24 @@
 - [x] **Quality Gate & Verification**:
   - `npm test`: 36/36 unit tests passed (100% green).
   - `npm run dist:all`: Successfully compiled and packed all 3 distribution formats.
+
+### Phase 64: Universal Multi-App & Installer Residue Discovery, AppData Temp Inclusivity, and Deep Pentest Hardening
+- [x] **Comprehensive AppData/Local Temp Resolution** ([`ruleRegistry.ts`](file:///m:/testProject/disksweepr/src/main/services/ruleRegistry.ts), [`scannerService.ts`](file:///m:/testProject/disksweepr/src/main/services/scannerService.ts)):
+  - Hardened `user_temp` rule definition: explicitly incorporates `%TEMP%`, `%LOCALAPPDATA%\Temp`, `%USERPROFILE%\AppData\Local\Temp`, and `%USERPROFILE%\AppData\LocalLow\Temp`.
+  - Refactored scanner skip logic: updated the directory skip check to `(lowerName === 'appdata' && !allowedRoot.toLowerCase().includes('appdata'))`, guaranteeing that target paths nested within `AppData` (such as `AppData\Local\Temp`) are never skipped during directory tree traversal.
+  - Implemented `seenFilePaths` deduplication set in `scannerService.ts` to prevent duplicate file counting across overlapping directory roots.
+- [x] **Universal Multi-App Cache & Installer Residue Discovery** ([`ruleRegistry.ts`](file:///m:/testProject/disksweepr/src/main/services/ruleRegistry.ts), [`types.ts`](file:///m:/testProject/disksweepr/src/shared/types.ts), [`CategoryCard.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/CategoryCard.tsx), [`ScannedResultTree.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/ScannedResultTree.tsx), [`SettingsContext.tsx`](file:///m:/testProject/disksweepr/src/renderer/context/SettingsContext.tsx)):
+  - Built `discoverUniversalAppCaches()`: dynamic discovery engine scanning across UWP packages (`%LOCALAPPDATA%\Packages\*\LocalCache`, `AC\INetCache`, `AC\Temp`) and desktop applications in `%APPDATA%` and `%LOCALAPPDATA%` (`Cache`, `Code Cache`, `GPUCache`, `DawnCache`, `logs`, `Service Worker\CacheStorage`).
+  - Added new cleaning categories: `app_universal_cache` (Third-Party & UWP App Caches), `app_installer_temp` (Application Installer Caches e.g. SquirrelTemp, nuget, pip, npm), `driver_installers` (Hardware Driver Setup Residue e.g. NVIDIA, AMD, Intel), and `windows_upgrade_cache` (`$GetCurrent`, `Windows.old\~bt`).
+  - Added cross-partition driver extractor and Windows upgrade targets for secondary storage drives.
+  - Added bilingual localization (`en` and `id`) and dedicated Lucide icons (`Layers`, `Cpu`) for newly introduced categories.
+- [x] **Deep Pentest & Security Hardening (SEC-01 through SEC-04)** ([`pathSafety.ts`](file:///m:/testProject/disksweepr/src/main/services/pathSafety.ts), [`cleanerService.ts`](file:///m:/testProject/disksweepr/src/main/services/cleanerService.ts), [`virtualDiskService.ts`](file:///m:/testProject/disksweepr/src/main/services/virtualDiskService.ts), [`processService.ts`](file:///m:/testProject/disksweepr/src/main/services/processService.ts), [`fastSearchService.ts`](file:///m:/testProject/disksweepr/src/main/services/fastSearchService.ts), [`largeFileService.ts`](file:///m:/testProject/disksweepr/src/main/services/largeFileService.ts), [`duplicateService.ts`](file:///m:/testProject/disksweepr/src/main/services/duplicateService.ts), [`devCleanerService.ts`](file:///m:/testProject/disksweepr/src/main/services/devCleanerService.ts)):
+  - **SEC-01 (Path Traversal & Boundary Enforcement)**: Created `isProtectedSystemPath(targetPath)` preventing modification or unlinking of volume roots (`C:`, `D:`, `M:`), critical Windows system directories (`System32`, `SysWOW64`, `WinSxS`, root binaries), user profile roots, and registry hives (`NTUSER.DAT*`, `UsrClass.dat`, `bootmgr`, `pagefile.sys`).
+  - **SEC-01 Fix in Cleaner**: Removed vulnerable self-authorizing loop in `cleanerService.ts` (`parentDir` and `parsed.root`). Strict validation against vetted category definition roots, explicitly rejecting `C:\` as an allowed root.
+  - **SEC-02 (Command Injection in Virtual Disk)**: Hardened `virtualDiskService.ts` against `diskpart` script injection with regex `!/[\r\n"\0]/.test(vhdxPath)`, strict `.vhdx` extension requirement, and `stat.isFile()` validation.
+  - **SEC-03 (Arbitrary Process Termination)**: Hardened `processService.ts` with `PROTECTED_SYSTEM_PROCESSES` blacklist (`explorer.exe`, `svchost.exe`, `csrss.exe`, `winlogon.exe`, `disksweepr.exe`, etc.) to prevent rogue termination of critical OS subsystems.
+  - Integrated `isProtectedSystemPath` guards across `fastSearchService`, `largeFileService`, `duplicateService`, and `devCleanerService`.
+- [x] **Quality Gate & Verification**:
+  - `npm test`: **47/47 passing tests** (100% green, including new comprehensive `tests/security.test.ts`).
+  - `npx tsc --noEmit`: 0 TypeScript compiler errors.
+  - `npm run dist:setup`: NSIS installer packaged at `release/DiskSweepr-Setup-1.1.0.exe` (91.8 MB).

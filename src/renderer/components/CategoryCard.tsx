@@ -17,6 +17,7 @@ import {
   Cpu,
   Zap,
   FileText,
+  Layers,
 } from 'lucide-react';
 import { RiskLevel } from '../../shared/types';
 import { useSettings } from '../context/SettingsContext';
@@ -68,6 +69,12 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({
     if (isRecycleBin || id.includes('recycle')) {
       return <Trash2 size={16} />;
     }
+    if (id.includes('universal') || id.includes('app_universal_cache')) {
+      return <Layers size={16} />;
+    }
+    if (id.includes('installer') || id.includes('driver')) {
+      return <Cpu size={16} />;
+    }
     if (id.includes('media') || group === 'media') {
       return <Film size={16} />;
     }
@@ -107,6 +114,9 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({
     return <HardDrive size={16} />;
   };
 
+  const displayName = t(`cat.${id}.name`) !== `cat.${id}.name` ? t(`cat.${id}.name`) : name;
+  const displayDesc = t(`cat.${id}.desc`) !== `cat.${id}.desc` ? t(`cat.${id}.desc`) : description;
+
   const groupClass =
     group === 'browsers'
       ? 'group-browsers'
@@ -131,7 +141,7 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({
 
           <div className="bento-title-col">
             <div className="bento-title-row">
-              <span className="bento-name">{name}</span>
+              <span className="bento-name">{displayName}</span>
               {risk === 'safe' && (
                 <span className="risk-pill pill-safe">
                   <Shield size={10} style={{ marginRight: '3px' }} /> {t('cleanup.safe')}
@@ -166,7 +176,7 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({
         </div>
       </div>
 
-      <p className="bento-desc">{description}</p>
+      <p className="bento-desc">{displayDesc}</p>
 
       {isAudited && (
         <div className="bento-card-footer">

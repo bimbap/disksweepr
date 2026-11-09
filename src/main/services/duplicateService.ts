@@ -8,6 +8,7 @@ import type {
   DuplicateScanProgress,
 } from '../../shared/types.ts';
 import { getDriveTelemetry } from './telemetryService.ts';
+import { isProtectedSystemPath } from './pathSafety.ts';
 
 const PROTECTED_DIR_NAMES = new Set([
   '$recycle.bin',
@@ -266,6 +267,11 @@ export class DuplicateService {
     let reclaimedBytes = 0;
 
     for (const p of filePaths) {
+      if (!p || isProtectedSystemPath(p)) {
+        console.warn(`[Security Block] Duplicate deletion blocked for protected path: ${p}`);
+        failedPaths.push(p);
+        continue;
+      }
       try {
         const stat = await fs.promises.stat(p);
         let deleted = false;

@@ -3,7 +3,7 @@ import path from 'path';
 import os from 'os';
 import { exec } from 'child_process';
 import util from 'util';
-import { CompactVDiskResult, VirtualDiskItem } from '../../shared/types';
+import type { CompactVDiskResult, VirtualDiskItem } from '../../shared/types.ts';
 
 const execPromise = util.promisify(exec);
 
@@ -85,19 +85,31 @@ export class VirtualDiskService {
    * Compacts a VHDX file using diskpart
    */
   public async compactVirtualDisk(vhdxPath: string): Promise<CompactVDiskResult> {
-    if (!fs.existsSync(vhdxPath)) {
+    const resolvedPath = path.resolve(vhdxPath);
+
+    // Security Gate: strictly disallow newlines, quotes, null bytes, and non-.vhdx extensions
+    if (
+      !resolvedPath.toLowerCase().endsWith('.vhdx') ||
+      /[\r\n"\0]/.test(vhdxPath) ||
+      !fs.existsSync(resolvedPath)
+    ) {
       return {
         path: vhdxPath,
         beforeBytes: 0,
         afterBytes: 0,
         reclaimedBytes: 0,
         success: false,
-        error: 'Virtual disk file does not exist.',
+        error: 'Security block: Path must be an existing .vhdx file without newline or quote injection characters.',
       };
     }
 
     let beforeBytes = 0;
     try {
+      const stat = await fs.promises.stat(resolvedPath);
+      if (!stat.isFile()) {
+        throw new Error('Target is not a regular file');
+      }
+      beforeBytes = stat.size;
       beforeBytes = (await fs.promises.stat(vhdxPath)).size;
     } catch (e: any) {
       return {

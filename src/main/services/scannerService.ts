@@ -10,7 +10,10 @@ import type {
   ScanProgress,
   ScanResult,
 } from '../../shared/types.ts';
-import { expandEnvVars, getCategoryDefinitionsForDrive } from './ruleRegistry.ts';
+import {
+  getCategoryDefinitionsForDrive,
+  resolveCategoryPaths,
+} from './ruleRegistry.ts';
 import { matchesExtension } from '../../shared/filters.ts';
 
 const execPromise = util.promisify(exec);
@@ -83,10 +86,11 @@ export class ScannerService {
         overallScannedBytes += binResult.totalBytes;
         overallScannedFiles += binResult.files.length;
       } else {
-        for (const rawPath of def.paths) {
-          if (signal.aborted) break;
+        const resolvedRoots = resolveCategoryPaths(def);
+        const seenFilePaths = new Set<string>();
 
-          const expandedRoot = expandEnvVars(rawPath);
+        for (const expandedRoot of resolvedRoots) {
+          if (signal.aborted) break;
           if (!expandedRoot) continue;
 
           emitProgress(def.name, expandedRoot, categoryPercent);
@@ -110,7 +114,8 @@ export class ScannerService {
               overallScannedBytes += fileSize;
               overallScannedFiles += 1;
               emitProgress(def.name, filePath, categoryPercent);
-            }
+            },
+            seenFilePaths
           );
         }
       }
@@ -159,7 +164,8 @@ export class ScannerService {
     results: ScannedFile[],
     signal: AbortSignal,
     extensionFilter: string[] | undefined,
-    onFileFound: (filePath: string, size: number) => void
+    onFileFound: (filePath: string, size: number) => void,
+    seenFilePaths?: Set<string>
   ): Promise<void> {
     if (signal.aborted) return;
 
@@ -186,11 +192,12 @@ export class ScannerService {
       if (entry.isDirectory()) {
         const lowerName = entry.name.toLowerCase();
         // Skip code repos and system trash inside user folders to avoid slow recursive scans
+        // Only skip appdata if allowedRoot is NOT explicitly within or targeting appdata
         if (
           lowerName === 'node_modules' ||
           lowerName === '.git' ||
           lowerName === '$recycle.bin' ||
-          lowerName === 'appdata'
+          (lowerName === 'appdata' && !allowedRoot.toLowerCase().includes('appdata'))
         ) {
           continue;
         }
@@ -198,9 +205,23 @@ export class ScannerService {
         if (isDriveRoot) {
           continue;
         }
-        await this.walkDirectory(fullPath, allowedRoot, def, results, signal, extensionFilter, onFileFound);
+        await this.walkDirectory(
+          fullPath,
+          allowedRoot,
+          def,
+          results,
+          signal,
+          extensionFilter,
+          onFileFound,
+          seenFilePaths
+        );
       } else if (entry.isFile()) {
-      if (extensionFilter) {
+        const lowerFullPath = fullPath.toLowerCase();
+        if (seenFilePaths && seenFilePaths.has(lowerFullPath)) {
+          continue;
+        }
+
+        if (extensionFilter) {
           // User specified a custom extension filter — apply it.
           // For media_hunter: match user's chosen extensions
           // For other categories: match both user filter AND category-specific extensions
@@ -231,6 +252,10 @@ export class ScannerService {
             if (ageMs < def.minAgeDays * 24 * 60 * 60 * 1000) {
               continue;
             }
+          }
+
+          if (seenFilePaths) {
+            seenFilePaths.add(lowerFullPath);
           }
 
           const scannedFile: ScannedFile = {

@@ -2,14 +2,18 @@ import fs from 'fs';
 import path from 'path';
 import { exec } from 'child_process';
 import util from 'util';
-import { shell } from 'electron';
-import {
+import type {
   CleanProgress,
   CleanReport,
   ScannedCategory,
   HistoryDetailItem,
-} from '../../shared/types';
-import { CATEGORY_DEFINITIONS, expandEnvVars } from './ruleRegistry';
+} from '../../shared/types.ts';
+import {
+  CATEGORY_DEFINITIONS,
+  getCategoryDefinitionsForDrive,
+  resolveCategoryPaths,
+} from './ruleRegistry.ts';
+import { isProtectedSystemPath } from './pathSafety.ts';
 
 const execPromise = util.promisify(exec);
 
@@ -90,37 +94,27 @@ export class CleanerService {
     // Include all system category definitions (C: drive)
     const allowedRoots = new Set<string>();
     for (const def of CATEGORY_DEFINITIONS) {
-      for (const p of def.paths) {
-        const expanded = expandEnvVars(p);
-        if (expanded) {
-          allowedRoots.add(path.resolve(expanded).toLowerCase());
-        }
+      const resolvedList = resolveCategoryPaths(def);
+      for (const p of resolvedList) {
+        allowedRoots.add(path.resolve(p).toLowerCase());
       }
     }
 
     // Also include paths from the actual scan targets (covers secondary drives, media hunter, etc.)
     for (const category of targetsToClean) {
-      // Find the original definition to get its declared paths
-      const def = CATEGORY_DEFINITIONS.find((d) => d.id === category.id);
+      // Find definition across system drive and secondary drive targets
+      const driveMatch = category.id.match(/^([A-Z]:)/i);
+      const targetDrive = driveMatch ? driveMatch[1] : 'C:';
+      const driveDefs = getCategoryDefinitionsForDrive(targetDrive);
+      const def =
+        driveDefs.find((d) => d.id === category.id) ||
+        CATEGORY_DEFINITIONS.find((d) => d.id === category.id);
+
       if (def) {
-        for (const p of def.paths) {
-          const expanded = expandEnvVars(p);
-          if (expanded) {
-            allowedRoots.add(path.resolve(expanded).toLowerCase());
-          }
+        const resolvedList = resolveCategoryPaths(def);
+        for (const p of resolvedList) {
+          allowedRoots.add(path.resolve(p).toLowerCase());
         }
-      }
-      // Authorize drive root for any file path in this category (covers secondary drive categories)
-      for (const file of category.files) {
-        const resolved = path.resolve(file.path);
-        const parsed = path.parse(resolved);
-        // Authorize both the drive root and the direct parent directory of each file
-        if (parsed.root) {
-          allowedRoots.add(path.resolve(parsed.root).toLowerCase());
-        }
-        // Authorize the parent directory so boundary check passes
-        const parentDir = path.dirname(resolved).toLowerCase();
-        allowedRoots.add(parentDir);
       }
     }
 
@@ -161,18 +155,29 @@ export class CleanerService {
         const resolvedFilePath = path.resolve(file.path);
         const resolvedLower = resolvedFilePath.toLowerCase();
 
-        // Safety Invariant: File must strictly reside inside an allowed root
-        // A file is safe if it's inside any of the allowed roots (starts with root path, is not the root itself)
-        const isSafe = Array.from(allowedRoots).some((root) => {
-          const rootWithSep = root.endsWith(path.sep) ? root : root + path.sep;
-          return resolvedLower.startsWith(rootWithSep) || resolvedLower === root || resolvedLower.startsWith(root + '\\') || resolvedLower.startsWith(root + '/');
-        });
+        // Safety Invariant: File must strictly reside inside an authorized category root and NOT be protected
+        const isProtected = isProtectedSystemPath(resolvedLower);
+
+        const isSafe =
+          !isProtected &&
+          Array.from(allowedRoots).some((root) => {
+            // C: drive root itself must never be an allowed root
+            if (/^c:\\?$/i.test(root)) return false;
+            const rootWithSep = root.endsWith(path.sep) ? root : root + path.sep;
+            return (
+              resolvedLower.startsWith(rootWithSep) ||
+              resolvedLower.startsWith(root + '\\') ||
+              resolvedLower.startsWith(root + '/')
+            );
+          });
 
         if (!isSafe) {
           skippedFilesCount++;
           errors.push({
             path: file.path,
-            reason: 'Path boundary violation: file outside authorized target roots',
+            reason: isProtected
+              ? 'Blocked: Critical system/user registry file protection'
+              : 'Path boundary violation: file outside authorized target roots',
           });
           continue;
         }
@@ -181,7 +186,17 @@ export class CleanerService {
 
         try {
           if (category.useTrash || category.id.includes('media_hunter')) {
-            await shell.trashItem(resolvedFilePath);
+            try {
+              const electron = await import('electron');
+              const electronShell = electron.shell || (electron as any).default?.shell;
+              if (electronShell?.trashItem) {
+                await electronShell.trashItem(resolvedFilePath);
+              } else {
+                await fs.promises.unlink(resolvedFilePath);
+              }
+            } catch {
+              await fs.promises.unlink(resolvedFilePath);
+            }
           } else {
             await fs.promises.unlink(resolvedFilePath);
           }

@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import type { DevArtifactItem, DevScanOptions } from '../../shared/types.ts';
+import { isProtectedSystemPath } from './pathSafety.ts';
 
 export const TARGET_ARTIFACT_NAMES = new Set([
   // Node / Web Frameworks
@@ -170,6 +171,10 @@ export class DevCleanerService {
     let reclaimedBytes = 0;
 
     for (const dirPath of artifactPaths) {
+      if (!dirPath || isProtectedSystemPath(dirPath)) {
+        failedPaths.push(dirPath);
+        continue;
+      }
       // Safety check: Dir name must strictly be one of the recognized artifact folders
       const baseName = path.basename(dirPath).toLowerCase();
       if (!TARGET_ARTIFACT_NAMES.has(baseName)) {

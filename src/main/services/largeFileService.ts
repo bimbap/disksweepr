@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import type { LargeFileItem, LargeFilesScanOptions } from '../../shared/types.ts';
 import { getDriveTelemetry } from './telemetryService.ts';
+import { isProtectedSystemPath } from './pathSafety.ts';
 
 const PROTECTED_DIR_NAMES = new Set([
   '$recycle.bin',
@@ -186,6 +187,11 @@ export class LargeFileService {
     let reclaimedBytes = 0;
 
     for (const filePath of filePaths) {
+      if (!filePath || isProtectedSystemPath(filePath)) {
+        console.warn(`[Security Block] Large file deletion blocked for protected path: ${filePath}`);
+        failedPaths.push(filePath);
+        continue;
+      }
       try {
         const stat = await fs.promises.stat(filePath);
         if (stat.isDirectory()) {
