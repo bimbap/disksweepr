@@ -136,6 +136,7 @@ export const SettingsModal: React.FC = () => {
   const [isClosing, setIsClosing] = useState<boolean>(false);
 
   const isDev = import.meta.env.DEV;
+  const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.3.0';
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
@@ -718,7 +719,7 @@ export const SettingsModal: React.FC = () => {
               <div className="setting-card-item">
                 <div className="setting-card-info">
                   <div className="setting-card-title">{t('settings.current_version')}</div>
-                  <div className="version-pill-badge font-mono">v1.1.0 (Windows x64)</div>
+                  <div className="version-pill-badge font-mono">v{appVersion} (Windows x64)</div>
                 </div>
                 <div className="setting-card-control">
                   <button
@@ -862,7 +863,7 @@ export const SettingsModal: React.FC = () => {
             <div className="settings-tab-section">
               <div className="settings-section-header">
                 <h2>{t('about.title')}</h2>
-                <p>{t('about.version')}</p>
+                <p>{t('about.version').replace('{version}', appVersion)}</p>
               </div>
 
               {/* Brand Header */}
@@ -874,7 +875,7 @@ export const SettingsModal: React.FC = () => {
                   <h3>DiskSweepr</h3>
                   <p>High-Performance Desktop Disk Hygiene & Storage Recovery</p>
                   <div className="about-badges-strip font-mono">
-                    <span className="about-badge">v1.1.0</span>
+                    <span className="about-badge">v{appVersion}</span>
                     <span className="about-badge">Windows x64</span>
                     <span className="about-badge">MIT License</span>
                   </div>
