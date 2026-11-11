@@ -73,13 +73,13 @@ export class CleanerService {
     const totalBytes = targetsToClean.reduce((acc, cat) => acc + cat.totalBytes, 0);
 
     let lastProgressEmit = 0;
-    const emitProgress = (fileName: string, categoryName: string) => {
+    const emitProgress = (filePath: string, categoryName: string) => {
       const now = Date.now();
       if (now - lastProgressEmit > 50) {
         lastProgressEmit = now;
         const percent = totalFiles > 0 ? Math.round((cleanedFilesCount / totalFiles) * 100) : 100;
         onProgress?.({
-          currentFile: fileName,
+          currentFile: filePath,
           currentCategory: categoryName,
           cleanedFilesCount,
           cleanedBytes: reclaimedBytes,
@@ -182,7 +182,7 @@ export class CleanerService {
           continue;
         }
 
-        emitProgress(file.name, category.name);
+        emitProgress(resolvedFilePath, category.name);
 
         try {
           if (category.useTrash || category.id.includes('media_hunter')) {

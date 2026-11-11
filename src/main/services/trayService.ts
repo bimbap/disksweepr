@@ -67,11 +67,28 @@ export class TrayService {
       this.tray.setToolTip('DiskSweepr - Storage Cleanup Utility');
       this.updateContextMenu();
 
+      // Windows emits `click` twice before `double-click`; debounce single clicks
+      // so double-clicking the tray icon never runs a show -> hide -> show flash.
+      let clickTimer: ReturnType<typeof setTimeout> | null = null;
+      const clearClickTimer = () => {
+        if (clickTimer) {
+          clearTimeout(clickTimer);
+          clickTimer = null;
+        }
+      };
+
       this.tray.on('click', () => {
-        this.toggleWindow();
+        clearClickTimer();
+        clickTimer = setTimeout(() => {
+          clickTimer = null;
+          if (!this.tray || this.tray.isDestroyed()) return;
+          this.toggleWindow();
+        }, 250);
+        clickTimer.unref?.();
       });
 
       this.tray.on('double-click', () => {
+        clearClickTimer();
         this.showWindow();
       });
     } catch (err) {
@@ -188,8 +205,8 @@ export class TrayService {
     const primaryDisplay = screen.getPrimaryDisplay();
     const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
 
-    const popupWidth = 430;
-    const popupHeight = payload.status === 'available' ? 220 : 185;
+    const popupWidth = 418;
+    const popupHeight = payload.status === 'available' ? 208 : 174;
     const x = Math.round((screenWidth - popupWidth) / 2);
     const y = Math.round((screenHeight - popupHeight) / 2);
 
@@ -205,7 +222,7 @@ export class TrayService {
       skipTaskbar: true,
       alwaysOnTop: true,
       backgroundColor: '#00000000',
-      hasShadow: true,
+      hasShadow: false,
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
@@ -283,23 +300,23 @@ export class TrayService {
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 6px;
+      padding: 0;
     }
     .card {
       width: 100%;
       height: 100%;
-      background: linear-gradient(135deg, rgba(17, 24, 39, 0.96) 0%, rgba(9, 13, 22, 0.98) 100%);
-      border: 1px solid rgba(56, 189, 248, 0.24);
+      background: linear-gradient(135deg, #111827 0%, #090d16 100%);
+      border: 1px solid rgba(56, 189, 248, 0.28);
       border-radius: 14px;
-      box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.85), 0 0 20px rgba(14, 165, 233, 0.14);
+      box-shadow: none;
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      animation: popIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
     @keyframes popIn {
-      0% { opacity: 0; transform: scale(0.95) translateY(4px); }
-      100% { opacity: 1; transform: scale(1) translateY(0); }
+      0% { opacity: 0; transform: scale(0.97); }
+      100% { opacity: 1; transform: scale(1); }
     }
     .header {
       -webkit-app-region: drag;
@@ -529,22 +546,24 @@ export class TrayService {
   }
 
   public showWindow(): void {
-    if (!this.mainWindow) return;
+    if (!this.mainWindow || this.mainWindow.isDestroyed()) return;
     if (this.mainWindow.isMinimized()) {
       this.mainWindow.restore();
     }
-    this.mainWindow.show();
+    if (!this.mainWindow.isVisible()) {
+      this.mainWindow.show();
+    }
     this.mainWindow.focus();
   }
 
   public hideWindow(): void {
-    if (!this.mainWindow) return;
+    if (!this.mainWindow || this.mainWindow.isDestroyed()) return;
     this.mainWindow.hide();
   }
 
   public toggleWindow(): void {
-    if (!this.mainWindow) return;
-    if (this.mainWindow.isVisible()) {
+    if (!this.mainWindow || this.mainWindow.isDestroyed()) return;
+    if (this.mainWindow.isVisible() && !this.mainWindow.isMinimized()) {
       this.mainWindow.hide();
     } else {
       this.showWindow();

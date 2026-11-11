@@ -1,8 +1,10 @@
 import React from 'react';
 import { Sparkles, X, FileText, FolderOpen } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
+import { splitFileAndLocation } from '../../shared/formatters';
 
 interface ProgressTrackerProps {
+  mode?: 'scan' | 'clean';
   title: string;
   percent: number;
   currentFile: string;
@@ -13,6 +15,7 @@ interface ProgressTrackerProps {
 }
 
 export const ProgressTracker: React.FC<ProgressTrackerProps> = ({
+  mode = 'scan',
   title,
   percent,
   currentFile,
@@ -29,22 +32,11 @@ export const ProgressTracker: React.FC<ProgressTrackerProps> = ({
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  // Extract separate filename and location folder
-  const getFileDetails = (pathStr: string) => {
-    if (!pathStr) {
-      return {
-        fileName: t('cleanup.traversing_dirs'),
-        folderPath: t('cleanup.prep_scanner'),
-      };
-    }
-    const cleanPath = pathStr.replace(/\\+/g, '\\');
-    const parts = cleanPath.split(/[\\/]/);
-    const fileName = parts.pop() || cleanPath;
-    const folderPath = parts.join('\\') || cleanPath;
-    return { fileName, folderPath };
-  };
-
-  const { fileName, folderPath } = getFileDetails(currentFile);
+  const { fileName, folderPath } = splitFileAndLocation(
+    currentFile,
+    t('cleanup.traversing_dirs'),
+    currentCategory || t('cleanup.prep_scanner')
+  );
 
   return (
     <div className="easeus-scanning-stage">
@@ -106,14 +98,14 @@ export const ProgressTracker: React.FC<ProgressTrackerProps> = ({
         <div className="scanning-percent font-mono">{percent}%</div>
       </div>
 
-      {/* Live Counter Stats (Found X.XX GB / Y files) */}
+      {/* Live Counter Stats */}
       <div className="scanning-stats-banner">
         <span>
-          {t('cleanup.found_stat')}{' '}
+          {mode === 'clean' ? t('cleanup.cleaned_stat') : t('cleanup.found_stat')}{' '}
           <strong className="text-emerald font-mono">{formatSize(bytesProcessed)}</strong>{' '}
-          {t('cleanup.purgeable_files')} (
+          {mode === 'clean' ? t('cleanup.recovered_files') : t('cleanup.purgeable_files')} (
           <span className="text-primary font-mono">{itemsProcessed.toLocaleString()}</span>{' '}
-          {t('cleanup.items_audited')})
+          {mode === 'clean' ? t('cleanup.items_purged') : t('cleanup.items_audited')})
         </span>
       </div>
 
@@ -121,7 +113,7 @@ export const ProgressTracker: React.FC<ProgressTrackerProps> = ({
       <div className="scanning-action-row">
         <button type="button" className="scanning-cancel-btn" onClick={onCancel}>
           <X size={15} style={{ marginRight: '6px' }} />
-          <span>{t('cleanup.cancel_scan')}</span>
+          <span>{mode === 'clean' ? t('cleanup.cancel_clean') : t('cleanup.cancel_scan')}</span>
         </button>
       </div>
     </div>

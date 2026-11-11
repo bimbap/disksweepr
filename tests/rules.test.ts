@@ -1,5 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import {
   expandEnvVars,
   expandPathWildcards,
@@ -9,6 +12,9 @@ import {
   CATEGORY_DEFINITIONS,
 } from '../src/main/services/ruleRegistry.ts';
 import { ScannerService } from '../src/main/services/scannerService.ts';
+import { CleanerService } from '../src/main/services/cleanerService.ts';
+import { splitFileAndLocation } from '../src/shared/formatters.ts';
+import type { CleanProgress, ScannedCategory } from '../src/shared/types.ts';
 
 test('CATEGORY_DEFINITIONS includes user_temp explicitly targeting AppData Local Temp and LocalLow', () => {
   const userTemp = CATEGORY_DEFINITIONS.find((d) => d.id === 'user_temp');
@@ -110,4 +116,68 @@ test('ScannerService initializes properly', () => {
   const scanner = new ScannerService();
   assert.ok(scanner);
   assert.equal(typeof scanner.scan, 'function');
+});
+
+test('splitFileAndLocation separates file name and parent directory without duplicating bare names', () => {
+  assert.deepEqual(
+    splitFileAndLocation('C:\\Users\\Habil\\AppData\\Local\\Temp\\client.py', 'Fallback', 'Prep'),
+    { fileName: 'client.py', folderPath: 'C:\\Users\\Habil\\AppData\\Local\\Temp' }
+  );
+  assert.deepEqual(
+    splitFileAndLocation('C:\\pagefile.tmp', 'Fallback', 'Prep'),
+    { fileName: 'pagefile.tmp', folderPath: 'C:\\' }
+  );
+  assert.deepEqual(
+    splitFileAndLocation('C:\\', 'Traversing...', 'Prep'),
+    { fileName: 'Traversing...', folderPath: 'C:\\' }
+  );
+  // Regression guard: bare filename or status label must never be repeated as folderPath
+  assert.deepEqual(
+    splitFileAndLocation('client.py', 'Traversing...', 'Universal App Caches'),
+    { fileName: 'client.py', folderPath: 'Universal App Caches' }
+  );
+  assert.deepEqual(
+    splitFileAndLocation('', 'Traversing...', 'Prep'),
+    { fileName: 'Traversing...', folderPath: 'Prep' }
+  );
+});
+
+test('CleanerService emits full file path (not bare file.name) in progress updates', async () => {
+  const cleaner = new CleanerService();
+  const tempFile = path.join(os.tmpdir(), `disksweepr_prog_test_${Date.now()}.tmp`);
+  await fs.promises.writeFile(tempFile, 'test payload');
+
+  try {
+    const category: ScannedCategory = {
+      id: 'user_temp',
+      name: 'User Temporary Files',
+      description: 'Temp test',
+      group: 'system',
+      risk: 'safe',
+      selected: true,
+      totalBytes: 12,
+      fileCount: 1,
+      files: [
+        {
+          path: tempFile,
+          name: path.basename(tempFile),
+          sizeBytes: 12,
+          modifiedTime: Date.now(),
+        },
+      ],
+    };
+
+    const progressEvents: CleanProgress[] = [];
+    const report = await cleaner.clean([category], ['user_temp'], (p) => progressEvents.push(p));
+
+    assert.equal(report.cleanedFilesCount, 1);
+    assert.ok(progressEvents.length >= 1, 'Expected at least one CleanProgress event');
+    assert.equal(
+      progressEvents[0].currentFile,
+      path.resolve(tempFile),
+      'Progress currentFile must include full parent directory path'
+    );
+  } finally {
+    await fs.promises.rm(tempFile, { force: true }).catch(() => {});
+  }
 });

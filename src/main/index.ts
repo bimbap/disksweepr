@@ -107,8 +107,10 @@ if (!gotTheLock) {
       minWidth: 680,
       minHeight: 400,
       frame: false,
-      transparent: true,
-      backgroundColor: '#00000000',
+      transparent: false,
+      backgroundColor: '#080c14',
+      thickFrame: true,
+      roundedCorners: true,
       hasShadow: true,
       icon: fs.existsSync(iconPath) ? iconPath : undefined,
       webPreferences: {

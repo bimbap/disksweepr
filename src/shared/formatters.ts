@@ -74,3 +74,56 @@ export const formatDriveDisplay = (letter: string = '', label?: string): string 
   return hasDistinctLabel ? `Drive ${cleanLetter}: [${cleanLabel}]` : `Drive ${cleanLetter}:`;
 };
 
+/**
+ * Splits a full file path or status string into a distinct file name and parent directory location.
+ * Never duplicates bare filenames or status strings into the location field.
+ */
+export const splitFileAndLocation = (
+  pathStr: string,
+  fallbackFileName: string,
+  fallbackLocation: string
+): { fileName: string; folderPath: string } => {
+  const trimmed = (pathStr || '').trim();
+  if (!trimmed) {
+    return { fileName: fallbackFileName, folderPath: fallbackLocation };
+  }
+
+  const normalized = trimmed.startsWith('\\\\')
+    ? `\\\\${trimmed.slice(2).replace(/[\\/]+/g, '\\')}`
+    : trimmed.replace(/[\\/]+/g, '\\');
+
+  // Bare filename or status string without directory separators
+  if (!normalized.includes('\\')) {
+    return {
+      fileName: normalized,
+      folderPath: fallbackLocation,
+    };
+  }
+
+  // Drive root such as "C:\"
+  if (/^[A-Za-z]:\\$/.test(normalized)) {
+    return {
+      fileName: fallbackFileName,
+      folderPath: normalized,
+    };
+  }
+
+  const withoutTrailing = normalized.replace(/\\+$/, '');
+  const lastSep = withoutTrailing.lastIndexOf('\\');
+  if (lastSep <= 0) {
+    const leaf = withoutTrailing.slice(lastSep + 1) || withoutTrailing;
+    return {
+      fileName: leaf,
+      folderPath: lastSep === 0 ? '\\' : fallbackLocation,
+    };
+  }
+
+  const fileName = withoutTrailing.slice(lastSep + 1) || withoutTrailing;
+  let folderPath = withoutTrailing.slice(0, lastSep);
+  if (/^[A-Za-z]:$/.test(folderPath)) {
+    folderPath += '\\';
+  }
+
+  return { fileName, folderPath };
+};
+

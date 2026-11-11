@@ -14,6 +14,7 @@ import {
   Minus,
 } from 'lucide-react';
 import { formatBytes } from '../../shared/formatters';
+import { applyFolderSelectionToCategory } from '../../shared/folderGrouping';
 import { parseExtensionInput } from '../../shared/filters';
 import { CategoryCard } from './CategoryCard';
 import { ProgressTracker } from './ProgressTracker';
@@ -194,6 +195,13 @@ export const SystemCleanupView: React.FC<SystemCleanupViewProps> = ({
           excludedPaths: nextExcluded,
         };
       })
+    );
+  };
+
+  const handleToggleFolder = (categoryId: string, filePaths: string[], select: boolean) => {
+    if (stage !== 'scanned') return;
+    setCategories((prev) =>
+      prev.map((c) => (c.id === categoryId ? applyFolderSelectionToCategory(c, filePaths, select) : c))
     );
   };
 
@@ -717,6 +725,7 @@ export const SystemCleanupView: React.FC<SystemCleanupViewProps> = ({
           =================================================================== */}
       {stage === 'scanning' && (
         <ProgressTracker
+          mode="scan"
           title={t('cleanup.scanning_title').replace('{drive}', cleanDriveLetter)}
           percent={scanProgress.percent}
           currentFile={scanProgress.currentPath}
@@ -779,6 +788,7 @@ export const SystemCleanupView: React.FC<SystemCleanupViewProps> = ({
             categories={categories}
             onToggleCategory={handleToggleCategory}
             onToggleFile={handleToggleFile}
+            onToggleFolder={handleToggleFolder}
             onOpenExplorer={(p) => window.cleanerApi?.openPathInExplorer(p)}
             formatSize={formatSize}
           />
@@ -845,6 +855,7 @@ export const SystemCleanupView: React.FC<SystemCleanupViewProps> = ({
             onToggleCategory={handleToggleCategory}
             onToggleGroup={handleToggleGroup}
             onToggleFile={handleToggleFile}
+            onToggleFolder={handleToggleFolder}
             onOpenExplorer={(p) => window.cleanerApi?.openPathInExplorer(p)}
             formatSize={formatSize}
           />
@@ -856,6 +867,7 @@ export const SystemCleanupView: React.FC<SystemCleanupViewProps> = ({
           =================================================================== */}
       {stage === 'cleaning' && (
         <ProgressTracker
+          mode="clean"
           title={t('cleanup.purging_title')}
           percent={cleanProgress.percent}
           currentFile={cleanProgress.currentFile}

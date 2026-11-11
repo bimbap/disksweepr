@@ -3,8 +3,6 @@ import {
   ChevronDown,
   ChevronUp,
   ChevronRight,
-  ChevronLeft,
-  FolderOpen,
   FileText,
   Check,
   Minus,
@@ -20,65 +18,41 @@ import {
   ShieldAlert,
   ShieldCheck,
   Film,
-  ArrowUp,
-  ArrowDown,
-  ArrowUpDown,
   Layers,
   Cpu,
 } from 'lucide-react';
 import { ScannedCategory } from '../../shared/types';
 import { useSettings } from '../context/SettingsContext';
+import { CategoryFilesDrawer } from './CategoryFilesDrawer';
 
 interface ScannedResultTreeProps {
   categories: ScannedCategory[];
   onToggleCategory: (id: string) => void;
   onToggleGroup?: (categoryIds: string[], select: boolean) => void;
   onToggleFile?: (categoryId: string, filePath: string) => void;
+  onToggleFolder?: (categoryId: string, filePaths: string[], select: boolean) => void;
   onOpenExplorer: (path: string) => void;
   formatSize: (bytes: number) => string;
 }
-
-const FILES_PER_PAGE = 20;
 
 export const ScannedResultTree: React.FC<ScannedResultTreeProps> = ({
   categories,
   onToggleCategory,
   onToggleGroup,
   onToggleFile,
+  onToggleFolder,
   onOpenExplorer,
   formatSize,
 }) => {
   const { t } = useSettings();
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
-  const [categoryPages, setCategoryPages] = useState<Record<string, number>>({});
   const [filterQuery, setFilterQuery] = useState('');
   const [showCleanTray, setShowCleanTray] = useState(false);
-
-  // File sorting inside category drawer
-  const [fileSortCol, setFileSortCol] = useState<'name' | 'size'>('size');
-  const [fileSortDir, setFileSortDir] = useState<'asc' | 'desc'>('desc');
-
-  const handleToggleFileSort = (col: 'name' | 'size') => {
-    if (fileSortCol === col) {
-      setFileSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setFileSortCol(col);
-      setFileSortDir(col === 'size' ? 'desc' : 'asc');
-    }
-    setCategoryPages({});
-  };
 
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
-  };
-
-  const handlePageChange = (categoryId: string, nextPage: number) => {
-    setCategoryPages((prev) => ({
-      ...prev,
-      [categoryId]: nextPage,
-    }));
   };
 
   const getCategoryIcon = (id: string, group: string) => {
@@ -268,6 +242,14 @@ export const ScannedResultTree: React.FC<ScannedResultTreeProps> = ({
                       ? t(`cat.${category.id}.desc`)
                       : category.description;
 
+                  const trimmedFilter = filterQuery.trim().toLowerCase();
+                  const matchCategoryName =
+                    !trimmedFilter ||
+                    catName.toLowerCase().includes(trimmedFilter) ||
+                    catDesc.toLowerCase().includes(trimmedFilter) ||
+                    category.name.toLowerCase().includes(trimmedFilter) ||
+                    category.description.toLowerCase().includes(trimmedFilter);
+
                   const isExpanded = expandedIds.includes(category.id);
                   const excludedSet = new Set(category.excludedPaths || []);
                   const hasPartialSelection =
@@ -287,29 +269,6 @@ export const ScannedResultTree: React.FC<ScannedResultTreeProps> = ({
                         (acc, f) => (excludedSet.has(f.path) ? acc : acc + f.sizeBytes),
                         0
                       );
-
-                  const sortedCategoryFiles = [...category.files].sort((a, b) => {
-                    let diff = 0;
-                    if (fileSortCol === 'name') {
-                      diff = a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
-                    } else {
-                      diff = a.sizeBytes - b.sizeBytes;
-                    }
-                    return fileSortDir === 'asc' ? diff : -diff;
-                  });
-                  const totalPages = Math.max(
-                    1,
-                    Math.ceil(sortedCategoryFiles.length / FILES_PER_PAGE)
-                  );
-                  const currentPage = Math.min(
-                    categoryPages[category.id] || 1,
-                    totalPages
-                  );
-                  const startIndex = (currentPage - 1) * FILES_PER_PAGE;
-                  const visibleFiles = sortedCategoryFiles.slice(
-                    startIndex,
-                    startIndex + FILES_PER_PAGE
-                  );
 
                   return (
                     <div
@@ -390,193 +349,18 @@ export const ScannedResultTree: React.FC<ScannedResultTreeProps> = ({
                         </div>
                       </div>
 
-                      {/* Expandable Individual Files View (EaseUS CleanGenius Style) */}
+                      {/* Expandable Folder & Files Drawer */}
                       {isExpanded && (
-                        <div className="category-files-drawer">
-                          {category.files.length === 0 ? (
-                            <div className="files-empty-state">
-                              <span>{t('cleanup.no_files_category')}</span>
-                            </div>
-                          ) : (
-                            <div className="files-list-table">
-                              <div className="files-table-header">
-                                <span className="col-check-file">
-                                  <button
-                                    type="button"
-                                    className={`custom-checkbox-btn sm ${
-                                      category.selected ? 'checked' : ''
-                                    } ${hasPartialSelection ? 'indeterminate' : ''}`}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      onToggleCategory(category.id);
-                                    }}
-                                    title={t('cleanup.select_all')}
-                                  >
-                                    {category.selected &&
-                                      (hasPartialSelection ? (
-                                        <Minus size={10} />
-                                      ) : (
-                                        <Check size={10} />
-                                      ))}
-                                  </button>
-                                </span>
-                                <span
-                                  className="col-file sortable-col"
-                                  onClick={() => handleToggleFileSort('name')}
-                                  style={{ cursor: 'pointer', userSelect: 'none' }}
-                                >
-                                  <div className="th-content" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                                    <span>{t('cleanup.col_path')}</span>
-                                    {fileSortCol === 'name' ? (
-                                      fileSortDir === 'asc' ? <ArrowUp size={11} className="sort-icon active text-accent" /> : <ArrowDown size={11} className="sort-icon active text-accent" />
-                                    ) : (
-                                      <ArrowUpDown size={10} className="sort-icon neutral" style={{ opacity: 0.4 }} />
-                                    )}
-                                  </div>
-                                </span>
-                                <span
-                                  className="col-size sortable-col"
-                                  onClick={() => handleToggleFileSort('size')}
-                                  style={{ cursor: 'pointer', userSelect: 'none' }}
-                                >
-                                  <div className="th-content" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                                    <span>{t('cleanup.col_size')}</span>
-                                    {fileSortCol === 'size' ? (
-                                      fileSortDir === 'asc' ? <ArrowUp size={11} className="sort-icon active text-accent" /> : <ArrowDown size={11} className="sort-icon active text-accent" />
-                                    ) : (
-                                      <ArrowUpDown size={10} className="sort-icon neutral" style={{ opacity: 0.4 }} />
-                                    )}
-                                  </div>
-                                </span>
-                                <span className="col-action">{t('cleanup.col_action')}</span>
-                              </div>
-
-                              <div className="files-rows-container">
-                                {visibleFiles.map((file, idx) => {
-                                  const parts = file.path.split(/[\\/]/);
-                                  const fileName = parts.pop() || file.name;
-                                  const folderPath = parts.join('\\');
-                                  const isFileSelected =
-                                    category.selected && !excludedSet.has(file.path);
-
-                                  return (
-                                    <div
-                                      key={`${file.path}-${idx}`}
-                                      className={`file-row-item ${
-                                        !isFileSelected ? 'is-excluded' : ''
-                                      }`}
-                                      onClick={() => {
-                                        if (onToggleFile) {
-                                          onToggleFile(category.id, file.path);
-                                        } else {
-                                          onOpenExplorer(file.path);
-                                        }
-                                      }}
-                                      title={file.path}
-                                    >
-                                      <div className="file-check-col">
-                                        <button
-                                          type="button"
-                                          className={`custom-checkbox-btn sm ${
-                                            isFileSelected ? 'checked' : ''
-                                          }`}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            onToggleFile?.(category.id, file.path);
-                                          }}
-                                          aria-label={`Select ${fileName}`}
-                                        >
-                                          {isFileSelected && <Check size={10} />}
-                                        </button>
-                                      </div>
-
-                                      <div className="file-path-col">
-                                        <FileText size={13} className="file-row-icon" />
-                                        <div className="file-name-meta">
-                                          <span className="file-main-name">{fileName}</span>
-                                          <span className="file-folder-dir font-mono">
-                                            {folderPath}
-                                          </span>
-                                        </div>
-                                      </div>
-
-                                      <div className="file-size-col font-mono">
-                                        {formatSize(file.sizeBytes)}
-                                      </div>
-
-                                      <div className="file-action-col">
-                                        <button
-                                          type="button"
-                                          className="file-inspect-icon-btn"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            onOpenExplorer(file.path);
-                                          }}
-                                          title={t('common.reveal_explorer')}
-                                        >
-                                          <FolderOpen size={14} />
-                                        </button>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-
-                              {sortedCategoryFiles.length > FILES_PER_PAGE && (
-                                <div className="table-pagination-bar tree-files-pagination">
-                                  <div className="pagination-info">
-                                    {t('large_files.showing')}{' '}
-                                    <strong>
-                                      {startIndex + 1} -{' '}
-                                      {Math.min(
-                                        startIndex + FILES_PER_PAGE,
-                                        sortedCategoryFiles.length
-                                      )}
-                                    </strong>{' '}
-                                    {t('large_files.of')}{' '}
-                                    <strong>
-                                      {sortedCategoryFiles.length.toLocaleString()}
-                                    </strong>{' '}
-                                    {t('large_files.files')}
-                                  </div>
-                                  <div className="pagination-controls">
-                                    <button
-                                      type="button"
-                                      className="pagination-btn"
-                                      disabled={currentPage === 1}
-                                      onClick={() =>
-                                        handlePageChange(
-                                          category.id,
-                                          Math.max(1, currentPage - 1)
-                                        )
-                                      }
-                                      title={t('fast_search.prev')}
-                                    >
-                                      <ChevronLeft size={14} />
-                                    </button>
-                                    <span className="pagination-page-tag font-mono">
-                                      {t('large_files.page')} {currentPage} / {totalPages}
-                                    </span>
-                                    <button
-                                      type="button"
-                                      className="pagination-btn"
-                                      disabled={currentPage === totalPages}
-                                      onClick={() =>
-                                        handlePageChange(
-                                          category.id,
-                                          Math.min(totalPages, currentPage + 1)
-                                        )
-                                      }
-                                      title={t('fast_search.next')}
-                                    >
-                                      <ChevronRight size={14} />
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
+                        <CategoryFilesDrawer
+                          category={category}
+                          filterQuery={filterQuery}
+                          matchCategoryName={matchCategoryName}
+                          onToggleCategory={onToggleCategory}
+                          onToggleFile={onToggleFile}
+                          onToggleFolder={onToggleFolder}
+                          onOpenExplorer={onOpenExplorer}
+                          formatSize={formatSize}
+                        />
                       )}
                     </div>
                   );

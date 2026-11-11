@@ -21,12 +21,20 @@ import {
   ArrowDown,
   ArrowUpDown,
   SlidersHorizontal,
+  Minus,
 } from 'lucide-react';
 import { LargeFileItem, DriveStat } from '../../shared/types';
 import { useSettings } from '../context/SettingsContext';
 import { WaveEqualizerLoader } from './WaveEqualizerLoader';
 import { formatMiddleTruncate, formatDriveDisplay } from '../../shared/formatters';
 import { customSizeToMB } from '../../shared/filters';
+import {
+  groupItemsByFolder,
+  sortFolderGroups,
+  toggleIdsBatch,
+  type FolderSortField,
+} from '../../shared/folderGrouping';
+import { ViewModeToggle, type ResultViewMode } from './ViewModeToggle';
 
 interface LargeFilesViewProps {
   currentDriveLetter: string;
@@ -36,6 +44,8 @@ interface LargeFilesViewProps {
 }
 
 const ITEMS_PER_PAGE = 50;
+const FOLDERS_PER_PAGE = 25;
+const INNER_ITEMS_PER_PAGE = 20;
 
 export const LargeFilesView: React.FC<LargeFilesViewProps> = ({
   currentDriveLetter,
@@ -78,6 +88,9 @@ export const LargeFilesView: React.FC<LargeFilesViewProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [savedFilterChips, setSavedFilterChips] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [viewMode, setViewMode] = useState<ResultViewMode>('folder');
+  const [expandedFolders, setExpandedFolders] = useState<string[]>([]);
+  const [folderPages, setFolderPages] = useState<Record<string, number>>({});
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
   const [statusMessage, setStatusMessage] = useState<string>('');
@@ -215,6 +228,8 @@ export const LargeFilesView: React.FC<LargeFilesViewProps> = ({
     setIsScanning(true);
     setSelectedIds([]);
     setCurrentPage(1);
+    setExpandedFolders([]);
+    setFolderPages({});
 
     const activeScope = overrideOptions?.scope || scanScope;
     const activePath = overrideOptions?.customPath !== undefined ? overrideOptions.customPath : customFolderPath;
@@ -400,6 +415,16 @@ export const LargeFilesView: React.FC<LargeFilesViewProps> = ({
     );
   };
 
+  const handleToggleFolderGroup = (itemIds: string[], select: boolean) => {
+    setSelectedIds((prev) => toggleIdsBatch(prev, itemIds, select));
+  };
+
+  const toggleExpandFolder = (folderKey: string) => {
+    setExpandedFolders((prev) =>
+      prev.includes(folderKey) ? prev.filter((k) => k !== folderKey) : [...prev, folderKey]
+    );
+  };
+
   const handleSelectAll = () => {
     setSelectedIds(filteredFiles.map((f) => f.id));
   };
@@ -452,44 +477,162 @@ export const LargeFilesView: React.FC<LargeFilesViewProps> = ({
     return true;
   });
 
-  type LargeFilesSortField = 'name' | 'size' | 'date';
+  type LargeFilesSortField = FolderSortField;
   const [sortField, setSortField] = useState<LargeFilesSortField>('size');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
+  const handleViewModeChange = (nextMode: ResultViewMode) => {
+    setViewMode(nextMode);
+    if (nextMode === 'flat' && sortField === 'count') {
+      setSortField('size');
+      setSortDirection('desc');
+    }
+    setCurrentPage(1);
+  };
 
   const handleSort = (field: LargeFilesSortField) => {
     if (sortField === field) {
       setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortField(field);
-      setSortDirection(field === 'size' || field === 'date' ? 'desc' : 'asc');
+      setSortDirection(field === 'name' ? 'asc' : 'desc');
     }
     setCurrentPage(1);
   };
 
+  const compareLargeFiles = (
+    a: LargeFileItem,
+    b: LargeFileItem,
+    field: LargeFilesSortField,
+    dir: 'asc' | 'desc'
+  ) => {
+    let diff = 0;
+    if (field === 'name') {
+      diff = a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+    } else if (field === 'date') {
+      diff = a.modifiedTime - b.modifiedTime;
+    } else {
+      diff = a.sizeBytes - b.sizeBytes;
+    }
+    return dir === 'asc' ? diff : -diff;
+  };
+
   const sortedFiles = useMemo(() => {
     const list = [...filteredFiles];
-    list.sort((a, b) => {
-      let diff = 0;
-      if (sortField === 'name') {
-        diff = a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
-      } else if (sortField === 'size') {
-        diff = a.sizeBytes - b.sizeBytes;
-      } else if (sortField === 'date') {
-        diff = a.modifiedTime - b.modifiedTime;
-      }
-      return sortDirection === 'asc' ? diff : -diff;
-    });
+    list.sort((a, b) => compareLargeFiles(a, b, sortField, sortDirection));
     return list;
   }, [filteredFiles, sortField, sortDirection]);
 
-  const totalPages = Math.max(1, Math.ceil(sortedFiles.length / ITEMS_PER_PAGE));
+  const groupedFolders = useMemo(
+    () =>
+      groupItemsByFolder(
+        filteredFiles,
+        (f) => f.path,
+        (f) => f.name,
+        (f) => f.sizeBytes,
+        (f) => f.modifiedTime
+      ),
+    [filteredFiles]
+  );
+
+  const sortedFolders = useMemo(
+    () => sortFolderGroups(groupedFolders, sortField, sortDirection),
+    [groupedFolders, sortField, sortDirection]
+  );
+
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const pageSize = viewMode === 'folder' ? FOLDERS_PER_PAGE : ITEMS_PER_PAGE;
+  const activeTotalCount = viewMode === 'folder' ? sortedFolders.length : sortedFiles.length;
+  const totalPages = Math.max(1, Math.ceil(activeTotalCount / pageSize));
   const validCurrentPage = Math.min(currentPage, totalPages);
-  const startIndex = (validCurrentPage - 1) * ITEMS_PER_PAGE;
+  const startIndex = (validCurrentPage - 1) * pageSize;
+  const paginatedFolders = sortedFolders.slice(startIndex, startIndex + FOLDERS_PER_PAGE);
   const paginatedFiles = sortedFiles.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-  const selectedFiles = files.filter((f) => selectedIds.includes(f.id));
+  const selectedFiles = files.filter((f) => selectedIdSet.has(f.id));
   const totalSelectedBytes = selectedFiles.reduce((acc, f) => acc + f.sizeBytes, 0);
-  const maxFileBytes = files.length > 0 ? files[0].sizeBytes : 1;
+  const maxFileBytes = useMemo(
+    () => files.reduce((max, f) => Math.max(max, f.sizeBytes), 1),
+    [files]
+  );
+  const maxFolderBytes = useMemo(
+    () => sortedFolders.reduce((max, g) => Math.max(max, g.totalBytes), 1),
+    [sortedFolders]
+  );
+
+  const filteredSelectedCount = useMemo(
+    () => filteredFiles.filter((f) => selectedIdSet.has(f.id)).length,
+    [filteredFiles, selectedIdSet]
+  );
+  const isAllFilteredSelected =
+    filteredFiles.length > 0 && filteredSelectedCount === filteredFiles.length;
+  const isPartialFilteredSelected =
+    !isAllFilteredSelected && filteredSelectedCount > 0;
+
+  const renderLargeFileRow = (file: LargeFileItem, nested: boolean) => {
+    const isSelected = selectedIdSet.has(file.id);
+    const percent = Math.max(6, Math.round((file.sizeBytes / maxFileBytes) * 100));
+
+    return (
+      <div
+        key={file.id}
+        className={`table-row ${nested ? 'nested-item-row' : ''} ${isSelected ? 'row-selected' : ''}`}
+        onClick={() => handleToggleFile(file.id)}
+        title={file.path}
+      >
+        <div className="col-check" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            className={`custom-checkbox-btn ${nested ? 'sm' : ''} ${isSelected ? 'checked' : ''}`}
+            onClick={() => handleToggleFile(file.id)}
+          >
+            {isSelected && <Check size={nested ? 10 : 12} strokeWidth={3} />}
+          </button>
+        </div>
+
+        <div className="col-info">
+          <div className="file-name-row">
+            {file.isDirectory ? (
+              <Folder size={14} className="file-type-icon" style={{ color: '#f59e0b', flexShrink: 0 }} />
+            ) : (
+              <FileText size={14} className="file-type-icon" style={{ flexShrink: 0 }} />
+            )}
+            <span className="file-name">{file.name}</span>
+            {file.isDirectory && <span className="folder-inline-tag">Folder</span>}
+            {nested && file.extension && (
+              <span className="folder-ext-pill font-mono">{file.extension}</span>
+            )}
+          </div>
+          {!nested && (
+            <span className="file-path font-mono" title={file.path}>
+              {file.path}
+            </span>
+          )}
+        </div>
+
+        <div className="col-meter">
+          <div className="meter-track">
+            <div className="meter-fill" style={{ width: `${percent}%` }}></div>
+          </div>
+        </div>
+
+        <div className="col-size font-mono font-bold">{formatSize(file.sizeBytes)}</div>
+
+        <div className="col-date font-mono text-muted">{formatDate(file.modifiedTime)}</div>
+
+        <div className="col-actions" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            className="btn-icon"
+            title={t('common.reveal_explorer')}
+            onClick={() => onOpenExplorer(file.path)}
+          >
+            <FolderOpen size={14} />
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div
@@ -816,22 +959,59 @@ export const LargeFilesView: React.FC<LargeFilesViewProps> = ({
       {/* Filter and Selection Toolbar */}
       {files.length > 0 && (
         <div className="module-toolbar-stacked">
-          <div className="module-toolbar">
-            <div className="module-search-box">
-              <Search size={14} className="module-search-icon" />
-              <input
-                type="text"
-                placeholder={t('large_files.search_placeholder')}
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setCurrentPage(1);
-                }}
-                onKeyDown={handleSearchKeyDown}
+          <div className="module-toolbar module-toolbar-wrap">
+            <div className="module-toolbar-left-group">
+              <div className="module-search-box">
+                <Search size={14} className="module-search-icon" />
+                <input
+                  type="text"
+                  placeholder={t('large_files.search_placeholder')}
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  onKeyDown={handleSearchKeyDown}
+                />
+              </div>
+
+              <ViewModeToggle
+                compact
+                mode={viewMode}
+                onChange={handleViewModeChange}
+                folderCount={sortedFolders.length}
+                itemCount={filteredFiles.length}
               />
             </div>
 
             <div className="module-toolbar-actions">
+              {viewMode === 'folder' && sortedFolders.length > 0 && (
+                <>
+                  <button
+                    type="button"
+                    className={`folder-sort-chip ${sortField === 'count' ? 'active' : ''}`}
+                    onClick={() => handleSort('count')}
+                  >
+                    <span>{t('view.sort_items')}</span>
+                    {sortField === 'count' &&
+                      (sortDirection === 'asc' ? <ArrowUp size={10} /> : <ArrowDown size={10} />)}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost-xs-boxed"
+                    onClick={() => setExpandedFolders(sortedFolders.map((f) => f.key))}
+                  >
+                    {t('view.expand_folders')}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost-xs-boxed"
+                    onClick={() => setExpandedFolders([])}
+                  >
+                    {t('view.collapse_folders')}
+                  </button>
+                </>
+              )}
               <button type="button" className="btn-ghost" onClick={handleSelectAll}>
                 {t('large_files.select_all')} ({filteredFiles.length})
               </button>
@@ -924,10 +1104,26 @@ export const LargeFilesView: React.FC<LargeFilesViewProps> = ({
           <div className="large-files-table-wrapper">
             <div className="large-files-table">
               <div className="table-header-row">
-                <div className="col-check"></div>
+                <div className="col-check">
+                  <button
+                    type="button"
+                    className={`custom-checkbox-btn sm ${isAllFilteredSelected ? 'checked' : ''} ${
+                      isPartialFilteredSelected ? 'indeterminate' : ''
+                    }`}
+                    onClick={() =>
+                      isAllFilteredSelected ? handleClearSelection() : handleSelectAll()
+                    }
+                    title={t('large_files.select_all')}
+                  >
+                    {isAllFilteredSelected && <Check size={10} />}
+                    {isPartialFilteredSelected && <Minus size={10} />}
+                  </button>
+                </div>
                 <div className="col-info sortable-col" onClick={() => handleSort('name')}>
                   <div className="th-content">
-                    <span>{t('large_files.col_file')}</span>
+                    <span>
+                      {viewMode === 'folder' ? t('view.col_folder_path') : t('large_files.col_file')}
+                    </span>
                     {sortField === 'name' ? (
                       sortDirection === 'asc' ? <ArrowUp size={12} className="sort-icon active" /> : <ArrowDown size={12} className="sort-icon active" />
                     ) : (
@@ -960,81 +1156,205 @@ export const LargeFilesView: React.FC<LargeFilesViewProps> = ({
               </div>
 
               <div className="table-body">
-                {paginatedFiles.map((file) => {
-                  const isSelected = selectedIds.includes(file.id);
-                  const percent = Math.max(6, Math.round((file.sizeBytes / maxFileBytes) * 100));
+                {viewMode === 'folder'
+                  ? paginatedFolders.map((folder) => {
+                      const isExpanded = expandedFolders.includes(folder.key);
+                      const folderIds = folder.items.map((item) => item.id);
+                      const selectedInFolder = folder.items.filter((item) =>
+                        selectedIdSet.has(item.id)
+                      ).length;
+                      const isAllFolderSelected =
+                        folder.items.length > 0 && selectedInFolder === folder.items.length;
+                      const isPartialFolder = !isAllFolderSelected && selectedInFolder > 0;
+                      const folderPercent = Math.max(
+                        6,
+                        Math.round((folder.totalBytes / maxFolderBytes) * 100)
+                      );
 
-                  return (
-                    <div
-                      key={file.id}
-                      className={`table-row ${isSelected ? 'row-selected' : ''}`}
-                      onClick={() => handleToggleFile(file.id)}
-                    >
-                      <div className="col-check" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          className={`custom-checkbox-btn ${isSelected ? 'checked' : ''}`}
-                          onClick={() => handleToggleFile(file.id)}
+                      const sortedInner = isExpanded
+                        ? [...folder.items].sort((a, b) =>
+                            compareLargeFiles(
+                              a,
+                              b,
+                              sortField === 'count' ? 'size' : sortField,
+                              sortDirection
+                            )
+                          )
+                        : [];
+                      const innerTotalPages = Math.max(
+                        1,
+                        Math.ceil(sortedInner.length / INNER_ITEMS_PER_PAGE)
+                      );
+                      const innerPage = Math.min(folderPages[folder.key] || 1, innerTotalPages);
+                      const innerStart = (innerPage - 1) * INNER_ITEMS_PER_PAGE;
+                      const visibleInner = sortedInner.slice(
+                        innerStart,
+                        innerStart + INNER_ITEMS_PER_PAGE
+                      );
+
+                      return (
+                        <div
+                          key={folder.key}
+                          className={`large-files-folder-block ${isExpanded ? 'is-expanded' : ''}`}
                         >
-                          {isSelected && <Check size={12} strokeWidth={3} />}
-                        </button>
-                      </div>
+                          <div
+                            className={`table-row folder-group-row ${
+                              isAllFolderSelected ? 'row-selected' : ''
+                            }`}
+                            onClick={() => toggleExpandFolder(folder.key)}
+                            title={folder.folderPath || folder.folderName}
+                          >
+                            <div className="col-check" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                type="button"
+                                className={`custom-checkbox-btn ${
+                                  isAllFolderSelected ? 'checked' : ''
+                                } ${isPartialFolder ? 'indeterminate' : ''}`}
+                                onClick={() =>
+                                  handleToggleFolderGroup(folderIds, !isAllFolderSelected)
+                                }
+                              >
+                                {isAllFolderSelected && <Check size={12} strokeWidth={3} />}
+                                {isPartialFolder && <Minus size={12} strokeWidth={3} />}
+                              </button>
+                            </div>
 
-                      <div className="col-info">
-                        <div className="file-name-row">
-                          {file.isDirectory ? (
-                            <Folder size={14} className="file-type-icon" style={{ color: '#f59e0b', flexShrink: 0 }} />
-                          ) : (
-                            <FileText size={14} className="file-type-icon" style={{ flexShrink: 0 }} />
-                          )}
-                          <span className="file-name">{file.name}</span>
-                          {file.isDirectory && (
-                            <span className="folder-inline-tag">Folder</span>
+                            <div className="col-info">
+                              <div className="file-name-row">
+                                <span className="folder-row-chevron">
+                                  {isExpanded ? (
+                                    <ChevronDown size={14} />
+                                  ) : (
+                                    <ChevronRight size={14} />
+                                  )}
+                                </span>
+                                {isExpanded ? (
+                                  <FolderOpen
+                                    size={15}
+                                    className="folder-row-icon is-open"
+                                  />
+                                ) : (
+                                  <Folder size={15} className="folder-row-icon" />
+                                )}
+                                <span className="file-name">{folder.folderName}</span>
+                                <span className="folder-count-pill font-mono">
+                                  {t('view.items_count').replace(
+                                    '{count}',
+                                    String(folder.items.length)
+                                  )}
+                                </span>
+                                {isPartialFolder && (
+                                  <span className="folder-partial-pill font-mono">
+                                    {t('view.selected_ratio')
+                                      .replace('{selected}', String(selectedInFolder))
+                                      .replace('{total}', String(folder.items.length))}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="file-path font-mono" title={folder.folderPath}>
+                                {folder.folderPath}
+                              </span>
+                            </div>
+
+                            <div className="col-meter">
+                              <div className="meter-track">
+                                <div
+                                  className="meter-fill folder-meter-fill"
+                                  style={{ width: `${folderPercent}%` }}
+                                ></div>
+                              </div>
+                            </div>
+
+                            <div className="col-size font-mono font-bold">
+                              {formatSize(folder.totalBytes)}
+                            </div>
+
+                            <div className="col-date font-mono text-muted">
+                              {formatDate(folder.latestModifiedTime)}
+                            </div>
+
+                            <div className="col-actions" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                type="button"
+                                className="btn-icon"
+                                title={t('view.open_folder')}
+                                onClick={() =>
+                                  onOpenExplorer(folder.folderPath || folder.items[0]?.path || '')
+                                }
+                              >
+                                <FolderOpen size={14} />
+                              </button>
+                            </div>
+                          </div>
+
+                          {isExpanded && (
+                            <div className="large-files-folder-children">
+                              {visibleInner.map((file) => renderLargeFileRow(file, true))}
+
+                              {sortedInner.length > INNER_ITEMS_PER_PAGE && (
+                                <div className="inner-folder-pagination large-files-inner-pagination">
+                                  <span className="pagination-info font-mono">
+                                    {innerStart + 1} -{' '}
+                                    {Math.min(
+                                      innerStart + INNER_ITEMS_PER_PAGE,
+                                      sortedInner.length
+                                    )}{' '}
+                                    / {sortedInner.length.toLocaleString()}
+                                  </span>
+                                  <div className="pagination-controls">
+                                    <button
+                                      type="button"
+                                      className="pagination-btn"
+                                      disabled={innerPage === 1}
+                                      onClick={() =>
+                                        setFolderPages((prev) => ({
+                                          ...prev,
+                                          [folder.key]: Math.max(1, innerPage - 1),
+                                        }))
+                                      }
+                                    >
+                                      <ChevronLeft size={13} />
+                                    </button>
+                                    <span className="pagination-page-tag font-mono">
+                                      {innerPage} / {innerTotalPages}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      className="pagination-btn"
+                                      disabled={innerPage === innerTotalPages}
+                                      onClick={() =>
+                                        setFolderPages((prev) => ({
+                                          ...prev,
+                                          [folder.key]: Math.min(innerTotalPages, innerPage + 1),
+                                        }))
+                                      }
+                                    >
+                                      <ChevronRight size={13} />
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           )}
                         </div>
-                        <span className="file-path font-mono" title={file.path}>
-                          {file.path}
-                        </span>
-                      </div>
-
-                      <div className="col-meter">
-                        <div className="meter-track">
-                          <div className="meter-fill" style={{ width: `${percent}%` }}></div>
-                        </div>
-                      </div>
-
-                      <div className="col-size font-mono font-bold">
-                        {formatSize(file.sizeBytes)}
-                      </div>
-
-                      <div className="col-date font-mono text-muted">
-                        {formatDate(file.modifiedTime)}
-                      </div>
-
-                      <div className="col-actions" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          className="btn-icon"
-                          title={t('common.reveal_explorer')}
-                          onClick={() => onOpenExplorer(file.path)}
-                        >
-                          <FolderOpen size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+                      );
+                    })
+                  : paginatedFiles.map((file) => renderLargeFileRow(file, false))}
               </div>
             </div>
 
-            {/* Pagination Bar (50 items per page) */}
-            {filteredFiles.length > ITEMS_PER_PAGE && (
+            {/* Pagination Bar */}
+            {activeTotalCount > pageSize && (
               <div className="table-pagination-bar">
                 <div className="pagination-info">
                   {t('large_files.showing')}{' '}
-                  <strong>{startIndex + 1} - {Math.min(startIndex + ITEMS_PER_PAGE, filteredFiles.length)}</strong>{' '}
-                  {t('large_files.of')}{' '}
-                  <strong>{filteredFiles.length}</strong> {t('large_files.files')}
+                  <strong>
+                    {startIndex + 1} - {Math.min(startIndex + pageSize, activeTotalCount)}
+                  </strong>{' '}
+                  {t('large_files.of')} <strong>{activeTotalCount}</strong>{' '}
+                  {viewMode === 'folder'
+                    ? t('view.folders_count').replace('{count}', '').trim()
+                    : t('large_files.files')}
                 </div>
                 <div className="pagination-controls">
                   <button
