@@ -4,15 +4,15 @@
 ---
 
 ## 1. Project Health & Storage Status
-* **Status**: 🟢 `v1.2.0` Security Hardened & Universal App/Installer Cache Engine Integrated (47/47 Tests Passing)
+* **Status**: 🟢 `v1.3.0` Folder-First Scan Grouping, Native DWM Window Transitions & Single-Pass Tray Restore (54/54 Tests Passing)
 * **Host C: Drive Storage**: ~4.58 GB free
 * **Target Workspace**: `M:\testProject\disksweepr\` (Drive M: ~50.50 GB free)
 * **Design Pattern**: EaseUS CleanGenius & Linear Style (72px Slim Left Nav Rail + Spacious Step-by-Step Hero Canvas + Docker Pro Cobalt/Cyan Palette + Lucide Icons)
-* **Release Artifacts (`v1.2.0`)**:
-  - Full Offline NSIS Modern Wizard: `DiskSweepr-Setup-1.2.0.exe` (~92 MB) (`release/DiskSweepr-Setup-1.2.0.exe`)
-  - Standalone Portable Executable: `DiskSweepr-Portable-1.2.0.exe` (~83 MB) (`release/DiskSweepr-Portable-1.2.0.exe`)
-  - Web Bootstrap Setup: `DiskSweepr-Web-Setup-1.2.0.exe` (~1.1 MB) + `disksweepr-1.2.0-x64.nsis.7z` (~90 MB) (`release/nsis-web/`)
-* **Last Updated**: 2026-11-09
+* **Release Artifacts (`v1.3.0`)**:
+  - Full Offline NSIS Modern Wizard: `DiskSweepr-Setup-1.3.0.exe` (~91.88 MB) (`release/DiskSweepr-Setup-1.3.0.exe`)
+  - Standalone Portable Executable: `DiskSweepr-Portable-1.3.0.exe` (~82.97 MB) (`release/DiskSweepr-Portable-1.3.0.exe`)
+  - Web Bootstrap Setup: `DiskSweepr-Web-Setup-1.3.0.exe` (~1.11 MB) + `disksweepr-1.3.0-x64.nsis.7z` (~90.99 MB) (`release/nsis-web/`)
+* **Last Updated**: 2026-11-11
 
 ---
 
@@ -989,3 +989,42 @@
   - `npm test`: **47/47 passing tests** (100% green, including new comprehensive `tests/security.test.ts`).
   - `npx tsc --noEmit`: 0 TypeScript compiler errors.
   - `npm run dist:all`: Multi-target packaging producing `DiskSweepr-Setup-1.2.0.exe`, `DiskSweepr-Portable-1.2.0.exe`, and `DiskSweepr-Web-Setup-1.2.0.exe`.
+
+### Phase 65: Cleanup Progress Path Telemetry Fix & Tray Update Popup Shadow Artifact Removal
+- [x] **Distinct File & Location Telemetry During Purging** ([`cleanerService.ts`](file:///m:/testProject/disksweepr/src/main/services/cleanerService.ts), [`formatters.ts`](file:///m:/testProject/disksweepr/src/shared/formatters.ts), [`ProgressTracker.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/ProgressTracker.tsx), [`SystemCleanupView.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/SystemCleanupView.tsx), [`SettingsContext.tsx`](file:///m:/testProject/disksweepr/src/renderer/context/SettingsContext.tsx)):
+  - Fixed `CleanerService.clean()` emitting bare `file.name` instead of `resolvedFilePath`, ensuring full directory path telemetry is passed on every purge progress tick.
+  - Added pure helper `splitFileAndLocation()` in `src/shared/formatters.ts` so bare filenames or status strings never duplicate into the `LOCATION:` row.
+  - Added `mode?: 'scan' | 'clean'` to `ProgressTracker` with EN/ID labels (`Cleaned / space freed / items purged / Cancel Cleanup`) so stage 4 reflects active purging instead of scanning copy.
+- [x] **Frameless Update Popup Clipped Shadow Box Removal** ([`trayService.ts`](file:///m:/testProject/disksweepr/src/main/services/trayService.ts)):
+  - Removed clipped outer rectangular shadow box around the rounded `DiskSweepr is Up to Date` popup window by setting `hasShadow: false`, removing `padding: 6px` gutter (`padding: 0`), setting `box-shadow: none`, sizing window bounds cleanly (`418x174` / `418x208`), and rendering solid dark obsidian corners with a crisp 1px border.
+- [x] **Quality Gate & Distribution Packaging**:
+  - `npm test`: **49/49 passing tests** (including 2 new regression tests in [`tests/rules.test.ts`](file:///m:/testProject/disksweepr/tests/rules.test.ts)).
+  - `npx tsc --noEmit`: 0 TypeScript compiler errors.
+  - `npm run dist:all`: Successfully built all updated `v1.2.0` packages (`Setup`, `Portable`, `Web Setup`, and `nsis.7z` payload) on `2026-11-11`.
+
+### Phase 66: Folder-First Grouping Hierarchy for System Cleanup & Large Files Hunter
+- [x] **Shared Folder Grouping & Batch Selection Core** ([`folderGrouping.ts`](file:///m:/testProject/disksweepr/src/shared/folderGrouping.ts)):
+  - Added pure generic helpers `extractFolderMeta()`, `groupItemsByFolder()`, `sortFolderGroups()`, `applyFolderSelectionToCategory()`, and `toggleIdsBatch()` for case-insensitive Windows folder aggregation, aggregate size/latest modification calculation, deterministic sorting (`size`, `count`, `name`, `date`), and atomic tri-state folder checkbox toggling.
+- [x] **System Cleanup Drawer Folder Accordion** ([`CategoryFilesDrawer.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/CategoryFilesDrawer.tsx), [`ScannedResultTree.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/ScannedResultTree.tsx), [`SystemCleanupView.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/SystemCleanupView.tsx), [`ViewModeToggle.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/ViewModeToggle.tsx)):
+  - Introduced `By Folder` (default, ordered by aggregate folder size descending) and `Flat List` view switcher inside each expanded category drawer.
+  - Added expandable folder rows showing folder name, full location path, item count pill, partial-selection ratio, aggregate folder bytes, tri-state 1-click folder checkbox (`onToggleFolder`), folder-level Explorer launcher, sort pills (`Size`, `Items`, `Name`), Expand/Collapse All Folders actions, and dual-level pagination (`20` folders/page, `15` items/expanded folder) for 60 FPS performance on 26,000+ file scans.
+- [x] **Large Files Hunter Folder Grouping** ([`LargeFilesView.tsx`](file:///m:/testProject/disksweepr/src/renderer/components/LargeFilesView.tsx), [`SettingsContext.tsx`](file:///m:/testProject/disksweepr/src/renderer/context/SettingsContext.tsx), [`index.css`](file:///m:/testProject/disksweepr/src/renderer/index.css)):
+  - Added default `By Folder` accordion grouping and `Flat List` toggle with `ViewModeToggle`, `Items` count sort chip, Expand/Collapse Folders buttons, tri-state folder checkboxes (`toggleIdsBatch`), scaled visual meters per folder and per nested item, local pagination for large folders, and dark/light theme styling.
+- [x] **Quality Gate & Verification**:
+  - Added 5 unit tests in [`tests/folderGrouping.test.ts`](file:///m:/testProject/disksweepr/tests/folderGrouping.test.ts) covering Windows path normalization, grouping/sorting, tri-state category folder exclusion transitions, and batch ID toggles.
+  - `npx tsc --noEmit`: 0 errors.
+  - `npm test`: **54/54 passing tests** (100% green).
+  - `npm run build`: Clean Vite + TypeScript production bundle.
+
+### Phase 67: Native Windows DWM Window Transitions & Single-Pass Tray Restore Fix
+- [x] **Native Windows DWM Minimize/Maximize & Rounded Corner Composition** ([`index.ts`](file:///m:/testProject/disksweepr/src/main/index.ts), [`index.css`](file:///m:/testProject/disksweepr/src/renderer/index.css)):
+  - Switched main `BrowserWindow` from `transparent: true` (`#00000000`) to opaque composition (`transparent: false`, `backgroundColor: '#080c14'`, `thickFrame: true`, `roundedCorners: true`, `hasShadow: true`) so Windows DWM retains smooth `WS_THICKFRAME` minimize, maximize, restore, and Aero Snap animations instead of stiff layered snaps or swapchain repaint flashes on tray restore.
+  - Removed clipped inner card radius/shadow (`border: none; border-radius: 0; box-shadow: none;`) on `.app-container` (dark & light themes) and switched `html, body` to `background: var(--bg-app);`, eliminating corner artifacts while letting Windows 11 DWM manage native rounded corners and drop shadows cleanly.
+- [x] **Single-Pass System Tray Restore & Click Debounce** ([`trayService.ts`](file:///m:/testProject/disksweepr/src/main/services/trayService.ts)):
+  - Debounced tray `click` events (`250ms` unref'd timer canceled on `double-click` and guarded with `!this.tray.isDestroyed()`) so Windows double-clicks no longer fire `click -> show -> click -> hide -> double-click -> show`.
+  - Updated `showWindow()` to avoid redundant `restore()` + `show()` DWM commands by only restoring when `isMinimized()` and only calling `show()` when `!isVisible()`, and fixed `toggleWindow()` to restore minimized windows instead of hiding them.
+- [x] **Quality Gate & `v1.3.0` Minor Release Packaging**:
+  - Bumped version from `1.2.0` to `1.3.0` across [`package.json`](file:///m:/testProject/disksweepr/package.json), [`package-lock.json`](file:///m:/testProject/disksweepr/package-lock.json), and [`README.md`](file:///m:/testProject/disksweepr/README.md).
+  - `npx tsc --noEmit`: 0 errors.
+  - `npm test`: **54/54 passing tests** (`fail: 0`, `skipped: 0`, `cancelled: 0`).
+  - `npm run dist:all`: Built `v1.3.0` release installers (`release/DiskSweepr-Setup-1.3.0.exe`, `release/DiskSweepr-Portable-1.3.0.exe`, `release/nsis-web/DiskSweepr-Web-Setup-1.3.0.exe`, and `release/nsis-web/disksweepr-1.3.0-x64.nsis.7z`) plus `latest.yml` and `.blockmap` metadata.

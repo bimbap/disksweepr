@@ -1,7 +1,7 @@
 {
   "name": "disksweepr",
   "productName": "DiskSweepr",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "High-performance, safety-first desktop disk cleaning utility for Windows",
   "main": "dist-electron/main/index.js",
   "scripts": {
@@ -14,7 +14,7 @@
     "dist:web": "electron-builder --config electron-builder.json --win nsis-web",
     "dist:portable": "electron-builder --config electron-builder.json --win portable",
     "preview": "vite preview",
-    "test": "node --test tests/filters.test.ts tests/emptyFolder.test.ts tests/rules.test.ts tests/security.test.ts tests/largeFiles.test.ts tests/fastSearch.test.ts tests/duplicates.test.ts tests/recovery.test.ts tests/recoveryUtils.test.ts tests/devCleaner.test.ts"
+    "test": "node --test tests/filters.test.ts tests/folderGrouping.test.ts tests/emptyFolder.test.ts tests/rules.test.ts tests/security.test.ts tests/largeFiles.test.ts tests/fastSearch.test.ts tests/duplicates.test.ts tests/recovery.test.ts tests/recoveryUtils.test.ts tests/devCleaner.test.ts"
   },
   "dependencies": {
     "lucide-react": "^1.61.0",

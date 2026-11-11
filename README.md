@@ -6,16 +6,16 @@ DiskSweepr audits drive capacity, dynamically discovers disposable multi-app and
 
 ---
 
-## Downloads (v1.2.0)
+## Downloads (v1.3.0)
 
 | Package | Size | Description |
 |---|---|---|
-| [**DiskSweepr-Setup-1.2.0.exe**](https://github.com/bimbap/disksweepr/releases/latest/download/DiskSweepr-Setup-1.2.0.exe) | **~92 MB** | **Recommended**. Full offline Windows installer with modern wizard, Start Menu & Desktop shortcuts, and official Windows uninstaller. |
-| [**DiskSweepr-Portable-1.2.0.exe**](https://github.com/bimbap/disksweepr/releases/latest/download/DiskSweepr-Portable-1.2.0.exe) | **~83 MB** | **Standalone Portable**. Zero installation required. Runs directly from USB flash drives or any directory with persistent cached runtime. |
-| [**DiskSweepr-Web-Setup-1.2.0.exe**](https://github.com/bimbap/disksweepr/releases/latest/download/DiskSweepr-Web-Setup-1.2.0.exe) | **~1.1 MB** | **Web Bootstrap Setup**. Ultra-lightweight installer that automatically fetches and verifies runtime payload packages during setup. |
+| [**DiskSweepr-Setup-1.3.0.exe**](https://github.com/bimbap/disksweepr/releases/latest/download/DiskSweepr-Setup-1.3.0.exe) | **~92 MB** | **Recommended**. Full offline Windows installer with modern wizard, Start Menu & Desktop shortcuts, and official Windows uninstaller. |
+| [**DiskSweepr-Portable-1.3.0.exe**](https://github.com/bimbap/disksweepr/releases/latest/download/DiskSweepr-Portable-1.3.0.exe) | **~83 MB** | **Standalone Portable**. Zero installation required. Runs directly from USB flash drives or any directory with persistent cached runtime. |
+| [**DiskSweepr-Web-Setup-1.3.0.exe**](https://github.com/bimbap/disksweepr/releases/latest/download/DiskSweepr-Web-Setup-1.3.0.exe) | **~1.1 MB** | **Web Bootstrap Setup**. Ultra-lightweight installer that automatically fetches and verifies runtime payload packages during setup. |
 
 > [!NOTE]
-> For users downloading the Web Bootstrap setup, ensure the companion archive [`disksweepr-1.2.0-x64.nsis.7z`](https://github.com/bimbap/disksweepr/releases/latest/download/disksweepr-1.2.0-x64.nsis.7z) remains accessible via release assets.
+> For users downloading the Web Bootstrap setup, ensure the companion archive [`disksweepr-1.3.0-x64.nsis.7z`](https://github.com/bimbap/disksweepr/releases/latest/download/disksweepr-1.3.0-x64.nsis.7z) remains accessible via release assets.
 
 ---
 
@@ -26,6 +26,7 @@ DiskSweepr audits drive capacity, dynamically discovers disposable multi-app and
 - **Comprehensive Temp Resolution**: Complete coverage of `%TEMP%`, `%LOCALAPPDATA%\Temp`, and `%USERPROFILE%\AppData\LocalLow\Temp` with non-skipping directory traversal and zero-duplicate path accounting.
 - **Installer Staging Residue Purge**: Safely audits and purges dormant installer caches (`SquirrelTemp`, NuGet, pip, npm).
 - **Hardware Driver & OS Upgrade Cleaners**: Cleans extracted setup directories from NVIDIA, AMD, and Intel display drivers, alongside residual Windows upgrade staging folders (`$GetCurrent`, `Windows.old\~bt`).
+- **Folder-First Result Grouping (`By Folder` / `Flat List`)**: Groups scanned items by parent directory (sorted by total folder size descending) with one-click tri-state folder checkboxes, sorting (`Size`, `Items`, `Name`), and `Flat List` toggle across System Cleanup and Large Files Hunter.
 - **Core Windows Caches**: Risk-rated cleanup covering Windows Update downloads (`SoftwareDistribution`), thumbnail caches, error memory dumps, and browser caches (Chrome, Edge, Brave, Firefox) with granular per-file selection.
 
 ### ⚡ Storage Optimization & Power Tools
@@ -78,7 +79,7 @@ cd disksweepr
 # Install dependencies
 npm install
 
-# Run automated tests (47 unit and security test suites)
+# Run automated tests (54 unit and security tests)
 npm test
 
 # Start local development server
